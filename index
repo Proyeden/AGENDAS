@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda Clínicas</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:#F7F6F3; --surface:#fff; --border:#E2E0DA;
+  --text:#1A1A1A; --muted:#8A8680;
+  /* Clínicas */
+  --mixco:#2C5F8A;   --mixco-light:#EAF1F8;
+  --sanc:#3A7D5E;    --sanc-light:#E8F4EE;
+  /* Médicos */
+  --denis:#7B52AB;   --denis-light:#F0EBF8;
+  --majo:#C0762B;    --majo-light:#FEF0E3;
+  /* Otros */
+  --block:#C0392B;   --block-light:#FDECEA;
+  --font:'DM Sans',sans-serif; --mono:'DM Mono',monospace;
+}
+
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── HEADER ── */
+header{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 20px;display:flex;align-items:center;
+  justify-content:space-between;height:56px;
+  position:sticky;top:0;z-index:100;gap:10px;flex-wrap:wrap;
+}
+.logo{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;letter-spacing:-.3px;flex-shrink:0}
+.logo-dots{display:flex;gap:4px}
+.logo-dots span{width:8px;height:8px;border-radius:50%}
+
+.header-center{display:flex;align-items:center;gap:6px}
+.week-nav button{
+  background:none;border:1px solid var(--border);border-radius:6px;
+  width:28px;height:28px;cursor:pointer;font-size:13px;color:var(--text);
+  display:flex;align-items:center;justify-content:center;transition:background .15s;
+}
+.week-nav button:hover{background:var(--bg)}
+#week-label{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:150px;text-align:center}
+.btn-today{
+  background:none;border:1px solid var(--border);border-radius:6px;
+  height:28px;padding:0 10px;font-size:11px;font-family:var(--font);
+  cursor:pointer;color:var(--muted);transition:background .15s;
+}
+.btn-today:hover{background:var(--bg)}
+
+.header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sync-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;border-radius:20px;padding:3px 9px;font-weight:500;
+}
+.sync-badge.connected{color:#3A7D5E;background:#E8F4EE}
+.sync-badge.local{color:var(--muted);background:#F0EFEC}
+.sync-badge.syncing{color:var(--mixco);background:var(--mixco-light)}
+.sync-badge.error{color:var(--block);background:var(--block-light)}
+.pulse{width:5px;height:5px;border-radius:50%;background:currentColor;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.btn-add{
+  background:var(--text);color:#fff;border:none;border-radius:8px;
+  padding:0 14px;height:32px;font-size:12px;font-weight:500;
+  font-family:var(--font);cursor:pointer;transition:opacity .15s;
+}
+.btn-add:hover{opacity:.8}
+
+/* ── VIEW TABS ── */
+.view-tabs{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 20px;display:flex;align-items:center;gap:4px;
+  overflow-x:auto;
+}
+.vtab{
+  display:flex;align-items:center;gap:6px;
+  padding:10px 16px 9px;border-bottom:2px solid transparent;
+  font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;
+  color:var(--muted);transition:color .15s;border-top:none;border-left:none;border-right:none;
+  background:none;font-family:var(--font);
+}
+.vtab:hover{color:var(--text)}
+.vtab.active{color:var(--text);border-bottom-color:var(--text)}
+.vtab.active.denis{color:var(--denis);border-bottom-color:var(--denis)}
+.vtab.active.majo{color:var(--majo);border-bottom-color:var(--majo)}
+.vtab.active.compare{color:var(--mixco);border-bottom-color:var(--mixco)}
+.doc-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* ── QUICK BAR ── */
+.quick-bar{
+  background:var(--surface);border-bottom:2px solid var(--mixco);
+  padding:8px 20px;display:flex;align-items:center;gap:8px;
+}
+.quick-wrap{
+  flex:1;display:flex;align-items:center;gap:8px;
+  background:var(--bg);border:1.5px solid var(--border);
+  border-radius:10px;padding:0 12px;transition:border-color .2s;
+}
+.quick-wrap:focus-within{border-color:var(--mixco);background:#fff}
+.quick-icon{font-size:15px;flex-shrink:0}
+#quick-input{
+  flex:1;border:none;background:transparent;font-family:var(--font);
+  font-size:13px;color:var(--text);padding:9px 0;outline:none;
+}
+#quick-input::placeholder{color:var(--muted)}
+.btn-mic{
+  background:none;border:none;cursor:pointer;font-size:17px;
+  padding:3px;border-radius:5px;transition:transform .15s;flex-shrink:0;
+}
+.btn-mic:hover{transform:scale(1.15)}
+.btn-mic.listening{animation:mic-pulse .8s ease-in-out infinite alternate}
+@keyframes mic-pulse{from{filter:drop-shadow(0 0 2px rgba(192,57,43,.4));transform:scale(1)}to{filter:drop-shadow(0 0 8px rgba(192,57,43,.8));transform:scale(1.2)}}
+.btn-quick-send{
+  background:var(--mixco);color:#fff;border:none;border-radius:7px;
+  width:32px;height:32px;font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:opacity .15s;
+}
+.btn-quick-send:hover{opacity:.85}
+.btn-quick-send:disabled{opacity:.4;cursor:not-allowed}
+
+.quick-thinking{
+  display:none;align-items:center;gap:6px;
+  padding:4px 20px 6px;font-size:12px;color:var(--muted);
+}
+.quick-thinking.visible{display:flex}
+.dots span{
+  display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:var(--muted);margin:0 1px;animation:dot-bounce 1.2s infinite;
+}
+.dots span:nth-child(2){animation-delay:.2s}
+.dots span:nth-child(3){animation-delay:.4s}
+@keyframes dot-bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+
+.quick-preview{
+  display:none;margin:0 20px 10px;
+  background:var(--mixco-light);border:1.5px solid var(--mixco);
+  border-radius:10px;padding:10px 14px;
+}
+.quick-preview.visible{display:block}
+.quick-preview.error{background:var(--block-light);border-color:var(--block)}
+.preview-title{font-size:12px;font-weight:600;color:var(--mixco);margin-bottom:6px}
+.quick-preview.error .preview-title{color:var(--block)}
+.preview-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.preview-chip{
+  font-size:11px;font-weight:500;padding:3px 9px;
+  border-radius:20px;background:#fff;border:1px solid var(--mixco);color:var(--mixco);
+}
+.quick-preview.error .preview-chip{border-color:var(--block);color:var(--block)}
+.preview-actions{display:flex;gap:6px}
+.btn-preview-ok{background:var(--mixco);color:#fff;border:none;border-radius:6px;padding:0 14px;height:30px;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer}
+.btn-preview-edit{background:none;border:1px solid var(--mixco);border-radius:6px;padding:0 12px;height:30px;font-size:12px;font-family:var(--font);cursor:pointer;color:var(--mixco)}
+.btn-preview-cancel{background:none;border:1px solid var(--border);border-radius:6px;padding:0 10px;height:30px;font-size:12px;font-family:var(--font);cursor:pointer;color:var(--muted);margin-left:auto}
+.mic-status{font-size:11px;color:var(--block);padding:0 20px 4px;font-weight:500;min-height:0}
+
+/* ── MAIN ── */
+.main{padding:14px 20px;max-width:1400px;margin:0 auto}
+
+/* Summary bar */
+.summary-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.scard{
+  flex:1;min-width:120px;background:var(--surface);
+  border:1px solid var(--border);border-radius:10px;padding:10px 14px;
+}
+.scard-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+.scard-val{font-size:22px;font-weight:600;letter-spacing:-1px;margin-top:2px}
+.scard-sub{font-size:10px;color:var(--muted);margin-top:1px}
+
+/* Pending bar */
+.pending-bar{
+  display:none;background:#F0EBF8;border:1px solid #C4A8E0;
+  border-radius:10px;padding:8px 14px;margin-bottom:12px;
+  font-size:13px;color:var(--denis);align-items:center;gap:10px;
+}
+.pending-bar.visible{display:flex}
+.btn-review{
+  margin-left:auto;background:var(--denis);color:#fff;border:none;
+  border-radius:6px;padding:4px 12px;font-size:11px;font-weight:500;
+  font-family:var(--font);cursor:pointer;
+}
+
+/* ── CALENDAR GRID ── */
+.cal-container{
+  background:var(--surface);border-radius:12px;border:1px solid var(--border);overflow:hidden;
+}
+
+/* Single doctor view: 7 day cols */
+.cal-grid{
+  display:grid;
+  grid-template-columns:52px repeat(7,1fr);
+  overflow-x:auto;
+}
+
+/* Compare view: doctor sections side by side */
+.compare-wrap{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.compare-section{background:var(--surface);border-radius:12px;border:1px solid var(--border);overflow:hidden}
+.compare-header{
+  padding:10px 14px;display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--border);font-size:13px;font-weight:600;
+}
+
+.day-header{
+  padding:8px 4px 6px;text-align:center;
+  border-bottom:1px solid var(--border);border-right:1px solid var(--border);
+}
+.day-name{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+.day-number{font-size:18px;font-weight:600;line-height:1.1;margin-top:1px}
+.day-header.today{background:var(--mixco-light)}
+.day-header.today .day-number{color:var(--mixco)}
+
+.time-label{
+  font-family:var(--mono);font-size:10px;color:var(--muted);
+  padding:0 5px;height:52px;display:flex;align-items:flex-start;
+  padding-top:4px;border-right:1px solid var(--border);
+}
+.time-corner{border-right:1px solid var(--border);border-bottom:1px solid var(--border);height:46px}
+
+.slot{
+  height:52px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);
+  position:relative;cursor:pointer;transition:background .1s;
+}
+.slot:hover{background:var(--bg)}
+.slot.has-event{cursor:default}
+.slot.has-event:hover{background:transparent}
+
+.event{
+  position:absolute;inset:2px 3px;border-radius:6px;
+  padding:2px 5px;font-size:11px;font-weight:500;
+  display:flex;flex-direction:column;justify-content:center;
+  overflow:hidden;cursor:pointer;z-index:2;line-height:1.3;
+}
+/* Event color = doctor color, clinic tag inside */
+.event.denis   {background:var(--denis-light);color:var(--denis);border-left:3px solid var(--denis)}
+.event.majo    {background:var(--majo-light);color:var(--majo);border-left:3px solid var(--majo)}
+.event.blocked {background:var(--block-light);color:var(--block);border-left:3px solid var(--block)}
+.event.pending-ev{background:#F0EBF8;color:var(--denis);border-left:3px dashed var(--denis)}
+
+.event-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.event-sub{font-size:10px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Clinic pill inside event */
+.clinic-pill{
+  display:inline-block;font-size:9px;font-weight:600;padding:1px 5px;
+  border-radius:3px;margin-top:1px;letter-spacing:.2px;
+}
+.clinic-pill.mixco{background:var(--mixco);color:#fff}
+.clinic-pill.sanc {background:var(--sanc);color:#fff}
+
+/* ── MODAL ── */
+.overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.35);z-index:200;
+  align-items:center;justify-content:center;
+}
+.overlay.open{display:flex}
+.modal{
+  background:var(--surface);border-radius:14px;width:430px;
+  max-width:95vw;padding:24px;
+  box-shadow:0 20px 60px rgba(0,0,0,.15);
+  max-height:90vh;overflow-y:auto;
+}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.modal h2{font-size:15px;font-weight:600;letter-spacing:-.3px}
+.modal-tag{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500}
+
+.field{margin-bottom:11px}
+label{display:block;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+input,select,textarea{
+  width:100%;font-family:var(--font);font-size:13px;
+  border:1px solid var(--border);border-radius:8px;padding:8px 11px;
+  background:var(--bg);color:var(--text);outline:none;transition:border-color .15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--mixco);background:#fff}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* Doctor selector */
+.doc-selector{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px}
+.doc-btn{
+  padding:10px 8px;border-radius:8px;border:2px solid var(--border);
+  background:var(--bg);cursor:pointer;text-align:center;
+  font-size:12px;font-weight:500;font-family:var(--font);
+  color:var(--muted);transition:all .15s;
+}
+.doc-btn.active-denis{border-color:var(--denis);background:var(--denis-light);color:var(--denis)}
+.doc-btn.active-majo {border-color:var(--majo);background:var(--majo-light);color:var(--majo)}
+.doc-btn.active-block{border-color:var(--block);background:var(--block-light);color:var(--block)}
+
+/* Clinic selector */
+.clinic-selector{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:11px}
+.clinic-btn{
+  padding:7px 4px;border-radius:7px;border:2px solid var(--border);
+  background:var(--bg);cursor:pointer;text-align:center;
+  font-size:11px;font-weight:500;font-family:var(--font);
+  color:var(--muted);transition:all .15s;
+}
+.clinic-btn.active-mixco{border-color:var(--mixco);background:var(--mixco-light);color:var(--mixco)}
+.clinic-btn.active-sanc {border-color:var(--sanc);background:var(--sanc-light);color:var(--sanc)}
+.clinic-btn.active-block{border-color:var(--block);background:var(--block-light);color:var(--block)}
+
+.modal-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:16px}
+.btn-cancel{background:none;border:1px solid var(--border);border-radius:8px;padding:0 14px;height:34px;font-size:12px;font-weight:500;font-family:var(--font);cursor:pointer;color:var(--muted)}
+.btn-cancel:hover{background:var(--bg)}
+.btn-save{background:var(--text);color:#fff;border:none;border-radius:8px;padding:0 18px;height:34px;font-size:12px;font-weight:500;font-family:var(--font);cursor:pointer;transition:opacity .15s}
+.btn-save:hover{opacity:.8}
+.btn-delete{background:var(--block-light);color:var(--block);border:none;border-radius:8px;padding:0 12px;height:34px;font-size:12px;font-weight:500;font-family:var(--font);cursor:pointer;margin-right:auto}
+
+/* Pending modal */
+.poverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:300;align-items:center;justify-content:center}
+.poverlay.open{display:flex}
+.pmodal{background:var(--surface);border-radius:14px;width:470px;max-width:95vw;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.15);max-height:85vh;overflow-y:auto}
+.pmodal h2{font-size:15px;font-weight:600;margin-bottom:14px}
+.pitem{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:8px;margin-bottom:5px;background:#F0EBF8;border:1px solid #C4A8E0;cursor:pointer}
+.pitem:hover{opacity:.85}
+.pitem-info{flex:1}
+.pitem-name{font-size:12px;font-weight:600;color:var(--denis)}
+.pitem-detail{font-size:11px;color:var(--muted);margin-top:1px}
+.pitem-actions{display:flex;gap:5px}
+.btn-approve{background:var(--sanc-light);color:var(--sanc);border:1px solid var(--sanc);border-radius:5px;padding:3px 9px;font-size:11px;font-weight:500;font-family:var(--font);cursor:pointer}
+.btn-reject{background:var(--block-light);color:var(--block);border:1px solid var(--block);border-radius:5px;padding:3px 9px;font-size:11px;font-weight:500;font-family:var(--font);cursor:pointer}
+
+@media(max-width:700px){
+  .compare-wrap{grid-template-columns:1fr}
+  .cal-grid{grid-template-columns:40px repeat(7,1fr)}
+  .main{padding:10px 12px}
+  header{padding:0 12px}
+  .quick-bar{padding:8px 12px}
+  .quick-preview,.quick-thinking,.mic-status{padding-left:12px;padding-right:12px}
+}
+
+  /* ── Duplicate detection ── */
+  .dup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;align-items:center;justify-content:center}
+  .dup-overlay.open{display:flex}
+  .dup-modal{background:var(--surface);border-radius:14px;width:520px;max-width:96vw;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+  .dup-modal h2{font-size:15px;font-weight:600;margin-bottom:4px}
+  .dup-subtitle{font-size:12px;color:var(--muted);margin-bottom:16px}
+  .dup-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .dup-card{border-radius:10px;padding:12px 14px;border:2px solid var(--border);cursor:pointer;transition:all .15s;position:relative}
+  .dup-card:hover{border-color:var(--mixco);box-shadow:0 0 0 3px var(--mixco-light)}
+  .dup-card.selected{border-color:var(--mixco);background:var(--mixco-light)}
+  .dup-card-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;display:inline-block;margin-bottom:6px}
+  .badge-medicloud{background:#FEF0E3;color:var(--majo)}
+  .badge-manual{background:var(--mixco-light);color:var(--mixco)}
+  .badge-online{background:#F0EBF8;color:var(--denis)}
+  .dup-card-name{font-size:14px;font-weight:600;margin-bottom:4px}
+  .dup-card-detail{font-size:11px;color:var(--muted);line-height:1.6}
+  .dup-card-detail span{display:block}
+  .dup-diff{font-size:11px;background:#FFFBEA;border:1px solid #F0D060;border-radius:8px;padding:8px 12px;margin-bottom:14px;color:#7A6000}
+  .dup-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .btn-keep-both{background:none;border:1px solid var(--border);border-radius:8px;padding:0 14px;height:34px;font-size:12px;font-family:var(--font);cursor:pointer;color:var(--muted)}
+  .btn-keep-both:hover{background:var(--bg)}
+  .btn-keep-selected{background:var(--text);color:#fff;border:none;border-radius:8px;padding:0 16px;height:34px;font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;transition:opacity .15s}
+  .btn-keep-selected:hover{opacity:.8}
+  .btn-keep-selected:disabled{opacity:.35;cursor:not-allowed}
+  .dup-badge-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dots">
+      <span style="background:var(--denis)"></span>
+      <span style="background:var(--majo)"></span>
+    </div>
+    Agenda Clínicas
+  </div>
+  <div class="header-center">
+    <div class="week-nav" style="display:flex;align-items:center;gap:5px">
+      <button id="prev-week">‹</button>
+      <button class="btn-today" id="btn-today">Hoy</button>
+      <span id="week-label"></span>
+      <button id="next-week">›</button>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="sync-badge local" id="sync-badge"><div class="pulse"></div><span id="sync-text">Local</span></div>
+    <button class="btn-add" onclick="openModal()">+ Agregar</button>
+  </div>
+</header>
+
+<!-- View tabs -->
+<div class="view-tabs">
+  <button class="vtab active denis" id="vtab-denis" onclick="setView('denis')">
+    <span class="doc-dot" style="background:var(--denis)"></span>Dr. Denis Cotzojay
+  </button>
+  <button class="vtab majo" id="vtab-majo" onclick="setView('majo')">
+    <span class="doc-dot" style="background:var(--majo)"></span>Dra. María José
+  </button>
+  <button class="vtab compare" id="vtab-compare" onclick="setView('compare')">
+    <span class="doc-dot" style="background:var(--mixco)"></span>
+    <span class="doc-dot" style="background:var(--majo);margin-left:-4px"></span>
+    Comparar
+  </button>
+</div>
+
+<!-- Quick entry -->
+<div class="quick-bar">
+  <div class="quick-wrap">
+    <span class="quick-icon">⚡</span>
+    <input type="text" id="quick-input"
+      placeholder='Dictá o escribí… "Bloqueo mañana 2pm Denis" · "Cita Pérez miércoles 10am Mixco"'
+      autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="btn-mic" id="btn-mic" onclick="toggleMic()" title="Dictar">🎙️</button>
+  </div>
+  <button class="btn-quick-send" id="btn-quick-send" onclick="quickParse()" title="Interpretar">↵</button>
+</div>
+<div class="quick-thinking" id="quick-thinking">
+  <span>Interpretando</span><div class="dots"><span></span><span></span><span></span></div>
+</div>
+<div class="quick-preview" id="quick-preview">
+  <div class="preview-title" id="preview-title">Listo para guardar</div>
+  <div class="preview-chips" id="preview-chips"></div>
+  <div class="preview-actions">
+    <button class="btn-preview-ok" onclick="quickSave()">✓ Guardar</button>
+    <button class="btn-preview-edit" onclick="quickEdit()">Editar</button>
+    <button class="btn-preview-cancel" onclick="quickCancel()">✕</button>
+  </div>
+</div>
+<div class="mic-status" id="mic-status"></div>
+
+<div class="main">
+  <!-- Summary -->
+  <div class="summary-bar">
+    <div class="scard">
+      <div class="scard-label">Dr. Denis · Mixco</div>
+      <div class="scard-val" id="s-denis-mixco" style="color:var(--denis)">0</div>
+      <div class="scard-sub">esta semana</div>
+    </div>
+    <div class="scard">
+      <div class="scard-label">Dr. Denis · San Cristóbal</div>
+      <div class="scard-val" id="s-denis-sanc" style="color:var(--denis)">0</div>
+      <div class="scard-sub">esta semana</div>
+    </div>
+    <div class="scard">
+      <div class="scard-label">Dra. María José · Mixco</div>
+      <div class="scard-val" id="s-majo-mixco" style="color:var(--majo)">0</div>
+      <div class="scard-sub">esta semana</div>
+    </div>
+    <div class="scard">
+      <div class="scard-label">Dra. María José · San Cristóbal</div>
+      <div class="scard-val" id="s-majo-sanc" style="color:var(--majo)">0</div>
+      <div class="scard-sub">esta semana</div>
+    </div>
+    <div class="scard" style="border-color:#C4A8E0">
+      <div class="scard-label">Pendientes</div>
+      <div class="scard-val" id="s-pending" style="color:var(--denis)">0</div>
+      <div class="scard-sub">por confirmar</div>
+    </div>
+  </div>
+
+  <div class="pending-bar" id="pending-bar">
+    🔔 Hay <strong id="pending-count">0</strong> citas sin confirmar
+    <button class="btn-review" onclick="openPendingModal()">Revisar</button>
+  </div>
+
+  <div id="cal-root"></div>
+</div>
+
+<!-- Event Modal -->
+<div class="overlay" id="overlay" onclick="closeIfOutside(event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 id="modal-title">Nueva entrada</h2>
+      <span class="modal-tag" id="modal-tag" style="display:none"></span>
+    </div>
+
+    <label style="margin-bottom:6px">Médico</label>
+    <div class="doc-selector">
+      <button class="doc-btn" id="db-denis" onclick="setDoc('denis')">
+        <span style="display:block;font-size:15px;margin-bottom:2px">👨‍⚕️</span>Dr. Denis Cotzojay
+      </button>
+      <button class="doc-btn" id="db-majo" onclick="setDoc('majo')">
+        <span style="display:block;font-size:15px;margin-bottom:2px">👩‍⚕️</span>Dra. María José
+      </button>
+    </div>
+
+    <label style="margin-bottom:6px">Tipo</label>
+    <div class="clinic-selector">
+      <button class="clinic-btn" id="cb-mixco" onclick="setClinic('clinic1')">
+        🏥 Zona 1 Mixco
+      </button>
+      <button class="clinic-btn" id="cb-sanc" onclick="setClinic('clinic2')">
+        🏥 San Cristóbal
+      </button>
+      <button class="clinic-btn" id="cb-block" onclick="setClinic('blocked')">
+        🔒 Bloqueo
+      </button>
+    </div>
+
+    <div class="field">
+      <label>Paciente / motivo</label>
+      <input type="text" id="f-name" placeholder="Ej. Consulta Pérez, Reunión, Día libre…">
+    </div>
+    <div class="row2">
+      <div class="field"><label>Fecha</label><input type="date" id="f-date"></div>
+      <div class="field"><label>Hora</label><select id="f-time"></select></div>
+    </div>
+    <div class="field">
+      <label>Duración</label>
+      <select id="f-duration">
+        <option value="1">30 min</option>
+        <option value="2" selected>1 hora</option>
+        <option value="3">1.5 horas</option>
+        <option value="4">2 horas</option>
+      </select>
+    </div>
+    <div class="field" id="field-notes" style="display:none">
+      <label>Notas</label>
+      <textarea id="f-notes" rows="2" style="resize:none"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-delete" id="btn-delete" onclick="deleteEvent()" style="display:none">Eliminar</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveEvent()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pending modal -->
+<div class="poverlay" id="poverlay" onclick="closePendingIfOutside(event)">
+  <div class="pmodal">
+    <h2>📱 Citas pendientes de confirmar</h2>
+    <div id="plist"></div>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn-cancel" onclick="closePendingModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Duplicate resolution modal -->
+<div class="dup-overlay" id="dup-overlay">
+  <div class="dup-modal">
+    <h2>⚠️ Posible cita duplicada</h2>
+    <div class="dup-subtitle" id="dup-subtitle">Encontramos una cita existente muy similar. ¿Son la misma?</div>
+    <div class="dup-diff" id="dup-diff"></div>
+    <div class="dup-cards" id="dup-cards"></div>
+    <div class="dup-actions">
+      <button class="btn-keep-both" onclick="dupKeepBoth()">Son citas distintas — guardar ambas</button>
+      <button class="btn-keep-selected" id="btn-keep-selected" onclick="dupKeepSelected()" disabled>Conservar la seleccionada</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// Firebase imports
+import { initializeApp }                          from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, serverTimestamp, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════════════════
+const CONFIG = {
+  USE_FIREBASE: true,
+  firebase: {
+    apiKey:            "AIzaSyA_9V7qsFkYNpxG32J2YGiikvNaMZXh-eY",
+    authDomain:        "agenda-compartida-af8f4.firebaseapp.com",
+    projectId:         "agenda-compartida-af8f4",
+    storageBucket:     "agenda-compartida-af8f4.firebasestorage.app",
+    messagingSenderId: "24965817544",
+    appId:             "1:24965817544:web:b76752e3145688b8a1b1fd",
+  },
+  COLLECTIONS: { events:'agenda_events', bookings_zona1:'bookings_zona1', bookings_sanc:'bookings_sancristobal' },
+
+  DOCTORS: {
+    denis: { name:'Dr. Denis Cotzojay', color:'var(--denis)', emoji:'👨‍⚕️' },
+    majo:  { name:'Dra. María José',    color:'var(--majo)',  emoji:'👩‍⚕️' },
+  },
+  CLINICS: {
+    clinic1: { name:'Zona 1 Mixco',  short:'Mixco',        color:'var(--mixco)', cls:'mixco' },
+    clinic2: { name:'San Cristóbal', short:'San Cristóbal', color:'var(--sanc)',  cls:'sanc'  },
+    blocked: { name:'Bloqueo',       short:'Bloqueo',       color:'var(--block)', cls:'block' },
+  },
+
+  ICAL_FEEDS: [
+    { url:'https://azure.medicloud.me/App/BX27_CalFeed.ashx?t=d0906450155d47cba81e4076dc7919dd', clinic:'clinic1', doctor:'denis' },
+    { url:'https://azure.medicloud.me/App/BX27_CalFeed.ashx?t=4acaa5df3781483f8cfad28f2c667655', clinic:'clinic2', doctor:'denis' },
+    { url:'https://azure.medicloud.me/App/BX27_CalFeed.ashx?t=308b690f510c4425b48b08f6f96a6775', clinic:'clinic1', doctor:'majo'  },
+    { url:'https://azure.medicloud.me/App/BX27_CalFeed.ashx?t=17b6de284c9c4ad2b403e6897f546f44', clinic:'clinic2', doctor:'majo'  },
+  ],
+  CORS_PROXY: 'https://api.allorigins.win/raw?url=',
+  ICAL_REFRESH_MINUTES: 5,
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+let events = [];
+let currentView = 'denis';   // 'denis' | 'majo' | 'compare'
+let currentWeekOffset = 0;
+let editingId = null;
+let currentDoc = 'denis';
+let currentClinic = 'clinic1';
+let quickParsedEvent = null;
+let recognition = null;
+let isListening = false;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const dateKey = dt => dt.toISOString().split('T')[0];
+const todayKey = () => new Date().toISOString().split('T')[0];
+const DAYS   = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const HOURS  = Array.from({length:14},(_,i)=>`${String(i+7).padStart(2,'0')}:00`);
+const DURATIONS = {1:'30 min',2:'1 hora',3:'1.5h',4:'2 horas'};
+
+function getWeekDays(offset=0){
+  const now=new Date(), day=now.getDay();
+  const diff=now.getDate()-day+(day===0?-6:1);
+  const start=new Date(now); start.setDate(diff+offset*7); start.setHours(0,0,0,0);
+  return Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return d});
+}
+
+function setSyncBadge(state, txt){
+  const b=document.getElementById('sync-badge');
+  const t=document.getElementById('sync-text');
+  b.className='sync-badge '+state;
+  const labels={connected:'MediCloud ✓',local:'Local',syncing:'Cargando…',error:'Error MediCloud'};
+  t.textContent = txt || labels[state] || state;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATA LAYER — Firebase Firestore
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Initialize Firebase app
+const _fbApp = initializeApp(CONFIG.firebase);
+const _db    = getFirestore(_fbApp);
+const _col   = () => collection(_db, CONFIG.COLLECTIONS.events);
+
+const DB = {
+  async load(){
+    try {
+      const snap = await getDocs(_col());
+      const docs = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      return docs.length ? docs : getSample();
+    } catch(e) {
+      console.warn('Firestore load error:', e);
+      // Fallback to localStorage if offline
+      try{ const r=localStorage.getItem('clinicas_v4'); return r?JSON.parse(r):getSample(); }
+      catch{ return getSample(); }
+    }
+  },
+
+  async save(ev){
+    try {
+      ev.updatedAt = new Date().toISOString();
+      await setDoc(doc(_db, CONFIG.COLLECTIONS.events, ev.id), ev);
+      // Keep local cache too
+      events = events.filter(e => e.id !== ev.id);
+      events.push(ev);
+    } catch(e) {
+      console.warn('Firestore save error:', e);
+      // Fallback to localStorage
+      events = events.filter(e => e.id !== ev.id); events.push(ev);
+      localStorage.setItem('clinicas_v4', JSON.stringify(events.filter(e=>e.source!=='medicloud')));
+    }
+  },
+
+  async remove(id){
+    try {
+      await deleteDoc(doc(_db, CONFIG.COLLECTIONS.events, id));
+      events = events.filter(e => e.id !== id);
+    } catch(e) {
+      console.warn('Firestore delete error:', e);
+      events = events.filter(e => e.id !== id);
+      localStorage.setItem('clinicas_v4', JSON.stringify(events.filter(e=>e.source!=='medicloud')));
+    }
+  },
+
+  // Real-time listener — updates agenda instantly on all devices
+  subscribeRealtime(cb){
+    try {
+      return onSnapshot(_col(), snap => {
+        const docs = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        // Merge with medicloud events (not in Firestore)
+        const ical = events.filter(e => e.source === 'medicloud');
+        cb([...docs, ...ical]);
+      });
+    } catch(e) {
+      console.warn('Firestore realtime error:', e);
+      return () => {};
+    }
+  },
+
+  // Save multiple events at once (batch for iCal dedup)
+  async saveBatch(evList){
+    for(const ev of evList){
+      await this.save(ev);
+    }
+  }
+};
+
+function getSample(){
+  const today=new Date();
+  const d=off=>{const dt=new Date(today);dt.setDate(today.getDate()-today.getDay()+1+off);return dt.toISOString().split('T')[0]};
+  return [
+    {id:uid(),doctor:'denis',type:'clinic1',name:'Consulta – Pérez',   date:d(0),time:'08:00',duration:2,source:'manual',status:'confirmed'},
+    {id:uid(),doctor:'denis',type:'clinic2',name:'Control – Ramírez',  date:d(1),time:'10:00',duration:2,source:'manual',status:'confirmed'},
+    {id:uid(),doctor:'majo', type:'clinic1',name:'Revisión – Torres',  date:d(2),time:'09:00',duration:2,source:'manual',status:'confirmed'},
+    {id:uid(),doctor:'majo', type:'clinic2',name:'Ortodoncia – López', date:d(3),time:'11:00',duration:2,source:'manual',status:'confirmed'},
+    {id:uid(),doctor:'denis',type:'blocked', name:'Reunión personal',  date:d(4),time:'14:00',duration:2,source:'manual',status:'confirmed'},
+    {id:uid(),doctor:'majo', type:'clinic1',name:'Cita – Herrera',     date:d(1),time:'14:00',duration:2,source:'online',  status:'pending',notes:'Primera visita'},
+  ];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// iCAL READER
+// ═══════════════════════════════════════════════════════════════════════════
+function parseIcal(text, clinic, doctor){
+  const evs=[]; const lines=text.replace(/\r\n /g,'').replace(/\r\n\t/g,'').split(/\r\n|\n/);
+  let cur=null;
+  for(const line of lines){
+    if(line==='BEGIN:VEVENT'){cur={};}
+    else if(line==='END:VEVENT'&&cur){
+      if(cur.date&&cur.name) evs.push({
+        id:'ical_'+(cur.uid||uid()), doctor, type:clinic,
+        name:cur.name, date:cur.date, time:cur.time||'08:00',
+        duration:cur.duration||2, who:[], source:'medicloud',
+        status:'confirmed', notes:cur.notes||'', readonly:true
+      });
+      cur=null;
+    } else if(cur){
+      if(line.startsWith('SUMMARY')) cur.name=line.replace(/^SUMMARY[^:]*:/,'').trim();
+      else if(line.startsWith('UID:')) cur.uid=line.slice(4).trim();
+      else if(line.startsWith('DESCRIPTION:')) cur.notes=line.slice(12).trim();
+      else if(line.startsWith('DTSTART')){
+        const v=line.replace(/^DTSTART[^:]*:/,'').trim();
+        if(v.length>=8){ cur.date=`${v.slice(0,4)}-${v.slice(4,6)}-${v.slice(6,8)}`; if(v.length>=13) cur.time=`${v.slice(9,11)}:${v.slice(11,13)}`; }
+      } else if(line.startsWith('DTEND')&&cur.time){
+        const v=line.replace(/^DTEND[^:]*:/,'').trim();
+        if(v.length>=15){ const diff=parseInt(v.slice(9,11))-parseInt(cur.time.split(':')[0]); cur.duration=Math.max(1,Math.round(diff*2)); }
+      }
+    }
+  }
+  return evs;
+}
+
+async function fetchFeed(feed){
+  try{
+    const res=await fetch(CONFIG.CORS_PROXY+encodeURIComponent(feed.url),{cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    return parseIcal(await res.text(), feed.clinic, feed.doctor);
+  } catch(e){ console.warn('Feed error:',feed.doctor,e.message); return []; }
+}
+
+async function loadIcalFeeds(){
+  if(!CONFIG.ICAL_FEEDS?.length) return;
+  setSyncBadge('syncing');
+  const results=await Promise.all(CONFIG.ICAL_FEEDS.map(fetchFeed));
+  const icalEvs=results.flat();
+  events=events.filter(e=>e.source!=='medicloud');
+  events=[...events,...icalEvs];
+  if(icalEvs.length) setSyncBadge('connected',`MediCloud · ${icalEvs.length} citas`);
+  else setSyncBadge('error');
+  render();
+}
+
+function startIcalRefresh(){
+  if(CONFIG.ICAL_REFRESH_MINUTES) setInterval(loadIcalFeedsWithDupCheck, CONFIG.ICAL_REFRESH_MINUTES*60000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════════════
+function render(){
+  const days=getWeekDays(currentWeekOffset);
+  const ws=days[0], we=days[6];
+  document.getElementById('week-label').textContent=
+    `${ws.getDate()} ${MONTHS[ws.getMonth()]} – ${we.getDate()} ${MONTHS[we.getMonth()]} ${we.getFullYear()}`;
+
+  // Summaries
+  const wKeys=days.map(dateKey);
+  const wev=events.filter(e=>wKeys.includes(e.date)&&e.status!=='cancelled');
+  document.getElementById('s-denis-mixco').textContent=wev.filter(e=>e.doctor==='denis'&&e.type==='clinic1'&&e.status==='confirmed').length;
+  document.getElementById('s-denis-sanc').textContent =wev.filter(e=>e.doctor==='denis'&&e.type==='clinic2'&&e.status==='confirmed').length;
+  document.getElementById('s-majo-mixco').textContent =wev.filter(e=>e.doctor==='majo' &&e.type==='clinic1'&&e.status==='confirmed').length;
+  document.getElementById('s-majo-sanc').textContent  =wev.filter(e=>e.doctor==='majo' &&e.type==='clinic2'&&e.status==='confirmed').length;
+  const pCount=events.filter(e=>e.status==='pending').length;
+  document.getElementById('s-pending').textContent=pCount;
+  document.getElementById('pending-bar').classList.toggle('visible',pCount>0);
+  document.getElementById('pending-count').textContent=pCount;
+
+  const root=document.getElementById('cal-root');
+  root.innerHTML='';
+
+  if(currentView==='compare'){
+    renderCompare(root, days);
+  } else {
+    renderDoctor(root, days, currentView);
+  }
+}
+
+function renderDoctor(container, days, doctor){
+  const wrap=document.createElement('div');
+  wrap.className='cal-container';
+  const grid=document.createElement('div');
+  grid.className='cal-grid';
+  wrap.appendChild(grid);
+  container.appendChild(wrap);
+  buildGrid(grid, days, doctor);
+}
+
+function renderCompare(container, days){
+  const wrap=document.createElement('div');
+  wrap.className='compare-wrap';
+  container.appendChild(wrap);
+
+  ['denis','majo'].forEach(doc=>{
+    const sec=document.createElement('div');
+    sec.className='compare-section';
+    const hdr=document.createElement('div');
+    hdr.className='compare-header';
+    const d=CONFIG.DOCTORS[doc];
+    hdr.innerHTML=`<span style="width:10px;height:10px;border-radius:50%;background:${d.color};flex-shrink:0;display:inline-block"></span>${d.name}`;
+    sec.appendChild(hdr);
+    const grid=document.createElement('div');
+    grid.className='cal-grid';
+    sec.appendChild(grid);
+    wrap.appendChild(sec);
+    buildGrid(grid, days, doc);
+  });
+}
+
+function buildGrid(grid, days, doctor){
+  // Corner
+  const corner=document.createElement('div');
+  corner.className='time-corner';
+  grid.appendChild(corner);
+
+  // Day headers
+  days.forEach((day,i)=>{
+    const h=document.createElement('div');
+    h.className='day-header'+(dateKey(day)===todayKey()?' today':'');
+    h.innerHTML=`<div class="day-name">${DAYS[i]}</div><div class="day-number">${day.getDate()}</div>`;
+    grid.appendChild(h);
+  });
+
+  // Filter events for this doctor
+  const docEvents=events.filter(e=>
+    (e.doctor===doctor || e.type==='blocked') &&
+    e.status!=='cancelled'
+  );
+
+  // Time rows
+  HOURS.forEach(hour=>{
+    const tl=document.createElement('div');
+    tl.className='time-label'; tl.textContent=hour;
+    grid.appendChild(tl);
+
+    days.forEach(day=>{
+      const key=dateKey(day);
+      const slot=document.createElement('div');
+      slot.className='slot';
+
+      const slotEvs=docEvents.filter(e=>e.date===key&&e.time===hour);
+
+      if(slotEvs.length){
+        slot.classList.add('has-event');
+        slotEvs.forEach(ev=>{
+          const el=document.createElement('div');
+          const isPending=ev.status==='pending';
+          const docCls=ev.type==='blocked'?'blocked':(isPending?'pending-ev':(ev.doctor||'denis'));
+          el.className=`event ${docCls}`;
+
+          const clinicInfo=CONFIG.CLINICS[ev.type];
+          const clinicPill=ev.type!=='blocked'
+            ?`<span class="clinic-pill ${clinicInfo?.cls||''}">${clinicInfo?.short||''}</span>`:'';
+          const mediLock=ev.readonly?'<span style="font-size:9px;opacity:.5;position:absolute;top:2px;right:4px">🔒</span>':'';
+
+          el.innerHTML=`
+            <span class="event-name">${isPending?'🔔 ':''}${ev.name}</span>
+            <span class="event-sub">${clinicPill}</span>
+            ${mediLock}`;
+          el.onclick=e=>{e.stopPropagation();handleEventClick(ev)};
+          slot.appendChild(el);
+        });
+      } else {
+        slot.onclick=()=>openModal(null,key,hour,doctor);
+      }
+      grid.appendChild(slot);
+    });
+  });
+}
+
+function handleEventClick(ev){
+  if(ev.readonly){
+    const c=CONFIG.CLINICS[ev.type]||{};
+    const d=CONFIG.DOCTORS[ev.doctor]||{};
+    alert(`📅 ${ev.name}\n${d.name||''} · ${c.name||''}\n${ev.date} · ${ev.time}${ev.notes?'\nNotas: '+ev.notes:''}\n\n(Cita de MediCloud — editá desde MediCloud)`);
+    return;
+  }
+  openModal(ev);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VIEW TABS
+// ═══════════════════════════════════════════════════════════════════════════
+function setView(v){
+  currentView=v;
+  ['denis','majo','compare'].forEach(k=>{
+    const btn=document.getElementById('vtab-'+k);
+    btn.className='vtab '+k+(v===k?' active':'');
+  });
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+function buildTimeOptions(sel){
+  const t=document.getElementById('f-time'); t.innerHTML='';
+  HOURS.forEach(h=>{const op=document.createElement('option');op.value=h;op.textContent=h;if(h===sel)op.selected=true;t.appendChild(op)});
+}
+
+function setDoc(d){
+  currentDoc=d;
+  document.getElementById('db-denis').className='doc-btn'+(d==='denis'?' active-denis':'');
+  document.getElementById('db-majo').className ='doc-btn'+(d==='majo'?' active-majo':'');
+}
+
+function setClinic(c){
+  currentClinic=c;
+  document.getElementById('cb-mixco').className='clinic-btn'+(c==='clinic1'?' active-mixco':'');
+  document.getElementById('cb-sanc').className ='clinic-btn'+(c==='clinic2'?' active-sanc':'');
+  document.getElementById('cb-block').className='clinic-btn'+(c==='blocked'?' active-block':'');
+  // Hide doctor selector for blocks
+  document.querySelector('.doc-selector').style.opacity=c==='blocked'?'.4':'1';
+}
+
+function openModal(ev=null, date=null, time=null, defaultDoc=null){
+  editingId=ev?ev.id:null;
+  document.getElementById('modal-title').textContent=ev?'Editar entrada':'Nueva entrada';
+  document.getElementById('btn-delete').style.display=ev?'block':'none';
+  document.getElementById('modal-tag').style.display=ev?.source==='medicloud'?'inline-flex':'none';
+
+  buildTimeOptions(ev?ev.time:(time||'08:00'));
+
+  if(ev){
+    setDoc(ev.doctor||'denis');
+    setClinic(ev.type||'clinic1');
+    document.getElementById('f-name').value=ev.name;
+    document.getElementById('f-date').value=ev.date;
+    document.getElementById('f-duration').value=ev.duration;
+    if(ev.notes){ document.getElementById('field-notes').style.display='block'; document.getElementById('f-notes').value=ev.notes; }
+    else document.getElementById('field-notes').style.display='none';
+  } else {
+    setDoc(defaultDoc || (currentView==='majo' ? 'majo' : 'denis'));
+    setClinic('clinic1');
+    document.getElementById('f-name').value='';
+    document.getElementById('f-date').value=date||todayKey();
+    document.getElementById('f-duration').value='2';
+    document.getElementById('field-notes').style.display='none';
+  }
+
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('f-name').focus(),50);
+}
+
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); editingId=null; }
+function closeIfOutside(e){ if(e.target===document.getElementById('overlay')) closeModal(); }
+
+async function saveEvent(){
+  const name=document.getElementById('f-name').value.trim();
+  const date=document.getElementById('f-date').value;
+  const time=document.getElementById('f-time').value;
+  const duration=parseInt(document.getElementById('f-duration').value);
+  if(!name||!date){ document.getElementById('f-name').style.borderColor='#C0392B'; setTimeout(()=>document.getElementById('f-name').style.borderColor='',1200); return; }
+  const ev={ id:editingId||uid(), doctor:currentClinic==='blocked'?currentDoc:currentDoc, type:currentClinic, name, date, time, duration, source:editingId?(events.find(e=>e.id===editingId)?.source||'manual'):'manual', status:'confirmed' };
+  closeModal();
+  await saveWithDupCheck(ev);
+}
+
+async function deleteEvent(){
+  if(!editingId) return;
+  await DB.remove(editingId);
+  closeModal(); render();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PENDING MODAL
+// ═══════════════════════════════════════════════════════════════════════════
+function openPendingModal(){
+  const pending=events.filter(e=>e.status==='pending');
+  const list=document.getElementById('plist');
+  list.innerHTML='';
+  if(!pending.length){ list.innerHTML='<p style="color:var(--muted);font-size:13px;text-align:center;padding:16px">No hay citas pendientes</p>'; }
+  else pending.forEach(ev=>{
+    const doc=CONFIG.DOCTORS[ev.doctor]||{};
+    const clinic=CONFIG.CLINICS[ev.type]||{};
+    const item=document.createElement('div'); item.className='pitem';
+    item.innerHTML=`<div class="pitem-info"><div class="pitem-name">${ev.name}</div><div class="pitem-detail">${doc.name||''} · ${clinic.name||''} · ${ev.date} ${ev.time}${ev.notes?' · "'+ev.notes+'"':''}</div></div><div class="pitem-actions"><button class="btn-approve" onclick="qConfirm('${ev.id}')">✓</button><button class="btn-reject" onclick="qReject('${ev.id}')">✗</button></div>`;
+    list.appendChild(item);
+  });
+  document.getElementById('poverlay').classList.add('open');
+}
+function closePendingModal(){ document.getElementById('poverlay').classList.remove('open'); }
+function closePendingIfOutside(e){ if(e.target===document.getElementById('poverlay')) closePendingModal(); }
+async function qConfirm(id){ const ev=events.find(e=>e.id===id); if(ev){ev.status='confirmed'; await DB.save(ev); render(); openPendingModal();} }
+async function qReject(id){ const ev=events.find(e=>e.id===id); if(ev){ev.status='cancelled'; await DB.save(ev); render(); openPendingModal();} }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// QUICK ENTRY + IA
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Fallback parser when API is not reachable
+function basicParse(text){
+  const t = text.toLowerCase();
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  
+  // Doctor detection
+  let doctor = 'denis';
+  if(/mar[ií]a|majo/i.test(text)) doctor = 'majo';
+  
+  // Clinic detection
+  let type = 'clinic1';
+  if(/san crist[oó]bal|cristóbal|sanc/i.test(text)) type = 'clinic2';
+  if(/bloqu|libre|personal|reuni[oó]n|vacacion/i.test(text)) type = 'blocked';
+  
+  // Date detection
+  let date = todayStr;
+  const mañana = new Date(today); mañana.setDate(today.getDate()+1);
+  if(/mañana/.test(t)) date = mañana.toISOString().split('T')[0];
+  const days = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  days.forEach((d,i) => {
+    if(t.includes(d)){
+      const target = new Date(today);
+      const diff = (i - today.getDay() + 7) % 7 || 7;
+      target.setDate(today.getDate() + diff);
+      date = target.toISOString().split('T')[0];
+    }
+  });
+  
+  // Time detection
+  let time = '08:00';
+  const timeMatch = text.match(/(\d{1,2})\s*(?:am|pm|:00)/i);
+  if(timeMatch){
+    let h = parseInt(timeMatch[1]);
+    if(/pm/i.test(timeMatch[0]) && h < 12) h += 12;
+    time = String(h).padStart(2,'0') + ':00';
+  }
+  
+  // Name: remove known keywords, keep the rest
+  const name = text
+    .replace(/mañana|hoy|lunes|martes|miércoles|jueves|viernes|sábado|domingo/gi,'')
+    .replace(/mixco|san cristóbal|cristóbal|zona 1/gi,'')
+    .replace(/denis|cotzojay|maría josé|majo/gi,'')
+    .replace(/\d{1,2}\s*(am|pm|:00)/gi,'')
+    .replace(/bloqueo|libre|personal/gi,'Bloqueo')
+    .trim() || text.trim();
+  
+  return { id:uid(), doctor, type, name, date, time, duration:2, source:'manual', status:'confirmed' };
+}
+
+function showPreview(ev, confidence, note){
+  const doc = CONFIG.DOCTORS[ev.doctor] || {};
+  const clinic = CONFIG.CLINICS[ev.type] || {};
+  const chips = document.getElementById('preview-chips'); chips.innerHTML='';
+  [{label:doc.name||ev.doctor},{label:clinic.name||ev.type},{label:ev.name},{label:ev.date},{label:ev.time},{label:DURATIONS[ev.duration]}]
+    .forEach(f=>{ const c=document.createElement('span'); c.className='preview-chip'; c.textContent=f.label; chips.appendChild(c); });
+  const prev = document.getElementById('quick-preview');
+  document.getElementById('preview-title').textContent = confidence==='low' ? `⚠️ ${note||'Revisá los datos'}` : '✓ Listo para guardar';
+  prev.classList.add('visible');
+  if(confidence==='low') prev.classList.add('error');
+}
+
+async function quickParse(){
+  const input=document.getElementById('quick-input');
+  const text=input.value.trim(); if(!text) return;
+  const btn=document.getElementById('btn-quick-send');
+  btn.disabled=true;
+  document.getElementById('quick-thinking').classList.add('visible');
+  document.getElementById('quick-preview').classList.remove('visible','error');
+
+  const today=new Date();
+  const todayStr=today.toISOString().split('T')[0];
+  const dayName=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][today.getDay()];
+
+  const prompt=`Eres el asistente de agenda de una clínica médica en Guatemala.
+Hoy es ${dayName} ${todayStr}.
+Médicos: "Dr. Denis Cotzojay" (doctor: "denis") y "Dra. María José" (doctor: "majo").
+Clínicas: "Zona 1 Mixco" (type: "clinic1") y "San Cristóbal" (type: "clinic2").
+
+Texto del usuario:
+"""${text}"""
+
+Responde SOLO con JSON válido, sin texto extra:
+{
+  "doctor": "denis" | "majo",
+  "type": "clinic1" | "clinic2" | "blocked",
+  "name": "motivo o nombre paciente",
+  "date": "YYYY-MM-DD",
+  "time": "HH:00",
+  "duration": 1|2|3|4,
+  "confidence": "high"|"medium"|"low",
+  "note": "si falta info importante"
+}
+Reglas: mañana=${new Date(today.getTime()+86400000).toISOString().split('T')[0]}, hoy=${todayStr}, sin médico→denis, sin clínica→clinic1, sin hora→08:00, sin duración→2, "bloqueo/libre/personal"→blocked.`;
+
+  try{
+    let res;
+    try {
+      res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})});
+    } catch(fetchErr) {
+      // API not reachable from preview — fallback to basic parse
+      quickParsedEvent = basicParse(text);
+      showPreview(quickParsedEvent, 'low', 'Interpretación básica (sin IA). Revisá los datos.');
+      document.getElementById('quick-thinking').classList.remove('visible');
+      document.getElementById('btn-quick-send').disabled=false;
+      return;
+    }
+    const data=await res.json();
+    const raw=data.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
+    const p=JSON.parse(raw);
+    quickParsedEvent={ id:uid(), doctor:p.doctor||'denis', type:p.type||'clinic1', name:p.name||text, date:p.date||todayStr, time:p.time||'08:00', duration:p.duration||2, source:'manual', status:'confirmed' };
+
+    const chips=document.getElementById('preview-chips'); chips.innerHTML='';
+    const doc=CONFIG.DOCTORS[quickParsedEvent.doctor]||{};
+    const clinic=CONFIG.CLINICS[quickParsedEvent.type]||{};
+    [{label:doc.name||quickParsedEvent.doctor},{label:clinic.name||quickParsedEvent.type},{label:quickParsedEvent.name},{label:quickParsedEvent.date},{label:quickParsedEvent.time},{label:DURATIONS[quickParsedEvent.duration]}]
+      .forEach(f=>{ const c=document.createElement('span'); c.className='preview-chip'; c.textContent=f.label; chips.appendChild(c); });
+
+    showPreview(quickParsedEvent, p.confidence, p.note);
+  } catch(err){
+    document.getElementById('preview-title').textContent='⚠️ No pude interpretar. Intentá ser más específico.';
+    document.getElementById('preview-chips').innerHTML='';
+    document.getElementById('quick-preview').classList.add('visible','error');
+    quickParsedEvent=null;
+  }
+  document.getElementById('quick-thinking').classList.remove('visible');
+  btn.disabled=false;
+}
+
+async function quickSave(){
+  if(!quickParsedEvent) return;
+  const evDate=new Date(quickParsedEvent.date+'T12:00:00');
+  const diff=Math.round((evDate-new Date())/86400000);
+  currentWeekOffset=Math.floor(diff/7);
+  // Switch to that doctor's view
+  if(quickParsedEvent.type!=='blocked') setView(quickParsedEvent.doctor);
+  quickCancel();
+  await saveWithDupCheck(quickParsedEvent);
+}
+function quickEdit(){ if(!quickParsedEvent) return; openModal(quickParsedEvent); quickCancel(); }
+function quickCancel(){ document.getElementById('quick-input').value=''; document.getElementById('quick-preview').classList.remove('visible','error'); quickParsedEvent=null; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DICTADO
+// ═══════════════════════════════════════════════════════════════════════════
+function initSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR) return null;
+  const r=new SR(); r.lang='es-GT'; r.continuous=false; r.interimResults=true;
+  r.onstart=()=>{ isListening=true; document.getElementById('btn-mic').classList.add('listening'); document.getElementById('btn-mic').textContent='🔴'; setMicStatus('🎙️ Escuchando…'); };
+  r.onresult=e=>{ const t=Array.from(e.results).map(r=>r[0].transcript).join(''); document.getElementById('quick-input').value=t; if(e.results[e.results.length-1].isFinal) setMicStatus('✓ Listo — presioná ↵'); };
+  r.onerror=e=>{ const m={'not-allowed':'⚠️ Permiso denegado.','no-speech':'⚠️ No se detectó voz.','network':'⚠️ Error de red.'}; setMicStatus(m[e.error]||'⚠️ Error: '+e.error); stopMic(); };
+  r.onend=()=>stopMic();
+  return r;
+}
+function toggleMic(){
+  if(isListening){stopMic();return;}
+  if(!recognition) recognition=initSpeech();
+  if(!recognition){setMicStatus('⚠️ Tu navegador no soporta dictado. Usá Chrome o Safari.');return;}
+  document.getElementById('quick-input').value='';
+  document.getElementById('quick-preview').classList.remove('visible','error');
+  try{recognition.start();}catch(e){setMicStatus('⚠️ No se pudo iniciar el micrófono.');}
+}
+function stopMic(){
+  isListening=false; if(recognition) try{recognition.stop();}catch(e){}
+  const btn=document.getElementById('btn-mic'); btn.classList.remove('listening'); btn.textContent='🎙️';
+  const val=document.getElementById('quick-input').value.trim();
+  if(val) setTimeout(()=>quickParse(),400);
+}
+function setMicStatus(msg){
+  document.getElementById('mic-status').textContent=msg;
+  if(msg) setTimeout(()=>{ if(!isListening) document.getElementById('mic-status').textContent=''; },4000);
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DETECCIÓN Y RESOLUCIÓN DE DUPLICADOS
+// ═══════════════════════════════════════════════════════════════════════════
+
+let dupCandidate   = null;   // cita nueva que está intentando entrar
+let dupExisting    = null;   // cita ya existente que choca
+let dupSelectedId  = null;   // cuál eligió el usuario conservar
+let dupOnResolve   = null;   // callback para continuar después de resolver
+
+// Similitud de texto simple (Jaccard sobre palabras)
+function textSimilarity(a, b){
+  if(!a || !b) return 0;
+  const wa = new Set(a.toLowerCase().replace(/[^a-záéíóúüñ\s]/g,'').split(/\s+/).filter(Boolean));
+  const wb = new Set(b.toLowerCase().replace(/[^a-záéíóúüñ\s]/g,'').split(/\s+/).filter(Boolean));
+  const inter = [...wa].filter(w => wb.has(w)).length;
+  const union = new Set([...wa,...wb]).size;
+  return union === 0 ? 0 : inter / union;
+}
+
+// Devuelve la cita existente más parecida, o null si no hay conflicto
+function findDuplicate(newEv){
+  const candidates = events.filter(e =>
+    e.id !== newEv.id &&
+    e.status !== 'cancelled' &&
+    e.doctor  === newEv.doctor &&
+    e.date    === newEv.date
+  );
+
+  for(const ex of candidates){
+    const sameHour   = ex.time === newEv.time;
+    const sameSrc    = ex.source === newEv.source;          // mismo sistema = casi seguro dup
+    const nameSim    = textSimilarity(ex.name, newEv.name);
+    const sameClinic = ex.type === newEv.type;
+
+    // Reglas de detección (en orden de certeza)
+    if(sameHour && sameClinic)                   return { ev: ex, reason: 'mismo_horario' };
+    if(sameHour && nameSim > 0.5)                return { ev: ex, reason: 'mismo_horario_nombre' };
+    if(nameSim > 0.7 && Math.abs(
+      toMinutes(ex.time) - toMinutes(newEv.time)) <= 60)
+                                                  return { ev: ex, reason: 'nombre_similar' };
+  }
+  return null;
+}
+
+function toMinutes(time){ const [h,m]=(time||'0:0').split(':'); return parseInt(h)*60+parseInt(m||0); }
+
+// Fuente legible
+function sourceLabel(ev){
+  if(ev.source === 'medicloud') return { text:'MediCloud',  cls:'badge-medicloud' };
+  if(ev.source === 'online')    return { text:'App citas',  cls:'badge-online' };
+  return                               { text:'Manual',     cls:'badge-manual' };
+}
+
+// Muestra el modal de duplicado; onResolve(keepId) se llama al decidir
+function showDuplicateModal(newEv, existingEv, onResolve){
+  dupCandidate  = newEv;
+  dupExisting   = existingEv;
+  dupSelectedId = null;
+  dupOnResolve  = onResolve;
+
+  // Subtitle por tipo de conflicto
+  const reasons = {
+    mismo_horario:        'Mismo médico, misma clínica y misma hora.',
+    mismo_horario_nombre: 'Mismo horario y nombre de paciente similar.',
+    nombre_similar:       'Nombre similar y horario cercano (≤1h).',
+  };
+  document.getElementById('dup-subtitle').textContent =
+    (reasons[existingEv.reason] || '') + ' ¿Son la misma cita?';
+
+  // Diff summary
+  const diffs = [];
+  if(newEv.name  !== existingEv.ev.name)  diffs.push(`Nombre: "${existingEv.ev.name}" vs "${newEv.name}"`);
+  if(newEv.time  !== existingEv.ev.time)  diffs.push(`Hora: ${existingEv.ev.time} vs ${newEv.time}`);
+  if(newEv.type  !== existingEv.ev.type)  diffs.push(`Clínica: ${CONFIG.CLINICS[existingEv.ev.type]?.name} vs ${CONFIG.CLINICS[newEv.type]?.name}`);
+  document.getElementById('dup-diff').textContent = diffs.length
+    ? 'Diferencias: ' + diffs.join(' · ')
+    : 'Las citas son prácticamente idénticas.';
+
+  // Cards
+  const cards = document.getElementById('dup-cards');
+  cards.innerHTML = '';
+  [
+    { ev: existingEv.ev, label: 'Existente' },
+    { ev: newEv,         label: 'Nueva' },
+  ].forEach(({ ev, label }) => {
+    const src  = sourceLabel(ev);
+    const doc  = CONFIG.DOCTORS[ev.doctor] || {};
+    const clin = CONFIG.CLINICS[ev.type]   || {};
+    const card = document.createElement('div');
+    card.className = 'dup-card';
+    card.dataset.id = ev.id;
+    card.innerHTML = `
+      <span class="dup-card-badge ${src.cls}">${src.text} · ${label}</span>
+      <div class="dup-card-name">${ev.name}</div>
+      <div class="dup-card-detail">
+        <span>👨‍⚕️ ${doc.name || ev.doctor}</span>
+        <span>🏥 ${clin.name || ev.type}</span>
+        <span>📅 ${ev.date} · ${ev.time}</span>
+        ${ev.notes ? `<span>📝 ${ev.notes}</span>` : ''}
+      </div>`;
+    card.onclick = () => selectDupCard(ev.id, card);
+    cards.appendChild(card);
+  });
+
+  document.getElementById('btn-keep-selected').disabled = true;
+  document.getElementById('dup-overlay').classList.add('open');
+}
+
+function selectDupCard(id, cardEl){
+  dupSelectedId = id;
+  document.querySelectorAll('.dup-card').forEach(c => c.classList.remove('selected'));
+  cardEl.classList.add('selected');
+  document.getElementById('btn-keep-selected').disabled = false;
+}
+
+async function dupKeepSelected(){
+  if(!dupSelectedId) return;
+  document.getElementById('dup-overlay').classList.remove('open');
+
+  // Remove the one NOT selected
+  const toRemove = dupSelectedId === dupCandidate.id ? dupExisting.ev.id : dupCandidate.id;
+  events = events.filter(e => e.id !== toRemove);
+
+  // Make sure the winner is in events
+  const winner = dupSelectedId === dupCandidate.id ? dupCandidate : dupExisting.ev;
+  await DB.save(winner);
+
+  if(dupOnResolve) dupOnResolve(dupSelectedId);
+  dupOnResolve = null;
+  render();
+}
+
+async function dupKeepBoth(){
+  document.getElementById('dup-overlay').classList.remove('open');
+  // Save both — the new one wasn't saved yet
+  await DB.save(dupCandidate);
+  if(dupOnResolve) dupOnResolve('both');
+  dupOnResolve = null;
+  render();
+}
+
+// Wrapper: checks duplicates before saving, shows modal if needed
+async function saveWithDupCheck(ev){
+  const dup = findDuplicate(ev);
+  if(dup){
+    showDuplicateModal(ev, dup, async (result) => {
+      // Already handled inside modal actions; just re-render
+      render();
+    });
+    return; // don't save yet — modal handles it
+  }
+  await DB.save(ev);
+  render();
+}
+
+// Wrap iCal feed import to also check duplicates
+async function loadIcalFeedsWithDupCheck(){
+  if(!CONFIG.ICAL_FEEDS?.length) return;
+  setSyncBadge('syncing');
+  const results = await Promise.all(CONFIG.ICAL_FEEDS.map(fetchFeed));
+  const icalEvs = results.flat();
+
+  // Remove old medicloud events
+  events = events.filter(e => e.source !== 'medicloud');
+
+  // Check each incoming ical event for duplicates against manual events
+  const pending = [];
+  for(const ev of icalEvs){
+    const dup = findDuplicate(ev);
+    if(dup) pending.push({ ev, dup });
+    else events.push(ev);
+  }
+
+  if(icalEvs.length) setSyncBadge('connected', `MediCloud · ${icalEvs.length} citas`);
+  else setSyncBadge('error');
+
+  render();
+
+  // Process pending duplicates one by one sequentially
+  if(pending.length){
+    processDupQueue(pending, 0);
+  }
+}
+
+function processDupQueue(queue, i){
+  if(i >= queue.length) return;
+  const { ev, dup } = queue[i];
+  showDuplicateModal(ev, dup, () => processDupQueue(queue, i+1));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NAV & INIT
+// ═══════════════════════════════════════════════════════════════════════════
+document.getElementById('prev-week').onclick=()=>{currentWeekOffset--;render()};
+document.getElementById('next-week').onclick=()=>{currentWeekOffset++;render()};
+document.getElementById('btn-today').onclick=()=>{currentWeekOffset=0;render()};
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){closeModal();closePendingModal();} });
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('quick-input').addEventListener('keydown',e=>{ if(e.key==='Enter') quickParse(); });
+});
+
+async function init(){
+  setSyncBadge('syncing');
+  events=await DB.load();
+  setSyncBadge('connected');
+  render();
+  await loadIcalFeedsWithDupCheck();
+  startIcalRefresh();
+}
+init();
+</script>
+</body>
+</html>
