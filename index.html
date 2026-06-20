@@ -356,12 +356,272 @@ input:focus,select:focus,textarea:focus{border-color:var(--mixco);background:#ff
   .btn-keep-selected:hover{opacity:.8}
   .btn-keep-selected:disabled{opacity:.35;cursor:not-allowed}
   .dup-badge-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+
+  /* ── HOME SCREENS ── */
+  .screen {
+    display:none;flex-direction:column;align-items:center;justify-content:center;
+    min-height:calc(100vh - 56px);padding:40px 20px;background:var(--bg);
+  }
+  .screen.active { display:flex; }
+
+  /* Back nav */
+  .screen-nav {
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:40px;align-self:flex-start;
+    max-width:480px;width:100%;
+  }
+  .screen-back {
+    display:flex;align-items:center;gap:6px;
+    background:none;border:none;cursor:pointer;
+    font-family:var(--font);font-size:12px;font-weight:500;
+    color:var(--muted);padding:0;letter-spacing:.3px;
+    transition:color .15s;
+  }
+  .screen-back:hover { color:var(--text); }
+  .back-arrow {
+    width:28px;height:28px;border-radius:50%;
+    border:1.5px solid var(--border);background:var(--surface);
+    display:flex;align-items:center;justify-content:center;
+    font-size:13px;transition:all .15s;
+  }
+  .screen-back:hover .back-arrow { border-color:var(--text);background:var(--text);color:#fff; }
+
+  /* Home header */
+  .home-header { text-align:center;margin-bottom:52px; }
+  .home-kicker {
+    font-size:11px;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;
+  }
+  .home-question {
+    font-size:36px;font-weight:700;letter-spacing:-1.5px;
+    color:var(--text);line-height:1.05;margin-bottom:8px;
+  }
+  .home-date-line {
+    font-family:var(--mono);font-size:11px;color:var(--muted);
+  }
+
+  /* Action cards — big two */
+  .action-grid {
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;
+    width:100%;max-width:440px;margin-bottom:16px;
+  }
+  .action-card {
+    background:var(--surface);border:1.5px solid var(--border);
+    border-radius:16px;padding:28px 20px 24px;cursor:pointer;
+    transition:all .18s;text-align:left;position:relative;overflow:hidden;
+  }
+  .action-card::after {
+    content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
+    opacity:0;transition:opacity .18s;
+  }
+  .action-card.schedule::after { background:var(--mixco); }
+  .action-card.consult::after  { background:var(--sanc); }
+  .action-card:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08); }
+  .action-card:hover::after { opacity:1; }
+  .action-card:hover.schedule { border-color:var(--mixco); }
+  .action-card:hover.consult  { border-color:var(--sanc); }
+
+  /* Initial circle */
+  .action-initial {
+    width:44px;height:44px;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;font-weight:700;margin-bottom:18px;letter-spacing:-1px;
+  }
+  .action-initial.schedule { background:var(--mixco-light);color:var(--mixco); }
+  .action-initial.consult  { background:var(--sanc-light);color:var(--sanc); }
+
+  .action-label { font-size:16px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px; }
+  .action-sub   { font-size:11px;color:var(--muted);line-height:1.5; }
+
+  .home-footer {
+    font-size:11px;color:var(--muted);display:flex;align-items:center;
+    gap:6px;margin-top:28px;
+  }
+
+  /* Pick screen title */
+  .pick-title {
+    font-size:28px;font-weight:700;letter-spacing:-1px;
+    margin-bottom:32px;text-align:center;
+  }
+
+  /* Doctor / clinic cards */
+  .pick-grid {
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+    gap:10px;width:100%;max-width:480px;
+  }
+  .pick-card {
+    background:var(--surface);border:1.5px solid var(--border);
+    border-radius:14px;padding:22px 18px;cursor:pointer;
+    transition:all .18s;position:relative;overflow:hidden;
+  }
+  .pick-card::after {
+    content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+    opacity:0;transition:opacity .18s;border-radius:14px 0 0 14px;
+  }
+  .pick-card:hover { transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.08); }
+  .pick-card:hover::after { opacity:1; }
+  .pick-card.denis:hover  { border-color:var(--denis); }
+  .pick-card.majo:hover   { border-color:var(--majo); }
+  .pick-card.mixco:hover  { border-color:var(--mixco); }
+  .pick-card.sanc:hover   { border-color:var(--sanc); }
+  .pick-card.compare:hover{ border-color:var(--muted); }
+  .pick-card.denis::after { background:var(--denis); }
+  .pick-card.majo::after  { background:var(--majo); }
+  .pick-card.mixco::after { background:var(--mixco); }
+  .pick-card.sanc::after  { background:var(--sanc); }
+  .pick-card.compare::after { background:var(--muted); }
+
+  /* Avatar circle with initials */
+  .pick-avatar-circle {
+    width:40px;height:40px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:700;letter-spacing:-.5px;
+    margin-bottom:14px;
+  }
+  .av-denis   { background:var(--denis-light);color:var(--denis); }
+  .av-majo    { background:var(--majo-light);color:var(--majo); }
+  .av-mixco   { background:var(--mixco-light);color:var(--mixco); }
+  .av-sanc    { background:var(--sanc-light);color:var(--sanc); }
+  .av-compare { background:var(--bg);color:var(--muted);border:1.5px solid var(--border); }
+
+  .pick-name  { font-size:13px;font-weight:600;letter-spacing:-.3px;margin-bottom:3px; }
+  .pick-sub   { font-size:11px;color:var(--muted); }
+
+  .pick-badge {
+    position:absolute;top:12px;right:12px;
+    font-size:10px;font-weight:600;padding:2px 7px;border-radius:8px;
+  }
+  .pick-badge.denis { background:var(--denis-light);color:var(--denis); }
+  .pick-badge.majo  { background:var(--majo-light);color:var(--majo); }
+
+  /* Consult toggle */
+  .consult-toggle {
+    display:flex;gap:6px;margin-bottom:24px;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:4px;
+  }
+  .ctoggle {
+    padding:7px 18px;border-radius:7px;border:none;background:none;
+    font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;
+    color:var(--muted);transition:all .15s;
+  }
+  .ctoggle.active { background:var(--text);color:#fff; }
+
+  @media(max-width:480px) {
+    .action-grid { grid-template-columns:1fr; max-width:280px; }
+    .home-question { font-size:28px; }
+    .pick-grid { grid-template-columns:1fr 1fr; }
+  }
 </style>
 </head>
 <body>
 
+
+<!-- ── SCREEN 1: What do you want to do? ── -->
+<div class="screen active" id="screen-home">
+  <div class="home-header">
+    <div class="home-kicker">Agenda médica</div>
+    <div class="home-question">¿Qué querés<br>hacer?</div>
+    <div class="home-date-line" id="home-date"></div>
+  </div>
+
+  <div class="action-grid">
+    <div class="action-card schedule" onclick="goScreen('screen-schedule')">
+      <div class="action-initial schedule">+</div>
+      <div class="action-label">Agendar</div>
+      <div class="action-sub">Agregar cita, bloqueo o actividad</div>
+    </div>
+    <div class="action-card consult" onclick="goScreen('screen-consult')">
+      <div class="action-initial consult">→</div>
+      <div class="action-label">Consultar</div>
+      <div class="action-sub">Ver la agenda semanal</div>
+    </div>
+  </div>
+
+  <div class="home-footer" id="home-sync-status"></div>
+</div>
+
+<!-- ── SCREEN 2: Agendar — pick doctor ── -->
+<div class="screen" id="screen-schedule">
+  <div class="screen-nav">
+    <button class="screen-back" onclick="goScreen('screen-home')">
+      <span class="back-arrow">←</span> Inicio
+    </button>
+  </div>
+
+  <div class="pick-title">¿Para quién?</div>
+
+  <div class="pick-grid">
+    <div class="pick-card denis" onclick="openModalFromHome('denis')">
+      <div class="pick-avatar-circle av-denis">DC</div>
+      <div class="pick-name">Dr. Denis Cotzojay</div>
+      <div class="pick-sub">Médico general</div>
+    </div>
+    <div class="pick-card majo" onclick="openModalFromHome('majo')">
+      <div class="pick-avatar-circle av-majo">MJ</div>
+      <div class="pick-name">Dra. María José Nóchez</div>
+      <div class="pick-sub">Médico general</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCREEN 3: Consultar ── -->
+<div class="screen" id="screen-consult">
+  <div class="screen-nav">
+    <button class="screen-back" onclick="goScreen('screen-home')">
+      <span class="back-arrow">←</span> Inicio
+    </button>
+  </div>
+
+  <div class="pick-title">¿Cómo querés verla?</div>
+
+  <div class="consult-toggle">
+    <button class="ctoggle active" id="ct-doctor" onclick="setConsultMode('doctor')">Por médico</button>
+    <button class="ctoggle" id="ct-clinic" onclick="setConsultMode('clinic')">Por clínica</button>
+  </div>
+
+  <div id="consult-doctor-cards" class="pick-grid">
+    <div class="pick-card denis" onclick="enterAgenda('denis')">
+      <span class="pick-badge denis" id="badge-denis">0 hoy</span>
+      <div class="pick-avatar-circle av-denis">DC</div>
+      <div class="pick-name">Dr. Denis Cotzojay</div>
+      <div class="pick-sub">Ver su semana</div>
+    </div>
+    <div class="pick-card majo" onclick="enterAgenda('majo')">
+      <span class="pick-badge majo" id="badge-majo">0 hoy</span>
+      <div class="pick-avatar-circle av-majo">MJ</div>
+      <div class="pick-name">Dra. María José Nóchez</div>
+      <div class="pick-sub">Ver su semana</div>
+    </div>
+    <div class="pick-card compare" onclick="enterAgenda('compare')">
+      <div class="pick-avatar-circle av-compare" style="font-size:16px">⇄</div>
+      <div class="pick-name">Ambos médicos</div>
+      <div class="pick-sub">Comparar agendas</div>
+    </div>
+  </div>
+
+  <div id="consult-clinic-cards" class="pick-grid" style="display:none">
+    <div class="pick-card mixco" onclick="enterAgenda('clinic1')">
+      <div class="pick-avatar-circle av-mixco" style="font-size:16px;font-weight:800">M</div>
+      <div class="pick-name">Zona 1 Mixco</div>
+      <div class="pick-sub">Ver agenda</div>
+    </div>
+    <div class="pick-card sanc" onclick="enterAgenda('clinic2')">
+      <div class="pick-avatar-circle av-sanc" style="font-size:16px;font-weight:800">SC</div>
+      <div class="pick-name">San Cristóbal</div>
+      <div class="pick-sub">Ver agenda</div>
+    </div>
+    <div class="pick-card compare" onclick="enterAgenda('compare-clinic')">
+      <div class="pick-avatar-circle av-compare" style="font-size:16px">⇄</div>
+      <div class="pick-name">Ambas clínicas</div>
+      <div class="pick-sub">Comparar</div>
+    </div>
+  </div>
+</div>
+
+<div id="agenda-screen" style="display:none">
 <header>
-  <div class="logo">
+  <div class="logo" onclick="goHome()" style="cursor:pointer" title="Inicio">
     <div class="logo-dots">
       <span style="background:var(--denis)"></span>
       <span style="background:var(--majo)"></span>
@@ -597,6 +857,7 @@ let editingId = null;
 let currentDoc = 'denis';
 let currentClinic = 'clinic1';
 let quickParsedEvent = null;
+let currentClinicFilter = null;
 let recognition = null;
 let isListening = false;
 
@@ -1375,6 +1636,85 @@ function processDupQueue(queue, i){
   showDuplicateModal(ev, dup, () => processDupQueue(queue, i+1));
 }
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCREEN NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+let consultMode = 'doctor'; // 'doctor' | 'clinic'
+
+function goScreen(id) {
+  // Hide all screens
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  // If going home, hide agenda too
+  document.getElementById('agenda-screen').style.display = 'none';
+
+  const target = document.getElementById(id);
+  if (target) {
+    target.classList.add('active');
+    if (id === 'screen-home')    updateHomeScreen();
+    if (id === 'screen-consult') updateConsultBadges();
+  }
+}
+
+function updateHomeScreen() {
+  const now = new Date();
+  const days   = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  document.getElementById('home-date').textContent =
+    `${days[now.getDay()]}, ${now.getDate()} de ${months[now.getMonth()]} ${now.getFullYear()}`;
+  document.getElementById('home-sync-status').innerHTML =
+    `<div style="width:6px;height:6px;border-radius:50%;background:var(--sanc);animation:pulse 2s infinite"></div> ${document.getElementById('sync-text').textContent}`;
+}
+
+function updateConsultBadges() {
+  const today = todayKey();
+  const d = events.filter(e => e.doctor==='denis' && e.date===today && e.status==='confirmed' && e.type!=='blocked').length;
+  const m = events.filter(e => e.doctor==='majo'  && e.date===today && e.status==='confirmed' && e.type!=='blocked').length;
+  document.getElementById('badge-denis').textContent = `${d} hoy`;
+  document.getElementById('badge-majo').textContent  = `${m} hoy`;
+}
+
+function setConsultMode(mode) {
+  consultMode = mode;
+  document.getElementById('ct-doctor').className = 'ctoggle' + (mode==='doctor' ? ' active' : '');
+  document.getElementById('ct-clinic').className = 'ctoggle' + (mode==='clinic' ? ' active' : '');
+  document.getElementById('consult-doctor-cards').style.display = mode==='doctor' ? 'flex' : 'none';
+  document.getElementById('consult-clinic-cards').style.display = mode==='clinic' ? 'flex' : 'none';
+}
+
+function enterAgenda(view) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('agenda-screen').style.display = 'block';
+
+  // Map clinic views
+  if (view === 'clinic1' || view === 'clinic2') {
+    setView('compare'); // show compare but filtered by clinic — extend later
+    // For now filter by clinic in compare view
+    currentClinicFilter = view;
+  } else if (view === 'compare-clinic') {
+    currentClinicFilter = null;
+    setView('compare');
+  } else {
+    currentClinicFilter = null;
+    setView(view);
+  }
+  render();
+}
+
+function openModalFromHome(doctor) {
+  // Go directly to agenda and open modal
+  enterAgenda(doctor);
+  setTimeout(() => openModal(null, todayKey(), '08:00', doctor), 100);
+}
+
+function goHome() {
+  goScreen('screen-home');
+}
+
+function showHomeScreen() {
+  goScreen('screen-home');
+}
 // ═══════════════════════════════════════════════════════════════════════════
 // NAV & INIT
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1390,11 +1730,12 @@ async function init(){
   setSyncBadge('syncing');
   events=await DB.load();
   setSyncBadge('connected');
-  render();
+  showHomeScreen();
   await loadIcalFeedsWithDupCheck();
   startIcalRefresh();
 }
 init();
 </script>
+</div><!-- end agenda-screen -->
 </body>
 </html>
