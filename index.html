@@ -618,6 +618,8 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   .home-title { letter-spacing:-1.5px; }
 }
 </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -867,19 +869,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 
 
 <script>
-// Global shim — these are overwritten by the ES module after load
-// but exist immediately so onclick handlers don't throw errors
-const _q = [];
-const _noop = (...a) => _q.push(a);
-['goHome','goBack','goScreen','setMode','enterAgenda','openModalFromHome',
- 'setView','openModal','closeModal','closeIfOutside','saveEvent','deleteEvent',
- 'setDoc','setClinic','openPendingModal','closePendingModal','closePendingIfOutside',
- 'qConfirm','qReject','dupKeepBoth','dupKeepSelected','quickParse','quickSave',
- 'quickEdit','quickCancel','toggleMic'].forEach(fn => window[fn] = _noop);
-</script>
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, serverTimestamp, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+// Firebase loaded via CDN compat in <head>
 
 // ═══ CONFIG ═══════════════════════════════════════════════════════════════
 const CONFIG = {
@@ -950,14 +940,14 @@ function setSyncBadge(state, txt){
 }
 
 // ═══ FIREBASE ═════════════════════════════════════════════════════════════
-const _fbApp = initializeApp(CONFIG.firebase);
-const _db    = getFirestore(_fbApp);
-const _col   = () => collection(_db, CONFIG.COLLECTIONS.events);
+firebase.initializeApp(CONFIG.firebase);
+const _db  = firebase.firestore();
+const _col = () => _db.collection(CONFIG.COLLECTIONS.events);
 
 const DB = {
   async load(){
     try{
-      const snap=await getDocs(_col());
+      const snap=await _col().get();
       const docs=snap.docs.map(d=>({...d.data(),id:d.id}));
       return docs.length?docs:getSample();
     } catch(e){
@@ -967,7 +957,7 @@ const DB = {
   async save(ev){
     try{
       ev.updatedAt=new Date().toISOString();
-      await setDoc(doc(_db,CONFIG.COLLECTIONS.events,ev.id),ev);
+      await _db.collection(CONFIG.COLLECTIONS.events).doc(ev.id).set(ev);
       events=events.filter(e=>e.id!==ev.id); events.push(ev);
     } catch(e){
       events=events.filter(e=>e.id!==ev.id); events.push(ev);
@@ -975,13 +965,13 @@ const DB = {
     }
   },
   async remove(id){
-    try{ await deleteDoc(doc(_db,CONFIG.COLLECTIONS.events,id)); } catch(e){}
+    try{ await _db.collection(CONFIG.COLLECTIONS.events).doc(id).delete(); } catch(e){}
     events=events.filter(e=>e.id!==id);
     localStorage.setItem('ag_v5',JSON.stringify(events.filter(e=>e.source!=='medicloud')));
   },
   subscribeRealtime(cb){
     try{
-      return onSnapshot(_col(),snap=>{
+      return _col().onSnapshot(snap=>{
         const docs=snap.docs.map(d=>({...d.data(),id:d.id}));
         const ical=events.filter(e=>e.source==='medicloud');
         cb([...docs,...ical]);
@@ -1412,8 +1402,7 @@ document.getElementById('btn-today').onclick=()=>{currentWeekOffset=0;render()};
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){closeModal();closePendingModal();document.getElementById('dup-overlay').classList.remove('on');} });
 document.getElementById('quick-input').addEventListener('keydown',e=>{ if(e.key==='Enter') quickParse(); });
 
-// Expose functions needed by onclick handlers
-Object.assign(window,{goHome,goBack,goScreen,setMode,enterAgenda,openModalFromHome,setView,openModal,closeModal,closeIfOutside,saveEvent,deleteEvent,setDoc,setClinic,openPendingModal,closePendingModal,closePendingIfOutside,qConfirm,qReject,dupKeepBoth,dupKeepSelected,quickParse,quickSave,quickEdit,quickCancel,toggleMic});
+// Functions are global (no module scope)
 
 async function init(){
   setSyncBadge('loading');
