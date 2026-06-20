@@ -127,6 +127,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 /* ── SCREENS ── */
 .screen { display:none; }
 .screen.on { display:block; }
+.screen.on { display:block; }
 
 /* ── HOME ── */
 #s-home {
@@ -864,6 +865,18 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   </div>
 </div>
 
+
+<script>
+// Global shim — these are overwritten by the ES module after load
+// but exist immediately so onclick handlers don't throw errors
+const _q = [];
+const _noop = (...a) => _q.push(a);
+['goHome','goBack','goScreen','setMode','enterAgenda','openModalFromHome',
+ 'setView','openModal','closeModal','closeIfOutside','saveEvent','deleteEvent',
+ 'setDoc','setClinic','openPendingModal','closePendingModal','closePendingIfOutside',
+ 'qConfirm','qReject','dupKeepBoth','dupKeepSelected','quickParse','quickSave',
+ 'quickEdit','quickCancel','toggleMic'].forEach(fn => window[fn] = _noop);
+</script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, serverTimestamp, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -1125,7 +1138,10 @@ async function saveWithDupCheck(ev){
 const ALL_SCREENS=['s-home','s-agendar','s-consultar','s-agenda'];
 
 function goScreen(id){
-  ALL_SCREENS.forEach(s=>{ const el=document.getElementById(s); if(el){ el.classList.remove('on'); el.style.display=''; } });
+  ALL_SCREENS.forEach(s=>{
+    const el=document.getElementById(s);
+    if(el){ el.classList.remove('on'); }
+  });
   const target=document.getElementById(id);
   if(target){ target.classList.add('on'); }
   const isHome=id==='s-home', isAgenda=id==='s-agenda';
