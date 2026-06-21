@@ -370,6 +370,75 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   font-family:var(--mono); font-size:11px;
   color:var(--muted); min-width:150px; text-align:center;
 }
+.view-toggle {
+  margin-left:auto; display:flex; gap:0;
+  border:1px solid var(--border); border-radius:8px;
+  padding:2px; background:var(--bg);
+}
+.vt-btn {
+  border:none; background:none; cursor:pointer;
+  font-family:var(--font); font-size:12px; font-weight:500;
+  color:var(--muted); padding:5px 12px; border-radius:6px;
+  transition:all .15s;
+}
+.vt-btn.on { background:var(--text); color:var(--white); }
+.vt-btn:hover:not(.on){ color:var(--text); }
+
+/* ── MONTH GRID ── */
+.month-grid {
+  display:grid; grid-template-columns:repeat(7,1fr);
+  background:var(--white); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden;
+}
+.mn-dow {
+  padding:7px 4px; text-align:center;
+  font-size:10px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.4px; color:var(--muted);
+  border-bottom:1px solid var(--border); border-right:1px solid var(--border);
+}
+.mn-cell {
+  min-height:88px; border-bottom:1px solid var(--border);
+  border-right:1px solid var(--border); padding:4px 5px;
+  cursor:pointer; transition:background .1s; overflow:hidden;
+}
+.mn-cell:hover { background:var(--bg); }
+.mn-cell.other { background:#FBFBFB; }
+.mn-cell.today .mn-num { background:var(--denis); color:var(--white); }
+.mn-num {
+  font-size:12px; font-weight:600; color:var(--text);
+  width:22px; height:22px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:2px;
+}
+.mn-cell.other .mn-num { color:var(--border); }
+.mn-ev {
+  font-size:10px; font-weight:500; padding:1px 5px;
+  border-radius:4px; margin-bottom:2px; line-height:1.4;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  border-left:2px solid;
+}
+.mn-ev.denis   { background:var(--denis-bg); color:var(--denis); border-color:var(--denis); }
+.mn-ev.majo    { background:var(--majo-bg);  color:var(--majo);  border-color:var(--majo);  }
+.mn-ev.blocked { background:var(--block-bg); color:var(--block); border-color:var(--block); }
+.mn-ev.pend    { background:var(--sanc-bg);  color:var(--sanc);  border-color:var(--sanc);  }
+.mn-ev.medic   { background:var(--majo-bg);  color:var(--majo);  border-color:var(--majo);  opacity:.8; }
+.mn-more { font-size:9px; color:var(--muted); padding:0 5px; }
+
+/* ── DAY VIEW (single column wide) ── */
+.day-wrap { background:var(--white); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.day-grid { display:grid; grid-template-columns:60px 1fr; }
+.day-grid.compare2 { grid-template-columns:60px 1fr 1fr; }
+.day-colhdr {
+  padding:9px 8px; text-align:center; font-size:13px; font-weight:600;
+  border-bottom:1px solid var(--border); border-right:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center; gap:7px;
+}
+@media(max-width:700px){
+  .mn-cell { min-height:64px; }
+  .mn-ev { font-size:9px; }
+  .view-toggle { margin-left:0; }
+  .week-bar { flex-wrap:wrap; }
+}
 
 /* Quick entry */
 .qbar {
@@ -632,7 +701,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   <div class="hdr-right">
     <button class="btn-back" id="btn-back" onclick="goBack()">← Volver</button>
     <div class="sync-tag" id="sync-badge"><div class="dot"></div><span id="sync-text">Local</span></div>
-    <button class="btn-add show" id="btn-add" onclick="openModal()" style="display:none">+ Agregar</button>
+    <button class="btn-add show" id="btn-add" onclick="openModal(null,todayKey(),'08:00',agendarDefaultDoc)" style="display:none">+ Agregar</button>
   </div>
 </header>
 
@@ -660,7 +729,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 <div id="s-agendar" class="screen">
   <div class="pick-title">¿Para quién?</div>
   <div class="pick-list">
-    <div class="pick-item denis" onclick="openModalFromHome('denis')">
+    <div class="pick-item denis" onclick="enterAgendaFromAgendar('denis')">
       <div class="pick-av av-denis">DC</div>
       <div class="pick-info">
         <div class="pick-name">Dr. Denis Cotzojay</div>
@@ -668,11 +737,19 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       </div>
       <span class="pick-arrow">›</span>
     </div>
-    <div class="pick-item majo" onclick="openModalFromHome('majo')">
+    <div class="pick-item majo" onclick="enterAgendaFromAgendar('majo')">
       <div class="pick-av av-majo">MJ</div>
       <div class="pick-info">
         <div class="pick-name">Dra. María José Nóchez</div>
         <div class="pick-sub">Médico general · Zona 1 Mixco · San Cristóbal</div>
+      </div>
+      <span class="pick-arrow">›</span>
+    </div>
+    <div class="pick-item both" onclick="enterAgendaFromAgendar('compare')">
+      <div class="pick-av av-both">⇄</div>
+      <div class="pick-info">
+        <div class="pick-name">Ambos médicos</div>
+        <div class="pick-sub">Ver las dos agendas y agendar en cualquiera</div>
       </div>
       <span class="pick-arrow">›</span>
     </div>
@@ -762,6 +839,11 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <button class="wb-today" id="btn-today">Hoy</button>
     <span id="week-label"></span>
     <button class="wb-btn" id="next-week">›</button>
+    <div class="view-toggle">
+      <button class="vt-btn" id="vt-day" onclick="setCalMode('day')">Día</button>
+      <button class="vt-btn on" id="vt-week" onclick="setCalMode('week')">Semana</button>
+      <button class="vt-btn" id="vt-month" onclick="setCalMode('month')">Mes</button>
+    </div>
   </div>
 
   <div class="qbar">
@@ -924,6 +1006,10 @@ const CONFIG = {
 let events = [];
 let currentView = 'denis';
 let currentWeekOffset = 0;
+let calMode = 'week';
+let currentDayOffset = 0;
+let currentMonthOffset = 0;
+let agendarDefaultDoc = 'denis';
 let editingId = null;
 let currentDoc = 'denis';
 let currentClinic = 'clinic1';
@@ -1020,6 +1106,35 @@ function getSample(){
 }
 
 // ═══ iCAL ═════════════════════════════════════════════════════════════════
+// Parse an iCal datetime value into a local {date, time, minutesTotal}.
+// Handles UTC ("Z" suffix → convert to Guatemala UTC-6) and floating local times.
+function parseIcalDateTime(line){
+  // Detect explicit timezone, e.g. DTSTART;TZID=America/Guatemala:20260115T140000
+  const hasTZID = /TZID=/i.test(line);
+  const v = line.replace(/^[A-Z]+[^:]*:/, '').trim();
+  if (v.length < 8) return null;
+  const Y = +v.slice(0,4), Mo = +v.slice(4,6)-1, D = +v.slice(6,8);
+  if (v.length < 13) {
+    // Date only (all-day event)
+    return { date: `${v.slice(0,4)}-${v.slice(4,6)}-${v.slice(6,8)}`, time: '08:00', mins: 8*60, allDay: true };
+  }
+  const h = +v.slice(9,11), mi = +v.slice(11,13);
+  const isUTC = v.endsWith('Z');
+  let dt;
+  if (isUTC) {
+    // Value is in UTC → build UTC date, then read back in local (browser) time.
+    // The clinic is in Guatemala (UTC-6, no DST), so the browser viewing it there shows correct local time.
+    dt = new Date(Date.UTC(Y, Mo, D, h, mi));
+  } else {
+    // Floating or TZID local time → treat as already-local clinic time
+    dt = new Date(Y, Mo, D, h, mi);
+  }
+  const pad = n => String(n).padStart(2,'0');
+  const date = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+  const time = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  return { date, time, mins: dt.getHours()*60 + dt.getMinutes(), allDay: false, _dateObj: dt };
+}
+
 function parseIcal(text,clinic,doctor){
   const evs=[]; const lines=text.replace(/\r\n /g,'').replace(/\r\n\t/g,'').split(/\r\n|\n/);
   let cur=null;
@@ -1031,13 +1146,13 @@ function parseIcal(text,clinic,doctor){
     } else if(cur){
       if(line.startsWith('SUMMARY')) cur.name=line.replace(/^SUMMARY[^:]*:/,'').trim();
       else if(line.startsWith('UID:')) cur.uid=line.slice(4).trim();
-      else if(line.startsWith('DESCRIPTION:')) cur.notes=line.slice(12).trim();
+      else if(line.startsWith('DESCRIPTION:')) cur.notes=line.replace(/^DESCRIPTION[^:]*:/,'').trim();
       else if(line.startsWith('DTSTART')){
-        const v=line.replace(/^DTSTART[^:]*:/,'').trim();
-        if(v.length>=8){ cur.date=`${v.slice(0,4)}-${v.slice(4,6)}-${v.slice(6,8)}`; if(v.length>=13) cur.time=`${v.slice(9,11)}:${v.slice(11,13)}`; }
-      } else if(line.startsWith('DTEND')&&cur.time){
-        const v=line.replace(/^DTEND[^:]*:/,'').trim();
-        if(v.length>=15){ const diff=parseInt(v.slice(9,11))-parseInt(cur.time.split(':')[0]); cur.duration=Math.max(1,Math.round(diff*2)); }
+        const r = parseIcalDateTime(line);
+        if(r){ cur.date=r.date; cur.time=r.time; cur._startMins=r.mins; }
+      } else if(line.startsWith('DTEND')&&cur._startMins!=null){
+        const r = parseIcalDateTime(line);
+        if(r){ const diff=r.mins-cur._startMins; cur.duration=Math.max(1,Math.round(diff/30)); }
       }
     }
   }
@@ -1375,12 +1490,18 @@ function openModalFromHome(doctor){
   setTimeout(()=>openModal(null,todayKey(),'08:00',doctor),150);
 }
 
+// From "Agendar" flow: go to the calendar filtered by doctor (no modal yet).
+// User then taps any empty slot to create. The + button is also primed to that doctor.
+function enterAgendaFromAgendar(view){
+  enterAgenda(view);
+  agendarDefaultDoc = (view==='majo') ? 'majo' : 'denis';
+}
+
 // ═══ RENDER ════════════════════════════════════════════════════════════════
 function render(){
-  const days=getWeekDays(currentWeekOffset);
-  const ws=days[0],we=days[6];
-  document.getElementById('week-label').textContent=`${ws.getDate()} ${MONTHS[ws.getMonth()]} – ${we.getDate()} ${MONTHS[we.getMonth()]} ${we.getFullYear()}`;
-  const wKeys=days.map(dateKey);
+  // Stats always reflect the visible week of the current offset
+  const weekDays=getWeekDays(currentWeekOffset);
+  const wKeys=weekDays.map(dateKey);
   const wev=events.filter(e=>wKeys.includes(e.date)&&e.status!=='cancelled');
   document.getElementById('s-dm').textContent=wev.filter(e=>e.doctor==='denis'&&e.type==='clinic1'&&e.status==='confirmed').length;
   document.getElementById('s-ds').textContent=wev.filter(e=>e.doctor==='denis'&&e.type==='clinic2'&&e.status==='confirmed').length;
@@ -1390,7 +1511,17 @@ function render(){
   document.getElementById('s-pend').textContent=pCount;
   document.getElementById('pending-bar').classList.toggle('on',pCount>0);
   document.getElementById('pending-count').textContent=pCount;
+
   const root=document.getElementById('cal-root'); root.innerHTML='';
+  if(calMode==='month')      renderMonth(root);
+  else if(calMode==='day')   renderDay(root);
+  else                        renderWeek(root);
+}
+
+function renderWeek(root){
+  const days=getWeekDays(currentWeekOffset);
+  const ws=days[0],we=days[6];
+  document.getElementById('week-label').textContent=`${ws.getDate()} ${MONTHS[ws.getMonth()]} – ${we.getDate()} ${MONTHS[we.getMonth()]} ${we.getFullYear()}`;
   if(currentView==='compare'){
     const wrap=document.createElement('div'); wrap.className='compare-wrap'; root.appendChild(wrap);
     ['denis','majo'].forEach(doc2=>{
@@ -1408,6 +1539,105 @@ function render(){
     buildGrid(grid,days,currentView);
   }
 }
+
+// ── DAY VIEW ──
+function renderDay(root){
+  const base=new Date(); base.setHours(0,0,0,0); base.setDate(base.getDate()+currentDayOffset);
+  const dayName=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][base.getDay()];
+  document.getElementById('week-label').textContent=`${dayName} ${base.getDate()} ${MONTHS[base.getMonth()]} ${base.getFullYear()}`;
+
+  const docs = currentView==='compare' ? ['denis','majo'] : [currentView];
+  const wrap=document.createElement('div'); wrap.className='day-wrap'; root.appendChild(wrap);
+  const grid=document.createElement('div');
+  grid.className='day-grid'+(docs.length>1?' compare2':'');
+  wrap.appendChild(grid);
+
+  // headers
+  const corner=document.createElement('div'); corner.className='time-corner'; grid.appendChild(corner);
+  docs.forEach(dc=>{
+    const d=CONFIG.DOCTORS[dc];
+    const h=document.createElement('div'); h.className='day-colhdr';
+    h.innerHTML=`<span style="width:9px;height:9px;border-radius:50%;background:${d.color};display:inline-block"></span>${d.name}`;
+    grid.appendChild(h);
+  });
+
+  const key=dateKey(base);
+  HOURS.forEach(hour=>{
+    const tl=document.createElement('div'); tl.className='time-lbl'; tl.textContent=hour; grid.appendChild(tl);
+    docs.forEach(dc=>{
+      const slot=document.createElement('div'); slot.className='slot';
+      const docEvs=events.filter(e=>(e.doctor===dc||e.type==='blocked')&&e.status!=='cancelled'&&e.date===key&&e.time===hour);
+      const pend=events.filter(e=>e.status==='pending'&&e.doctor===dc&&e.date===key&&e.time===hour);
+      const all=[...docEvs,...pend];
+      const seen=new Set(); const unique=all.filter(e=>{if(seen.has(e.id))return false;seen.add(e.id);return true;});
+      if(unique.length){
+        slot.classList.add('full');
+        unique.forEach(ev=>{
+          const el=document.createElement('div');
+          const isPend=ev.status==='pending';
+          const cls=isPend?'pend':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
+          el.className=`ev ${cls}`;
+          const clin=CONFIG.CLINICS[ev.type];
+          const pill=ev.type!=='blocked'?`<span class="cpill ${clin?.cls||''}">${clin?.short||''}</span>`:'';
+          el.innerHTML=`<span class="ev-name">${isPend?'🔔 ':''}${ev.name}</span><span class="ev-sub">${pill}</span>`;
+          el.onclick=e=>{e.stopPropagation();handleClick(ev);};
+          slot.appendChild(el);
+        });
+      } else {
+        slot.onclick=()=>openModal(null,key,hour,dc);
+      }
+      grid.appendChild(slot);
+    });
+  });
+}
+
+// ── MONTH VIEW ──
+function renderMonth(root){
+  const base=new Date(); base.setDate(1); base.setMonth(base.getMonth()+currentMonthOffset);
+  const year=base.getFullYear(), month=base.getMonth();
+  document.getElementById('week-label').textContent=`${['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][month]} ${year}`;
+
+  const grid=document.createElement('div'); grid.className='month-grid'; root.appendChild(grid);
+  DAYS.forEach(d=>{ const h=document.createElement('div'); h.className='mn-dow'; h.textContent=d; grid.appendChild(h); });
+
+  const first=new Date(year,month,1);
+  let startDow=first.getDay(); startDow=startDow===0?6:startDow-1; // Monday-first
+  const gridStart=new Date(year,month,1-startDow);
+
+  const shownDocs = currentView==='compare' ? ['denis','majo'] : [currentView];
+
+  for(let i=0;i<42;i++){
+    const cell=new Date(gridStart); cell.setDate(gridStart.getDate()+i);
+    const key=dateKey(cell);
+    const inMonth=cell.getMonth()===month;
+    const div=document.createElement('div');
+    div.className='mn-cell'+(inMonth?'':' other')+(key===todayKey()?' today':'');
+    const num=document.createElement('div'); num.className='mn-num'; num.textContent=cell.getDate();
+    div.appendChild(num);
+
+    const dayEvs=events.filter(e=>e.date===key&&e.status!=='cancelled'&&(shownDocs.includes(e.doctor)||e.type==='blocked'))
+      .sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+    const MAX=3;
+    dayEvs.slice(0,MAX).forEach(ev=>{
+      const e=document.createElement('div');
+      const isPend=ev.status==='pending';
+      const cls=isPend?'pend':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
+      e.className=`mn-ev ${cls}`;
+      e.textContent=`${ev.time?formatHM(ev.time)+' ':''}${ev.name}`;
+      e.onclick=ev2=>{ev2.stopPropagation();handleClick(ev);};
+      div.appendChild(e);
+    });
+    if(dayEvs.length>MAX){
+      const more=document.createElement('div'); more.className='mn-more'; more.textContent=`+${dayEvs.length-MAX} más`;
+      div.appendChild(more);
+    }
+    // Tap empty area of an in-month day → jump to that day view
+    div.onclick=()=>{ if(inMonth){ const diff=Math.round((cell-new Date().setHours(0,0,0,0))/86400000); currentDayOffset=diff; setCalMode('day'); } };
+    grid.appendChild(div);
+  }
+}
+
+function formatHM(t){ const [h,m]=t.split(':'); const hh=+h; const ap=hh>=12?'p':'a'; const h12=hh>12?hh-12:hh===0?12:hh; return `${h12}${m!=='00'?':'+m:''}${ap}`; }
 
 function buildGrid(grid,days,doctor){
   const corner=document.createElement('div'); corner.className='time-corner'; grid.appendChild(corner);
@@ -1584,9 +1814,29 @@ function stopMic(){ isListening=false; if(recognition) try{recognition.stop();}c
 function setMicStatus(msg){ document.getElementById('mic-status').textContent=msg; if(msg) setTimeout(()=>{ if(!isListening) document.getElementById('mic-status').textContent=''; },4000); }
 
 // ═══ NAV & INIT ════════════════════════════════════════════════════════════
-document.getElementById('prev-week').onclick=()=>{currentWeekOffset--;render()};
-document.getElementById('next-week').onclick=()=>{currentWeekOffset++;render()};
-document.getElementById('btn-today').onclick=()=>{currentWeekOffset=0;render()};
+function navStep(dir){
+  if(calMode==='day') currentDayOffset+=dir;
+  else if(calMode==='month') currentMonthOffset+=dir;
+  else currentWeekOffset+=dir;
+  render();
+}
+function goToday(){
+  if(calMode==='day') currentDayOffset=0;
+  else if(calMode==='month') currentMonthOffset=0;
+  else currentWeekOffset=0;
+  render();
+}
+function setCalMode(mode){
+  calMode=mode;
+  ['day','week','month'].forEach(m=>{
+    const b=document.getElementById('vt-'+m);
+    if(b) b.className='vt-btn'+(m===mode?' on':'');
+  });
+  render();
+}
+document.getElementById('prev-week').onclick=()=>navStep(-1);
+document.getElementById('next-week').onclick=()=>navStep(1);
+document.getElementById('btn-today').onclick=goToday;
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){closeModal();closePendingModal();document.getElementById('dup-overlay').classList.remove('on');} });
 document.getElementById('quick-input').addEventListener('keydown',e=>{ if(e.key==='Enter') quickParse(); });
 
@@ -1605,4 +1855,3 @@ init();
 </script>
 </body>
 </html>
-Ñ
