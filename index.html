@@ -883,6 +883,14 @@ const CONFIG = {
     appId:             "1:24965817544:web:b76752e3145688b8a1b1fd",
   },
   COLLECTIONS: { events:'agenda_events', bookings_zona1:'bookings_zona1', bookings_sanc:'bookings_sancristobal' },
+  CITAS_FIREBASE: {
+    apiKey:            "AIzaSyCHYg68CN9m5hpBVvyL8QcOOuX7L7BZOdA",
+    authDomain:        "citas-mixco.firebaseapp.com",
+    projectId:         "citas-mixco",
+    storageBucket:     "citas-mixco.firebasestorage.app",
+    messagingSenderId: "96209706701",
+    appId:             "1:96209706701:web:8c411b7ead1007a420d384",
+  },
   DOCTORS: {
     denis: { name:'Dr. Denis Cotzojay',   color:'var(--denis)' },
     majo:  { name:'Dra. María José Nóchez', color:'var(--majo)' },
@@ -897,6 +905,16 @@ const CONFIG = {
     { url:'https://azure.medicloud.me/App/BX27_CalFeed.ashx?t=4acaa5df3781483f8cfad28f2c667655', clinic:'clinic2', doctor:'denis' },
     { url:'https://azure.medicloud.me/App/BX27_CalFeed.ashx?t=308b690f510c4425b48b08f6f96a6775', clinic:'clinic1', doctor:'majo'  },
     { url:'https://azure.medicloud.me/App/BX27_CalFeed.ashx?t=17b6de284c9c4ad2b403e6897f546f44', clinic:'clinic2', doctor:'majo'  },
+  ],
+  CORS_PROXIES: [
+    { url: 'https://api.allorigins.win/raw?url=',            encode: true,  json: false },
+    { url: 'https://api.allorigins.win/get?url=',            encode: true,  json: true  },
+    { url: 'https://corsproxy.io/?url=',                     encode: true,  json: false },
+    { url: 'https://proxy.cors.sh/',                         encode: false, json: false },
+    { url: 'https://thingproxy.freeboard.io/fetch/',         encode: false, json: false },
+    { url: 'https://api.codetabs.com/v1/proxy/?quest=',      encode: true,  json: false },
+    { url: 'https://cors-anywhere.herokuapp.com/',           encode: false, json: false },
+    { url: 'https://whateverorigin.org/get?url=',            encode: true,  json: true  },
   ],
   CORS_PROXY: 'https://api.allorigins.win/raw?url=',
   ICAL_REFRESH_MINUTES: 5,
@@ -940,9 +958,17 @@ function setSyncBadge(state, txt){
 }
 
 // ═══ FIREBASE ═════════════════════════════════════════════════════════════
+// Main Firebase app (agenda)
 firebase.initializeApp(CONFIG.firebase);
 const _db  = firebase.firestore();
 const _col = () => _db.collection(CONFIG.COLLECTIONS.events);
+
+// Second Firebase app (app de citas — citas-mixco)
+let _citasDb = null;
+try {
+  const citasApp = firebase.initializeApp(CONFIG.CITAS_FIREBASE, 'citasApp');
+  _citasDb = citasApp.firestore();
+} catch(e) { console.warn('citas-mixco init error:', e); }
 
 const DB = {
   async load(){
@@ -1018,19 +1044,135 @@ function parseIcal(text,clinic,doctor){
   return evs;
 }
 
+// Try one proxy, return iCal text or throw
+async function tryProxy(proxy, feedUrl){
+  const target = proxy.encode ? encodeURIComponent(feedUrl) : feedUrl;
+  const res = await fetch(proxy.url + target, {
+    cache: 'no-store',
+    headers: proxy.url.includes('cors.sh') ? { 'x-requested-with': 'XMLHttpRequest' } : {},
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  let text = await res.text();
+  // Some proxies wrap the response in JSON: { contents: "..." } or { data: "..." }
+  if (proxy.json) {
+    try {
+      const j = JSON.parse(text);
+      text = j.contents || j.data || j.body || '';
+    } catch(e) { /* not JSON, use as-is */ }
+  }
+  if (!text.includes('BEGIN:VCALENDAR') && !text.includes('BEGIN:VEVENT')) {
+    throw new Error('Not iCal');
+  }
+  return text;
+}
+
 async function fetchFeed(feed){
-  try{
-    const res=await fetch(CONFIG.CORS_PROXY+encodeURIComponent(feed.url),{cache:'no-store'});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    return parseIcal(await res.text(),feed.clinic,feed.doctor);
-  } catch(e){ console.warn('Feed error:',feed.doctor,e.message); return []; }
+  // Try proxies in small parallel batches — first valid response wins.
+  // This is faster and more resilient than strictly sequential.
+  const proxies = CONFIG.CORS_PROXIES;
+  const BATCH = 3;
+  for (let i = 0; i < proxies.length; i += BATCH) {
+    const batch = proxies.slice(i, i + BATCH);
+    const attempts = batch.map(p =>
+      tryProxy(p, feed.url).then(text => ({ text, proxy: p.url }))
+    );
+    try {
+      // Promise.any → first to succeed
+      const winner = await Promise.any(attempts);
+      console.log('MediCloud OK [' + feed.doctor + '] via', winner.proxy.slice(0,32));
+      return parseIcal(winner.text, feed.clinic, feed.doctor);
+    } catch(e) {
+      // All in this batch failed — try next batch
+      console.warn('Batch failed for', feed.doctor, '— trying next proxies');
+    }
+  }
+  console.error('❌ MediCloud feed FAILED for', feed.doctor, feed.clinic);
+  return { _failed: true, doctor: feed.doctor, clinic: feed.clinic };
+}
+
+// ── SYNC FROM APP DE CITAS (citas-mixco Firebase) ─────────────────────────
+async function loadCitasOnline(){
+  if (!_citasDb) { console.warn('citas-mixco not available'); return []; }
+  try {
+    // Get citas from the last 30 days and next 60 days
+    const today = new Date();
+    const from = new Date(today); from.setDate(today.getDate() - 30);
+    const to   = new Date(today); to.setDate(today.getDate() + 60);
+    const fromStr = dateKey(from);
+    const toStr   = dateKey(to);
+
+    const snap = await _citasDb.collection('citas')
+      .where('fecha', '>=', fromStr)
+      .where('fecha', '<=', toStr)
+      .get();
+
+    // Map medicoId from citas app → agenda doctor ids
+    const MEDICO_MAP = {
+      'denis':  'denis',
+      'nochez': 'majo',   // Dra. Nóchez → majo in agenda
+      'pamela': 'majo',   // Pamela → shown under majo for now (can extend)
+    };
+    // Map especialidad → clinic type
+    // citas app uses medicoId to determine clinic; we default clinic1 (Mixco) for now
+    // unless the cita has a clinica field
+    const CLINIC_MAP = {
+      'clinic1': 'clinic1',
+      'clinic2': 'clinic2',
+    };
+
+    const evs = [];
+    snap.forEach(d => {
+      const c = d.data();
+      if (c.estado === 'cancelada') return;
+      const doctorId = MEDICO_MAP[c.medicoId] || 'denis';
+      const clinicId = (c.clinica && CLINIC_MAP[c.clinica]) ? CLINIC_MAP[c.clinica] : 'clinic1';
+      evs.push({
+        id: 'online_' + d.id,
+        doctor: doctorId,
+        type: clinicId,
+        name: c.nombre || '(sin nombre)',
+        date: c.fecha,
+        time: c.hora || '08:00',
+        duration: 2,
+        source: 'online',
+        status: c.estado === 'confirmada' ? 'confirmed' : 'pending',
+        notes: [c.especialidad, c.tipo, `Q${c.precio}`, c.tel].filter(Boolean).join(' · '),
+        readonly: true,
+        updatedAt: c.creadaEn || new Date().toISOString(),
+      });
+    });
+    console.log(`✅ citas-mixco: ${evs.length} citas cargadas`);
+    return evs;
+  } catch(e) {
+    console.warn('Error loading citas-mixco:', e.message);
+    return [];
+  }
 }
 
 async function loadIcalFeedsWithDupCheck(){
-  if(!CONFIG.ICAL_FEEDS?.length) return;
   setSyncBadge('loading');
+
+  // ── 1. Sync from app de citas (citas-mixco Firebase) ──
+  const citasOnline = await loadCitasOnline();
+  events = events.filter(e => e.source !== 'online');
+  citasOnline.forEach(ev => {
+    const dup = findDuplicate(ev);
+    if (!dup) events.push(ev);
+    // If duplicate with manual entry → silently prefer manual
+  });
+
+  // ── 2. Sync from MediCloud iCal feeds ──
+  if(!CONFIG.ICAL_FEEDS?.length) {
+    setSyncBadge(citasOnline.length ? 'ok' : '');
+    const total = citasOnline.length;
+    if (total) document.getElementById('sync-text').textContent = `App citas · ${total} citas`;
+    render(); return;
+  }
+
   const results=await Promise.all(CONFIG.ICAL_FEEDS.map(fetchFeed));
-  const icalEvs=results.flat();
+  const failedFeeds = results.filter(r => r && r._failed);
+  const icalEvs = results.filter(r => Array.isArray(r)).flat();
   events=events.filter(e=>e.source!=='medicloud');
   const pending=[];
   for(const ev of icalEvs){
@@ -1038,14 +1180,60 @@ async function loadIcalFeedsWithDupCheck(){
     if(dup) pending.push({ev,dup});
     else events.push(ev);
   }
-  setSyncBadge(icalEvs.length?'ok':'err');
-  if(icalEvs.length) document.getElementById('sync-text').textContent=`MediCloud · ${icalEvs.length} citas`;
+
+  // Update badge with combined count
+  const totalSync = icalEvs.length + citasOnline.length;
+  const allFeedsFailed = failedFeeds.length === CONFIG.ICAL_FEEDS.length;
+
+  if (icalEvs.length > 0 && failedFeeds.length === 0) {
+    setSyncBadge('ok');
+    document.getElementById('sync-text').textContent =
+      citasOnline.length
+        ? `MediCloud+App · ${totalSync} citas`
+        : `MediCloud · ${icalEvs.length} citas`;
+  } else if (icalEvs.length > 0 && failedFeeds.length > 0) {
+    // Partial — some feeds loaded, some failed
+    setSyncBadge('loading', `Parcial · ${totalSync} citas ⟳`);
+    makeBadgeRetryable();
+  } else if (allFeedsFailed && citasOnline.length > 0) {
+    setSyncBadge('err', `App OK · MediCloud ✕ ⟳`);
+    makeBadgeRetryable();
+  } else if (allFeedsFailed) {
+    setSyncBadge('err', 'MediCloud ✕ — toca para reintentar');
+    makeBadgeRetryable();
+  } else if (citasOnline.length > 0) {
+    setSyncBadge('ok', `App citas · ${citasOnline.length} citas`);
+  } else {
+    setSyncBadge('err', 'Sin conexión — toca ⟳');
+    makeBadgeRetryable();
+  }
   render();
   if(pending.length) processDupQueue(pending,0);
 }
 
+// Make the sync badge tappable to force a MediCloud re-sync
+function makeBadgeRetryable(){
+  const b = document.getElementById('sync-badge');
+  if (!b) return;
+  b.style.cursor = 'pointer';
+  b.title = 'Toca para reintentar la sincronización con MediCloud';
+  b.onclick = () => { setSyncBadge('loading','Reintentando…'); loadIcalFeedsWithDupCheck(); };
+}
+
+let _icalRetryDone = false;
 function startIcalRefresh(){
   if(CONFIG.ICAL_REFRESH_MINUTES) setInterval(loadIcalFeedsWithDupCheck, CONFIG.ICAL_REFRESH_MINUTES*60000);
+  // One automatic retry shortly after first load, in case proxies were cold
+  if (!_icalRetryDone) {
+    _icalRetryDone = true;
+    setTimeout(() => {
+      const t = document.getElementById('sync-text');
+      if (t && /✕|Parcial|Sin conexión/.test(t.textContent)) {
+        console.log('Auto-retry MediCloud…');
+        loadIcalFeedsWithDupCheck();
+      }
+    }, 8000);
+  }
 }
 
 // ═══ DUPLICATES ════════════════════════════════════════════════════════════
@@ -1417,3 +1605,4 @@ init();
 </script>
 </body>
 </html>
+Ñ
