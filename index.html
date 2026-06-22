@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Agenda Médica</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -792,7 +795,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   <div class="home-cards">
     <button class="home-card agendar" onclick="goScreen('s-agendar')">
       <span class="card-tag agendar">Agendar</span>
-      <span class="card-title">Nueva cita</span>
+      <span class="card-title">Nuevo evento</span>
       <span class="card-sub">Registrá una consulta, actividad o bloqueo</span>
     </button>
     <button class="home-card consultar" onclick="goScreen('s-consultar')">
@@ -2214,6 +2217,4 @@ async function quickParse(){
     try{ res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})}); }
     catch(fetchErr){ quickParsedEvent=basicParse(text); showPreview(quickParsedEvent,'low','Interpretación básica — revisá los datos'); document.getElementById('quick-thinking').classList.remove('on'); btn.disabled=false; return; }
     const data=await res.json();
-    const raw=data.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
-    const p=JSON.parse(raw);
-    quickParsedEvent={id:uid(),doctor:p.doctor||'denis',type:p.type||'clinic1',name:p.name||text,date:p.date||toda
+    const raw=data.content.map(c=>c.text||'').join('').replace(/`
