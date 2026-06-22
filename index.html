@@ -772,6 +772,20 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 </head>
 <body>
 
+<div id="err-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#DC2626;color:#fff;font:12px/1.4 monospace;padding:10px 14px;white-space:pre-wrap;max-height:50vh;overflow:auto"></div>
+<script>
+// Catch ANY script error and show it on screen so we can diagnose on mobile
+window.onerror = function(msg, src, line, col, error){
+  var b = document.getElementById('err-banner');
+  if(b){ b.style.display='block'; b.textContent = '⚠️ ERROR:\n'+msg+'\nlínea '+line+':'+col+(error&&error.stack?'\n'+error.stack:''); }
+  return false;
+};
+window.addEventListener('unhandledrejection', function(e){
+  var b = document.getElementById('err-banner');
+  if(b){ b.style.display='block'; b.textContent += '\n⚠️ PROMISE: '+(e.reason&&e.reason.message?e.reason.message:e.reason); }
+});
+</script>
+
 <!-- HEADER -->
 <header class="hdr">
   <div class="hdr-left">
@@ -2211,10 +2225,4 @@ async function quickParse(){
   document.getElementById('quick-preview').classList.remove('on','err');
   const today=new Date(), todayStr=today.toISOString().split('T')[0];
   const dayName=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][today.getDay()];
-  const prompt=`Eres asistente de agenda médica en Guatemala. Hoy es ${dayName} ${todayStr}. Médicos: "Dr. Denis Cotzojay" (doctor:"denis") y "Dra. María José Nóchez" (doctor:"majo"). Clínicas: "Zona 1 Mixco" (type:"clinic1") y "San Cristóbal" (type:"clinic2"). Texto: """${text}""" Responde SOLO con JSON válido: {"doctor":"denis"|"majo","type":"clinic1"|"clinic2"|"blocked","name":"string","date":"YYYY-MM-DD","time":"HH:00","duration":1|2|3|4,"confidence":"high"|"medium"|"low","note":"string"}. Reglas: mañana=${new Date(today.getTime()+86400000).toISOString().split('T')[0]}, hoy=${todayStr}, sin médico→denis, sin clínica→clinic1, sin hora→08:00, sin duración→2.`;
-  try{
-    let res;
-    try{ res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})}); }
-    catch(fetchErr){ quickParsedEvent=basicParse(text); showPreview(quickParsedEvent,'low','Interpretación básica — revisá los datos'); document.getElementById('quick-thinking').classList.remove('on'); btn.disabled=false; return; }
-    const data=await res.json();
-    const raw=data.content.map(c=>c.text||'').join('').replace(/`
+  const prompt=`Eres asistente de agenda médica en Guatemala. Hoy es ${dayName} ${todayStr}. Médicos: "Dr. Denis Cotzojay" (doctor:"denis") y "Dra. María José Nóchez" (doctor:"majo"). Clínicas: "Zona 1 Mixco" (type:"clinic1") y "San Cristóbal" (type:"clinic2"). Texto: """${text}""" Responde SOLO con JSON válido: {"doctor":"denis"|"majo","type":"clinic1"|"clinic2"|"blocked","name":"string","date":"YYYY-MM-DD","time":"HH:00","duration":1|2|3|4
