@@ -602,32 +602,61 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .time-corner { border-right:1px solid var(--border); border-bottom:1px solid var(--border); height:46px; }
 .time-lbl {
   font-family:var(--mono); font-size:10px; color:var(--muted);
-  height:50px; display:flex; align-items:flex-start;
+  min-height:50px; display:flex; align-items:flex-start;
   padding:4px 6px 0; border-right:1px solid var(--border);
 }
 
 .slot {
-  height:50px; border-bottom:1px solid #F1F1F1;
+  min-height:50px; border-bottom:1px solid #F1F1F1;
   border-right:1px solid #F1F1F1;
   position:relative; cursor:pointer; transition:background .12s;
 }
 .slot:hover { background:var(--denis-bg); }
-.slot.full { cursor:default; }
+.slot.full { cursor:default; padding:2px; display:flex; flex-direction:column; gap:2px; }
 .slot.full:hover { background:transparent; }
 .slot.today-col { background:#FAFBFF; }
 .slot.today-col:hover { background:var(--denis-bg); }
 
 .ev {
-  position:absolute; inset:2px 3px; border-radius:6px;
+  border-radius:6px;
   padding:3px 6px; font-size:11px; font-weight:500;
   display:flex; flex-direction:column; justify-content:center;
-  overflow:hidden; cursor:pointer; z-index:2; line-height:1.3;
+  overflow:hidden; cursor:pointer; line-height:1.3;
+  flex:1; min-height:0;
 }
+.ev-time { font-family:var(--mono); font-size:9px; opacity:.85; font-weight:600; }
+
+/* Occupation summary (day view) */
+.occ-summary {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  background:var(--white); border:1px solid var(--border);
+  border-radius:11px; padding:10px 14px; margin-bottom:10px;
+  font-size:13px; color:var(--text);
+}
+.occ-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.occ-stat { color:var(--muted); font-size:12px; }
+.occ-pill {
+  margin-left:auto; font-size:11px; font-weight:700;
+  padding:3px 10px; border-radius:20px; white-space:nowrap;
+}
+.occ-pill.free { background:var(--mixco-bg); color:var(--mixco); }
+.occ-pill.busy { background:var(--denis-bg); color:var(--denis); }
 .ev.denis   { background:var(--denis-bg); color:var(--denis); border-left:3px solid var(--denis); }
 .ev.majo    { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo);  }
 .ev.blocked { background:var(--block-bg); color:var(--block); border-left:3px solid var(--block); }
 .ev.pend    { background:var(--sanc-bg);  color:var(--sanc);  border-left:3px dashed var(--sanc); }
 .ev.medic   { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo); opacity:.75; }
+/* Reserva virtual: tiempo apartado, aún sin expediente */
+.ev.virtual {
+  background:repeating-linear-gradient(135deg, #F8FAFC, #F8FAFC 6px, #EEF2F7 6px, #EEF2F7 12px);
+  color:#64748B; border-left:3px dashed #94A3B8;
+}
+.ev-badge {
+  font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:.3px;
+  padding:1px 4px; border-radius:4px; align-self:flex-start; margin-top:1px;
+}
+.ev-badge.virtual { background:#E2E8F0; color:#475569; }
+.ev-badge.exp { background:var(--mixco-bg); color:var(--mixco); }
 .ev-name { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .ev-sub  { font-size:10px; opacity:.7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .cpill {
@@ -1158,7 +1187,12 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 const todayKey = () => new Date().toISOString().split('T')[0];
 const DAYS   = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-const HOURS  = Array.from({length:14},(_,i)=>`${String(i+7).padStart(2,'0')}:00`);
+const HOURS  = Array.from({length:16},(_,i)=>`${String(i+6).padStart(2,'0')}:00`);
+// Match an event time (which may have minutes, e.g. "08:30") to an hour slot ("08:00")
+function sameHour(evTime, slotHour){
+  if(!evTime) return false;
+  return parseInt(evTime.split(':')[0],10) === parseInt(slotHour.split(':')[0],10);
+}
 const DURS   = {1:'30 min',2:'1 hora',3:'1.5h',4:'2 horas'};
 
 function getWeekDays(off=0){
@@ -1434,6 +1468,8 @@ async function loadCitasOnline(){
         time: c.hora || '08:00',
         duration: 2,
         source: 'online',
+        reservaVirtual: true,
+        expediente: false,
         status: c.estado === 'confirmada' ? 'confirmed' : 'pending',
         notes: [c.especialidad, c.tipo, `Q${c.precio}`, c.tel].filter(Boolean).join(' · '),
         readonly: true,
@@ -1474,9 +1510,30 @@ async function loadIcalFeedsWithDupCheck(){
   events=events.filter(e=>e.source!=='medicloud');
   const pending=[];
   for(const ev of icalEvs){
+    // Does this MediCloud appointment land on an existing virtual reservation
+    // (same doctor + clinic + hour)? If so, UPGRADE that slot to "con expediente"
+    // instead of creating a duplicate — the reserved time is now a real record.
+    const virtual = events.find(e =>
+      e.source==='online' && e.status!=='cancelled' &&
+      e.doctor===ev.doctor && e.type===ev.type && e.date===ev.date &&
+      sameHour(e.time, ev.time)
+    );
+    if(virtual){
+      // Upgrade in place: keep MediCloud's richer data, mark as confirmed record
+      virtual.source     = 'medicloud';
+      virtual.expediente = true;
+      virtual.status     = 'confirmed';
+      virtual.name       = ev.name || virtual.name;
+      virtual.time       = ev.time;
+      virtual.duration   = ev.duration || virtual.duration;
+      virtual.phone      = ev.phone || virtual.phone;
+      virtual.notes      = ev.notes || virtual.notes;
+      virtual.readonly   = true;
+      continue;
+    }
     const dup=findDuplicate(ev);
     if(dup) pending.push({ev,dup});
-    else events.push(ev);
+    else { ev.expediente = true; events.push(ev); }
   }
 
   // Update badge with combined count
@@ -1682,14 +1739,16 @@ function enterAgendaFromAgendar(view){
 
 // ═══ RENDER ════════════════════════════════════════════════════════════════
 function render(){
-  // Stats always reflect the visible week of the current offset
+  // Stats reflect OCCUPATION of the visible week: every reserved/recorded slot
+  // counts as occupied time, regardless of source (virtual reservation or expediente).
   const weekDays=getWeekDays(currentWeekOffset);
   const wKeys=weekDays.map(dateKey);
-  const wev=events.filter(e=>wKeys.includes(e.date)&&e.status!=='cancelled');
-  document.getElementById('s-dm').textContent=wev.filter(e=>e.doctor==='denis'&&e.type==='clinic1'&&e.status==='confirmed').length;
-  document.getElementById('s-ds').textContent=wev.filter(e=>e.doctor==='denis'&&e.type==='clinic2'&&e.status==='confirmed').length;
-  document.getElementById('s-mm').textContent=wev.filter(e=>e.doctor==='majo' &&e.type==='clinic1'&&e.status==='confirmed').length;
-  document.getElementById('s-ms').textContent=wev.filter(e=>e.doctor==='majo' &&e.type==='clinic2'&&e.status==='confirmed').length;
+  const occupies = e => e.status!=='cancelled' && e.type!=='blocked';
+  const wev=events.filter(e=>wKeys.includes(e.date)&&occupies(e));
+  document.getElementById('s-dm').textContent=wev.filter(e=>e.doctor==='denis'&&e.type==='clinic1').length;
+  document.getElementById('s-ds').textContent=wev.filter(e=>e.doctor==='denis'&&e.type==='clinic2').length;
+  document.getElementById('s-mm').textContent=wev.filter(e=>e.doctor==='majo' &&e.type==='clinic1').length;
+  document.getElementById('s-ms').textContent=wev.filter(e=>e.doctor==='majo' &&e.type==='clinic2').length;
   const pCount=events.filter(e=>e.status==='pending').length;
   document.getElementById('s-pend').textContent=pCount;
   document.getElementById('pending-bar').classList.toggle('on',pCount>0);
@@ -1731,6 +1790,28 @@ function renderDay(root){
   document.getElementById('week-label').textContent=`${dayName} ${base.getDate()} ${MONTHS[base.getMonth()]} ${base.getFullYear()}`;
 
   const docs = currentView==='compare' ? ['denis','majo'] : [currentView];
+  const key=dateKey(base);
+
+  // Occupation summary: which hours are taken vs free for this day
+  docs.forEach(dc=>{
+    const occHours=new Set();
+    events.filter(e=>e.date===key&&e.status!=='cancelled'&&e.type!=='blocked'&&(e.doctor===dc))
+      .forEach(e=>{ if(e.time) occHours.add(parseInt(e.time.split(':')[0],10)); });
+    const blocked=new Set();
+    events.filter(e=>e.date===key&&e.type==='blocked')
+      .forEach(e=>{ if(e.time) blocked.add(parseInt(e.time.split(':')[0],10)); });
+    const occ=occHours.size, blk=blocked.size;
+    const d=CONFIG.DOCTORS[dc]||{};
+    const bar=document.createElement('div'); bar.className='occ-summary';
+    const free = occ===0 && blk===0;
+    bar.innerHTML=`
+      <span class="occ-dot" style="background:${d.color||'#888'}"></span>
+      <strong>${d.name||dc}</strong>
+      <span class="occ-stat">${occ} ${occ===1?'espacio ocupado':'espacios ocupados'}${blk?` · ${blk} bloqueado${blk>1?'s':''}`:''}</span>
+      <span class="occ-pill ${free?'free':'busy'}">${free?'Día libre':'Hay ocupación'}</span>`;
+    root.appendChild(bar);
+  });
+
   const wrap=document.createElement('div'); wrap.className='day-wrap'; root.appendChild(wrap);
   const grid=document.createElement('div');
   grid.className='day-grid'+(docs.length>1?' compare2':'');
@@ -1745,15 +1826,15 @@ function renderDay(root){
     grid.appendChild(h);
   });
 
-  const key=dateKey(base);
   HOURS.forEach(hour=>{
     const tl=document.createElement('div'); tl.className='time-lbl'; tl.textContent=hour; grid.appendChild(tl);
     docs.forEach(dc=>{
       const slot=document.createElement('div'); slot.className='slot';
-      const docEvs=events.filter(e=>(e.doctor===dc||e.type==='blocked')&&e.status!=='cancelled'&&e.date===key&&e.time===hour);
-      const pend=events.filter(e=>e.status==='pending'&&e.doctor===dc&&e.date===key&&e.time===hour);
+      const docEvs=events.filter(e=>(e.doctor===dc||e.type==='blocked')&&e.status!=='cancelled'&&e.date===key&&sameHour(e.time,hour));
+      const pend=events.filter(e=>e.status==='pending'&&e.doctor===dc&&e.date===key&&sameHour(e.time,hour));
       const all=[...docEvs,...pend];
       const seen=new Set(); const unique=all.filter(e=>{if(seen.has(e.id))return false;seen.add(e.id);return true;});
+      unique.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
       if(unique.length){
         slot.classList.add('full');
         unique.forEach(ev=>{
@@ -1763,7 +1844,8 @@ function renderDay(root){
           el.className=`ev ${cls}`;
           const clin=CONFIG.CLINICS[ev.type];
           const pill=ev.type!=='blocked'?`<span class="cpill ${clin?.cls||''}">${clin?.short||''}</span>`:'';
-          el.innerHTML=`<span class="ev-name">${isPend?'🔔 ':''}${ev.name}</span><span class="ev-sub">${pill}</span>`;
+          const hm=ev.time&&ev.time.split(':')[1]!=='00'?`<span class="ev-time">${ev.time}</span> `:'';
+          el.innerHTML=`<span class="ev-name">${isPend?'🔔 ':''}${hm}${ev.name}</span><span class="ev-sub">${pill}</span>`;
           el.onclick=e=>{e.stopPropagation();handleClick(ev);};
           slot.appendChild(el);
         });
@@ -1836,20 +1918,25 @@ function buildGrid(grid,days,doctor){
       const key=dateKey(day);
       const slot=document.createElement('div'); slot.className='slot'+(key===todayKey()?' today-col':'');
       const slotEvs=[
-        ...docEvs.filter(e=>e.date===key&&e.time===hour),
-        ...events.filter(e=>e.status==='pending'&&e.doctor===doctor&&e.date===key&&e.time===hour)
+        ...docEvs.filter(e=>e.date===key&&sameHour(e.time,hour)),
+        ...events.filter(e=>e.status==='pending'&&e.doctor===doctor&&e.date===key&&sameHour(e.time,hour))
       ];
       const seen=new Set(); const unique=slotEvs.filter(e=>{ if(seen.has(e.id)) return false; seen.add(e.id); return true; });
+      unique.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
       if(unique.length){
         slot.classList.add('full');
         unique.forEach(ev=>{
           const el=document.createElement('div');
           const isPend=ev.status==='pending';
-          const cls=isPend?'pend':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
+          const isVirtual=ev.reservaVirtual && !ev.expediente;
+          const cls=isVirtual?'virtual':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
           el.className=`ev ${cls}`;
           const clin=CONFIG.CLINICS[ev.type];
           const pill=ev.type!=='blocked'?`<span class="cpill ${clin?.cls||''}">${clin?.short||''}</span>`:'';
-          el.innerHTML=`<span class="ev-name">${isPend?'🔔 ':''}${ev.name}</span><span class="ev-sub">${pill}</span>`;
+          const hm=ev.time&&ev.time.split(':')[1]!=='00'?`<span class="ev-time">${ev.time}</span> `:'';
+          const badge = isVirtual ? `<span class="ev-badge virtual">reserva</span>`
+                      : ev.expediente ? `<span class="ev-badge exp">expediente</span>` : '';
+          el.innerHTML=`<span class="ev-name">${hm}${ev.name}</span><span class="ev-sub">${pill}</span>${badge}`;
           el.onclick=e=>{ e.stopPropagation(); handleClick(ev); };
           slot.appendChild(el);
         });
@@ -2129,77 +2216,4 @@ async function quickParse(){
     const data=await res.json();
     const raw=data.content.map(c=>c.text||'').join('').replace(/```json|```/g,'').trim();
     const p=JSON.parse(raw);
-    quickParsedEvent={id:uid(),doctor:p.doctor||'denis',type:p.type||'clinic1',name:p.name||text,date:p.date||todayStr,time:p.time||'08:00',duration:p.duration||2,source:'manual',status:'confirmed'};
-    showPreview(quickParsedEvent,p.confidence,p.note);
-  } catch(err){ quickParsedEvent=basicParse(text); showPreview(quickParsedEvent,'low','No pude interpretar — revisá los datos'); }
-  document.getElementById('quick-thinking').classList.remove('on'); btn.disabled=false;
-}
-
-async function quickSave(){
-  if(!quickParsedEvent) return;
-  const evDate=new Date(quickParsedEvent.date+'T12:00:00');
-  const diff=Math.round((evDate-new Date())/86400000);
-  currentWeekOffset=Math.floor(diff/7);
-  if(quickParsedEvent.type!=='blocked') setView(quickParsedEvent.doctor);
-  quickCancel(); await saveWithDupCheck(quickParsedEvent);
-}
-function quickEdit(){ if(!quickParsedEvent) return; openModal(quickParsedEvent); quickCancel(); }
-function quickCancel(){ document.getElementById('quick-input').value=''; document.getElementById('quick-preview').classList.remove('on','err'); quickParsedEvent=null; }
-
-// ═══ MIC ══════════════════════════════════════════════════════════════════
-function initSpeech(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return null;
-  const r=new SR(); r.lang='es-GT'; r.continuous=false; r.interimResults=true;
-  r.onstart=()=>{ isListening=true; document.getElementById('btn-mic').classList.add('on'); document.getElementById('btn-mic').textContent='🔴'; setMicStatus('🎙️ Escuchando…'); };
-  r.onresult=e=>{ const t=Array.from(e.results).map(r=>r[0].transcript).join(''); document.getElementById('quick-input').value=t; if(e.results[e.results.length-1].isFinal) setMicStatus('✓ Listo'); };
-  r.onerror=e=>{ const m={'not-allowed':'⚠️ Permiso denegado.','no-speech':'⚠️ No se detectó voz.'}; setMicStatus(m[e.error]||'⚠️ Error: '+e.error); stopMic(); };
-  r.onend=()=>stopMic();
-  return r;
-}
-function toggleMic(){ if(isListening){stopMic();return;} if(!recognition) recognition=initSpeech(); if(!recognition){setMicStatus('⚠️ No soportado. Usá Chrome o Safari.');return;} document.getElementById('quick-input').value=''; document.getElementById('quick-preview').classList.remove('on','err'); try{recognition.start();}catch(e){setMicStatus('⚠️ No se pudo iniciar.');} }
-function stopMic(){ isListening=false; if(recognition) try{recognition.stop();}catch(e){} const btn=document.getElementById('btn-mic'); btn.classList.remove('on'); btn.textContent='🎙️'; const val=document.getElementById('quick-input').value.trim(); if(val) setTimeout(()=>quickParse(),400); }
-function setMicStatus(msg){ document.getElementById('mic-status').textContent=msg; if(msg) setTimeout(()=>{ if(!isListening) document.getElementById('mic-status').textContent=''; },4000); }
-
-// ═══ NAV & INIT ════════════════════════════════════════════════════════════
-function navStep(dir){
-  if(calMode==='day') currentDayOffset+=dir;
-  else if(calMode==='month') currentMonthOffset+=dir;
-  else currentWeekOffset+=dir;
-  render();
-}
-function goToday(){
-  if(calMode==='day') currentDayOffset=0;
-  else if(calMode==='month') currentMonthOffset=0;
-  else currentWeekOffset=0;
-  render();
-}
-function setCalMode(mode){
-  calMode=mode;
-  ['day','week','month'].forEach(m=>{
-    const b=document.getElementById('vt-'+m);
-    if(b) b.className='vt-btn'+(m===mode?' on':'');
-  });
-  render();
-}
-document.getElementById('prev-week').onclick=()=>navStep(-1);
-document.getElementById('next-week').onclick=()=>navStep(1);
-document.getElementById('btn-today').onclick=goToday;
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'){closeModal();closePendingModal();document.getElementById('dup-overlay').classList.remove('on');} });
-document.getElementById('quick-input').addEventListener('keydown',e=>{ if(e.key==='Enter') quickParse(); });
-
-// Functions are global (no module scope)
-
-async function init(){
-  setSyncBadge('loading');
-  events=await DB.load();
-  controles=await DB.loadControls();
-  setSyncBadge('ok','Firebase ✓');
-  DB.subscribeRealtime(updated=>{ events=updated; render(); const active=ALL_SCREENS.find(s=>document.getElementById(s)?.classList.contains('on')); if(active==='s-home') updateHome(); if(active==='s-consultar') updateBadges(); });
-  goScreen('s-home');
-  await loadIcalFeedsWithDupCheck();
-  startIcalRefresh();
-}
-init();
-</script>
-</body>
-</html>
+    quickParsedEvent={id:uid(),doctor:p.doctor||'denis',type:p.type||'clinic1',name:p.name||text,date:p.date||toda
