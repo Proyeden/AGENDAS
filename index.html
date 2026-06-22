@@ -8,8 +8,11 @@
 <meta http-equiv="Expires" content="0">
 <title>Agenda Médica</title>
 <script>
-// Early error catcher — runs before everything, shows any script error on screen
+// Early error catcher — shows only real JavaScript errors on screen
 window.addEventListener('error', function(ev){
+  // Ignore resource load errors (scripts/img/css from CDN) — only JS runtime errors
+  if(!ev.message && !(ev.error)) return;
+  if(ev.target && (ev.target.tagName==='SCRIPT'||ev.target.tagName==='LINK'||ev.target.tagName==='IMG')) return;
   var b = document.getElementById('err-banner') || (function(){
     var d=document.createElement('div'); d.id='err-banner';
     d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#DC2626;color:#fff;font:12px/1.45 monospace;padding:10px 14px;white-space:pre-wrap;max-height:55vh;overflow:auto';
@@ -2223,4 +2226,4 @@ async function quickParse(){
   document.getElementById('quick-preview').classList.remove('on','err');
   const today=new Date(), todayStr=today.toISOString().split('T')[0];
   const dayName=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][today.getDay()];
-  const prompt=`Eres asistente de agenda médica en Guatemala. Hoy es ${dayName} ${todayStr}. Médicos: "Dr. Denis Cotzojay" (doctor:"denis") y "Dra. María José Nóchez" (doctor:"majo"). Clínicas: "Zona 1 Mixco" (type:"clinic1") y "San Cristóbal" (type:"clinic2"). Texto: """${text}""" Responde SOLO con JSON válido: {"doctor":"denis"|"majo","type":"clinic1"|"clinic2"|"blocked","name":"string","date":"YYYY-MM-DD","time":"HH:00","duration":1|2|3|4,"confidence":"high"|"medium"|"low","note":"string"}. Reglas: mañana=${new Date(
+  const prompt=`Eres asistente de agenda médica en Guatemala. Hoy es ${dayName} ${todayStr}. Médicos: "Dr. Denis Cotzojay" (doctor:"denis") y "Dra. María José Nóchez" (doctor:"majo"). Clínicas: "Zona 1 Mixco" (type:"clinic1") y "San Cristóbal" (type:"clinic2"). Texto: """${text}""" Responde SOLO co
