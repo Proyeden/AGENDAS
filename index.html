@@ -1632,7 +1632,11 @@ function parseIcal(text,clinic,doctor){
         const expediente = expMatch ? expMatch[1] : null;
         const nombreLimpio = expMatch ? expMatch[2].trim() : cur.name;
         const slug = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'').slice(0,24);
-        const horaSlug = (cur.time||'').replace(':','');
+        // Hora por defecto consistente para citas sin hora ("undefined time"):
+        // pacientes que apuntás sin horario. Se usa la MISMA hora para mostrar y
+        // para la llave del ajuste, evitando el desajuste que impedía guardar.
+        const horaCita = cur.time || '08:00';
+        const horaSlug = horaCita.replace(':','');
         // Prioridad: expediente+fecha+hora > UID+fecha > derivado por nombre
         const citaId = expediente
           ? `exp_${expediente}_${cur.date}_${horaSlug}`
@@ -1644,8 +1648,8 @@ function parseIcal(text,clinic,doctor){
         // Ajuste manual guardado (manda sobre lo que diga MediCloud)
         const durManual = durOverrides[citaId];
         const durUsada = (durManual!=null) ? durManual : durFinal;
-        console.log(`📅 ${nombreLimpio} · ${cur.time||'??'} · dur=${durManual!=null?durManual+'min (ajuste manual)':(durDetectada?durDetectada+'min':'NO DETECTADA (usando 45)')} · id=${citaId}`);
-        evs.push({id:citaId,expediente,doctor,type:clinic,name:nombreLimpio,phone,date:cur.date,time:cur.time||'08:00',duration:Math.max(1,Math.round(durUsada/60)),durMin:durUsada,durAjustada:(durManual!=null),who:[],source:'medicloud',status:'confirmed',notes:cur.notes||'',readonly:true});
+        console.log(`📅 ${nombreLimpio} · ${cur.time||'SIN HORA→'+horaCita} · dur=${durManual!=null?durManual+'min (ajuste manual)':(durDetectada?durDetectada+'min':'NO DETECTADA (usando 45)')} · id=${citaId}`);
+        evs.push({id:citaId,expediente,doctor,type:clinic,name:nombreLimpio,phone,date:cur.date,time:horaCita,sinHora:!cur.time,duration:Math.max(1,Math.round(durUsada/60)),durMin:durUsada,durAjustada:(durManual!=null),who:[],source:'medicloud',status:'confirmed',notes:cur.notes||'',readonly:true});
       }
       cur=null;
     } else if(cur){
