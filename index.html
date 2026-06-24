@@ -722,6 +722,9 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .tl-ev.medic   { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo); }
 .tl-ev.blocked { background:var(--block-bg); color:var(--block); border-left:3px solid var(--block); }
 .tl-ev.pend    { background:var(--sanc-bg);  color:var(--sanc);  border-left:3px dashed var(--sanc); }
+.tl-ev.tl-dup { outline:2px solid #F59E0B; outline-offset:-1px; box-shadow:0 0 0 1px #F59E0B; }
+.tl-dup-tag { font-size:9px; font-weight:700; text-transform:uppercase; opacity:.85; margin-top:1px; display:block; }
+.tl-dup-warn { font-size:11px; font-weight:600; color:#92400E; background:#FFFBEB; border:1px solid #FDE68A; border-radius:8px; padding:5px 9px; margin-bottom:6px; }
 .tl-ev.virtual { background:repeating-linear-gradient(135deg,#F8FAFC,#F8FAFC 6px,#EEF2F7 6px,#EEF2F7 12px); color:#64748B; border-left:3px dashed #94A3B8; }
 /* Distintivo de clínica: borde derecho grueso */
 .tl-ev.in-mixco { border-right:5px solid var(--mixco); }
@@ -1895,8 +1898,17 @@ async function loadIcalFeedsWithDupCheck(){
       continue;
     }
     const dup=findDuplicate(ev);
-    if(dup) pending.push({ev,dup});
-    else { ev.expediente = true; events.push(ev); }
+    if(dup){
+      // Posible duplicado: lo marcamos para revisión PERO igual lo mostramos.
+      // Una cita de MediCloud es un dato real del sistema oficial — nunca debe
+      // desaparecer de la agenda por estar "en duda".
+      pending.push({ev,dup});
+      ev.expediente = true;
+      ev.posibleDuplicado = true;
+      events.push(ev);
+    } else {
+      ev.expediente = true; events.push(ev);
+    }
   }
 
   // Update badge with combined count
@@ -1926,7 +1938,9 @@ async function loadIcalFeedsWithDupCheck(){
     makeBadgeRetryable();
   }
   render();
-  if(pending.length) processDupQueue(pending,0);
+  // Los posibles duplicados ya NO abren un modal que interrumpe. Se muestran
+  // lado a lado en el lienzo del día (ver buildDayTimeline) y se resuelven
+  // tocándolos. Esto evita que una cita desaparezca por un modal sin resolver.
   // Empujar duraciones reales de MediCloud al sistema de citas (no bloqueante)
   syncMedicloudDurationsToCitas().catch(e=>console.warn('sync MC duraciones:', e.message));
 }
@@ -2253,23 +2267,51 @@ function buildDayTimeline(doctorId, dateStr, dow){
     canvas.appendChild(g);
   });
 
+  // Detectar pares de posible duplicado: una reserva virtual y una cita de
+  // MediCloud que se solapan en la misma franja. Se muestran lado a lado.
+  const dupPairs = new Set(); // ids que forman parte de un par duplicado
+  for(let a=0;a<evs.length;a++){
+    for(let b=a+1;b<evs.length;b++){
+      const A=evs[a], B=evs[b];
+      const solapan = A.s < B.e && B.s < A.e;
+      if(!solapan) continue;
+      const unaVirtual = (A.ev.reservaVirtual && !A.ev.expediente) || (B.ev.reservaVirtual && !B.ev.expediente);
+      const unaMedic = A.ev.source==='medicloud' || B.ev.source==='medicloud' || A.ev.posibleDuplicado || B.ev.posibleDuplicado;
+      if(unaVirtual && unaMedic && !esNoDuplicado(A.ev.id, B.ev.id)){ dupPairs.add(A.ev.id); dupPairs.add(B.ev.id); A._dupWith=B.ev; B._dupWith=A.ev; }
+    }
+  }
+
   // Citas y bloqueos como barras a escala
-  evs.forEach(({ev,s,dur})=>{
+  evs.forEach(({ev,s,dur,_dupWith})=>{
     const y=(s-winIni)*PX_PER_MIN; const ht=Math.max(dur*PX_PER_MIN, 22);
     const isPend=ev.status==='pending';
     const isVirtual=ev.reservaVirtual && !ev.expediente;
     const cls=isPend?'pend':isVirtual?'virtual':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
-    // Distintivo de clínica (borde derecho): Mixco vs San Cristóbal
     const clinCls = ev.type==='clinic2' ? 'in-sanc' : ev.type==='clinic1' ? 'in-mixco' : '';
-    const el=document.createElement('div'); el.className=`tl-ev ${cls} ${clinCls}`;
+    const isDup = dupPairs.has(ev.id);
+    const el=document.createElement('div'); el.className=`tl-ev ${cls} ${clinCls}${isDup?' tl-dup':''}`;
     el.style.top=y+'px'; el.style.height=ht+'px';
+    if(isDup){
+      // Lado a lado: virtual a la izquierda, MediCloud a la derecha
+      const esMedic = ev.source==='medicloud';
+      if(esMedic){ el.style.left='52%'; el.style.right='6px'; }
+      else { el.style.left='52px'; el.style.right='52%'; }
+    }
     const clin=CONFIG.CLINICS[ev.type];
     const pill=ev.type!=='blocked'&&clin?`<span class="cpill ${clin.cls||''}">${clin.short||''}</span>`:'';
     const endStr=tFmt(s+dur);
-    el.innerHTML=`<div class="tl-ev-top"><span class="tl-ev-time">${ev.time}–${endStr}</span>${pill}</div><div class="tl-ev-name">${isPend?'🔔 ':''}${ev.name}</div><div class="tl-ev-dur">${durLabel(dur)}</div>`;
-    el.onclick=e=>{e.stopPropagation();handleClick(ev);};
+    const dupTag = isDup ? `<span class="tl-dup-tag">${ev.source==='medicloud'?'MediCloud':'Reserva web'}</span>` : '';
+    el.innerHTML=`<div class="tl-ev-top"><span class="tl-ev-time">${ev.time}–${endStr}</span>${pill}</div><div class="tl-ev-name">${isPend?'🔔 ':''}${ev.name}</div>${dupTag||`<div class="tl-ev-dur">${durLabel(dur)}</div>`}`;
+    el.onclick=e=>{e.stopPropagation(); if(isDup){ resolverDuplicadoVisual(ev, _dupWith); } else { handleClick(ev); }};
     canvas.appendChild(el);
   });
+
+  // Aviso de duplicado encima si hay pares
+  if(dupPairs.size){
+    const warn=document.createElement('div'); warn.className='tl-dup-warn';
+    warn.textContent='⚠ Posible duplicado — tocá una cita para resolver';
+    col.insertBefore(warn, canvas);
+  }
 
   return col;
 }
@@ -2424,6 +2466,47 @@ async function ajustarDuracionManual(ev){
   if(isNaN(mins) || mins<5 || mins>240){ alert('Poné un número de minutos válido (entre 5 y 240).'); return; }
   await DB.saveDurOverride(ev.id, mins);
   await loadIcalFeedsWithDupCheck();
+}
+
+// Resolver un posible duplicado desde el calendario (dos citas lado a lado).
+// ev = la cita tocada; otra = la cita con la que posiblemente duplica.
+async function resolverDuplicadoVisual(ev, otra){
+  if(!otra){ handleClick(ev); return; }
+  const cualEsMedic = ev.source==='medicloud' ? ev : otra;
+  const cualEsVirtual = ev.source==='medicloud' ? otra : ev;
+  const msg = `Posible duplicado en ${ev.time}:\n\n` +
+    `🌐 Reserva web: ${cualEsVirtual.name}\n` +
+    `🏥 MediCloud: ${cualEsMedic.name}\n\n` +
+    `¿Son la MISMA persona?\n\n` +
+    `• Aceptar = Sí, es la misma (conservar MediCloud, quitar la reserva web)\n` +
+    `• Cancelar = Son personas distintas (dejar ambas)`;
+  if(confirm(msg)){
+    // Misma persona: la reserva web ya cumplió su función, el expediente real
+    // es el de MediCloud. Quitamos la reserva virtual del sistema de citas.
+    try {
+      if(cualEsVirtual.id && cualEsVirtual.id.startsWith('online_') && _citasDb){
+        const docId = cualEsVirtual.id.replace('online_','');
+        await _citasDb.collection('citas').doc(docId).update({ estado:'confirmada', expedienteEn:'medicloud' });
+      }
+    } catch(e){ console.warn('No se pudo confirmar la reserva en citas:', e.message); }
+    // Quitar la virtual de la vista local y refrescar
+    events = events.filter(e=>e.id!==cualEsVirtual.id);
+    render();
+  } else {
+    // Personas distintas: marcarlas para que no se vuelvan a señalar como dup.
+    // (Se quita la marca visual; siguen ambas en su franja.)
+    if(ev.id) marcarNoDuplicado(cualEsVirtual.id, cualEsMedic.id);
+    render();
+  }
+}
+
+// Recuerda pares que ya marcaste como "personas distintas" para no re-alertar.
+let noDuplicados = (()=>{ try { return JSON.parse(localStorage.getItem('no_dup')||'[]'); } catch(_){ return []; } })();
+function parKey(a,b){ return [a,b].sort().join('||'); }
+function esNoDuplicado(a,b){ return noDuplicados.includes(parKey(a,b)); }
+function marcarNoDuplicado(a,b){
+  const k=parKey(a,b);
+  if(!noDuplicados.includes(k)){ noDuplicados.push(k); try{ localStorage.setItem('no_dup',JSON.stringify(noDuplicados)); }catch(_){} }
 }
 
 // ═══ VIEW: selector de médico (desplegable) ════════════════════════════════
@@ -3052,7 +3135,7 @@ async function init(){
 // Some environments don't put top-level function declarations on window where
 // inline onclick="" can reach them. Assign them explicitly so buttons always work.
 Object.assign(window, {
-  goScreen, goHome, goBack, setView, pickView, toggleDocMenu, setMode, setClinic, setDoc, dismissReconsulta, onRecurChange, syncNow,
+  goScreen, goHome, goBack, setView, pickView, toggleDocMenu, setMode, setClinic, setDoc, dismissReconsulta, onRecurChange, syncNow, resolverDuplicadoVisual,
   enterAgenda, enterAgendaFromAgendar, openModal, closeModal, closeIfOutside,
   saveEvent, deleteEvent, setCalMode, openPendingModal, closePendingModal,
   closePendingIfOutside, qConfirm, qReject, openControlsPanel, closeControlsPanel,
