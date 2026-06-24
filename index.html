@@ -96,7 +96,10 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   overflow:hidden;
   white-space:nowrap;
   text-overflow:ellipsis;
+  cursor:pointer;
+  user-select:none;
 }
+.sync-tag:active { transform:scale(0.96); }
 .sync-tag #sync-text { overflow:hidden; text-overflow:ellipsis; }
 .sync-tag.ok { color:var(--mixco); border-color:#BBF7D0; background:#F0FDF4; }
 .sync-tag.loading { color:var(--denis); border-color:#BFDBFE; background:#EFF6FF; }
@@ -752,6 +755,8 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   max-height:90vh; overflow-y:auto;
 }
 .modal-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.modal-or { display:flex; align-items:center; text-align:center; gap:10px; margin:16px 0 14px; color:var(--muted); font-size:12px; }
+.modal-or::before, .modal-or::after { content:''; flex:1; height:1px; background:var(--border); }
 .modal h2 { font-size:15px; font-weight:700; color:var(--text); letter-spacing:-.3px; }
 .modal-src { font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; background:var(--sanc-bg); color:var(--sanc); }
 
@@ -847,7 +852,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       <div class="logo-icon">A</div>
       <span class="logo-txt">Agenda</span>
     </a>
-    <div class="sync-tag" id="sync-badge"><div class="dot"></div><span id="sync-text">Local</span></div>
+    <div class="sync-tag" id="sync-badge" onclick="syncNow()" title="Tocar para sincronizar MediCloud"><div class="dot"></div><span id="sync-text">Local</span></div>
   </div>
   <div class="hdr-right">
     <button class="btn-back" id="btn-back" onclick="goBack()">← Volver</button>
@@ -1014,26 +1019,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <span id="week-label"></span>
   </div>
 
-  <div class="qbar">
-    <div class="qwrap">
-      <span style="font-size:14px;opacity:.4">⚡</span>
-      <input type="text" id="quick-input" placeholder='Dictá o escribí… "Bloqueo mañana 2pm Denis" · "Cita Pérez miércoles 10am"' autocomplete="off">
-      <button class="qmic" id="btn-mic" onclick="toggleMic()">🎙️</button>
-    </div>
-    <button class="qsend" id="btn-quick-send" onclick="quickParse()">↵</button>
-  </div>
-  <div class="qthink" id="quick-thinking"><span>Interpretando</span><div class="dots"><span></span><span></span><span></span></div></div>
-  <div class="qpreview" id="quick-preview">
-    <div class="qp-title" id="preview-title">Listo para guardar</div>
-    <div class="qp-chips" id="preview-chips"></div>
-    <div class="qp-actions">
-      <button class="qp-ok" onclick="quickSave()">✓ Guardar</button>
-      <button class="qp-edit" onclick="quickEdit()">Editar</button>
-      <button class="qp-x" onclick="quickCancel()">✕</button>
-    </div>
-  </div>
-  <div class="mic-status" id="mic-status"></div>
-
   <div class="main">
     <span style="display:none" id="s-dm">0</span><span style="display:none" id="s-ds">0</span>
     <span style="display:none" id="s-mm">0</span><span style="display:none" id="s-ms">0</span>
@@ -1075,6 +1060,29 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       <h2 id="modal-title">Nueva entrada</h2>
       <span class="modal-src" id="modal-tag" style="display:none">📱 Online</span>
     </div>
+
+    <!-- Dictado / escritura inteligente -->
+    <div class="qbar" id="modal-qbar">
+      <div class="qwrap">
+        <span style="font-size:14px;opacity:.4">⚡</span>
+        <input type="text" id="quick-input" placeholder='Dictá o escribí… "Bloqueo mañana 2pm Denis"' autocomplete="off">
+        <button class="qmic" id="btn-mic" onclick="toggleMic()">🎙️</button>
+      </div>
+      <button class="qsend" id="btn-quick-send" onclick="quickParse()">↵</button>
+    </div>
+    <div class="qthink" id="quick-thinking"><span>Interpretando</span><div class="dots"><span></span><span></span><span></span></div></div>
+    <div class="qpreview" id="quick-preview">
+      <div class="qp-title" id="preview-title">Listo para guardar</div>
+      <div class="qp-chips" id="preview-chips"></div>
+      <div class="qp-actions">
+        <button class="qp-ok" onclick="quickSave()">✓ Guardar</button>
+        <button class="qp-edit" onclick="quickEdit()">Editar abajo</button>
+        <button class="qp-x" onclick="quickCancel()">✕</button>
+      </div>
+    </div>
+    <div class="mic-status" id="mic-status"></div>
+    <div class="modal-or"><span>o completá manualmente</span></div>
+
     <label style="margin-bottom:6px">Médico</label>
     <div class="seg cols2">
       <button class="seg-btn" id="db-denis" onclick="setDoc('denis')">Dr. Denis Cotzojay</button>
@@ -1806,6 +1814,22 @@ async function loadBloqueosOnline(){
   }
 }
 
+// Sincronización manual (al tocar el badge). Da feedback y evita toques dobles.
+let _syncing = false;
+async function syncNow(){
+  if(_syncing) return;
+  _syncing = true;
+  setSyncBadge('loading', 'Sincronizando…');
+  try {
+    await loadIcalFeedsWithDupCheck();
+  } catch(e){
+    setSyncBadge('err', 'Error · tocá ↻');
+    console.warn('syncNow error', e);
+  } finally {
+    _syncing = false;
+  }
+}
+
 async function loadIcalFeedsWithDupCheck(){
   setSyncBadge('loading');
 
@@ -2452,7 +2476,13 @@ function openModal(ev=null,date=null,time=null,defaultDoc=null){
   if(ev){ setDoc(ev.doctor||'denis'); setClinic(ev.type||'clinic1'); document.getElementById('f-name').value=ev.name; document.getElementById('f-phone').value=ev.phone||''; document.getElementById('f-date').value=ev.date; document.getElementById('f-duration').value=String(ev.durMin||(ev.duration?ev.duration*60:60)); if(ev.type==='blocked'){ buildEndTimes(ev.endTime||''); } if(ev.notes){ document.getElementById('field-notes').style.display='block'; document.getElementById('f-notes').value=ev.notes; } else document.getElementById('field-notes').style.display='none'; }
   else { setDoc(defaultDoc||(currentView==='majo'?'majo':'denis')); setClinic('clinic1'); document.getElementById('f-name').value=''; document.getElementById('f-phone').value=''; document.getElementById('f-date').value=date||todayKey(); document.getElementById('f-duration').value='60'; document.getElementById('field-notes').style.display='none'; const fr=document.getElementById('f-recur'); if(fr){ fr.value='none'; } const fc=document.getElementById('f-recur-count-wrap'); if(fc) fc.style.display='none'; }
   document.getElementById('overlay').classList.add('on');
-  setTimeout(()=>document.getElementById('f-name').focus(),50);
+  // El dictado solo aparece al CREAR algo nuevo, no al editar un evento existente
+  const qbar=document.getElementById('modal-qbar');
+  const mor=document.querySelector('.modal-or');
+  const showDictado = !ev;
+  if(qbar) qbar.style.display = showDictado ? 'flex' : 'none';
+  if(mor) mor.style.display = showDictado ? 'flex' : 'none';
+  try { quickClear(); } catch(_){}
 }
 
 function closeModal(){ document.getElementById('overlay').classList.remove('on'); editingId=null; }
@@ -2901,10 +2931,35 @@ async function quickSave(){
   const diff=Math.round((evDate-new Date())/86400000);
   currentWeekOffset=Math.floor(diff/7);
   if(quickParsedEvent.type!=='blocked') setView(quickParsedEvent.doctor);
-  quickCancel(); await saveWithDupCheck(quickParsedEvent);
+  const ev=quickParsedEvent;
+  quickClear();
+  closeModal();
+  await saveWithDupCheck(ev);
 }
-function quickEdit(){ if(!quickParsedEvent) return; openModal(quickParsedEvent); quickCancel(); }
-function quickCancel(){ document.getElementById('quick-input').value=''; document.getElementById('quick-preview').classList.remove('on','err'); quickParsedEvent=null; }
+// "Editar abajo": vuelca lo interpretado al formulario manual del mismo modal.
+function quickEdit(){
+  if(!quickParsedEvent) return;
+  fillFormFromEvent(quickParsedEvent);
+  quickClear();
+}
+function quickCancel(){ quickClear(); }
+function quickClear(){
+  const qi=document.getElementById('quick-input'); if(qi) qi.value='';
+  const qp=document.getElementById('quick-preview'); if(qp) qp.classList.remove('on','err');
+  quickParsedEvent=null;
+}
+// Rellena los campos del formulario a partir de un evento (sin abrir/cerrar modal)
+function fillFormFromEvent(ev){
+  setDoc(ev.doctor||'denis');
+  setClinic(ev.type||'clinic1');
+  document.getElementById('f-name').value=ev.name||'';
+  document.getElementById('f-phone').value=ev.phone||'';
+  document.getElementById('f-date').value=ev.date||todayKey();
+  buildTimes(ev.time||'08:00');
+  const durMin=ev.durMin||(ev.duration?ev.duration*60:60);
+  const fd=document.getElementById('f-duration'); if(fd) fd.value=String(durMin);
+  if(ev.type==='blocked') buildEndTimes(ev.endTime||'');
+}
 
 // ═══ MIC ══════════════════════════════════════════════════════════════════
 function initSpeech(){
@@ -2981,7 +3036,7 @@ async function init(){
 // Some environments don't put top-level function declarations on window where
 // inline onclick="" can reach them. Assign them explicitly so buttons always work.
 Object.assign(window, {
-  goScreen, goHome, goBack, setView, pickView, toggleDocMenu, setMode, setClinic, setDoc, dismissReconsulta, onRecurChange,
+  goScreen, goHome, goBack, setView, pickView, toggleDocMenu, setMode, setClinic, setDoc, dismissReconsulta, onRecurChange, syncNow,
   enterAgenda, enterAgendaFromAgendar, openModal, closeModal, closeIfOutside,
   saveEvent, deleteEvent, setCalMode, openPendingModal, closePendingModal,
   closePendingIfOutside, qConfirm, qReject, openControlsPanel, closeControlsPanel,
