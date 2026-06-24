@@ -1853,24 +1853,35 @@ async function loadIcalFeedsWithDupCheck(){
   setSyncBadge('loading');
 
   // ── 1. Sync from app de citas (citas-mixco Firebase) ──
-  const citasOnline = await loadCitasOnline();
-  const bloqueosOnline = await loadBloqueosOnline();
+  // Cada fuente va aislada: si una falla, NO debe impedir que las demás
+  // sincronicen. Antes, un error aquí cortaba todo y MediCloud nunca corría.
+  let citasOnline = [], bloqueosOnline = [];
+  try { citasOnline = await loadCitasOnline(); }
+  catch(e){ console.warn('loadCitasOnline falló:', e.message); }
+  try { bloqueosOnline = await loadBloqueosOnline(); }
+  catch(e){ console.warn('loadBloqueosOnline falló:', e.message); }
   events = events.filter(e => e.source !== 'online');
   [...citasOnline, ...bloqueosOnline].forEach(ev => {
-    const dup = findDuplicate(ev);
-    if (!dup) events.push(ev);
-    // If duplicate with manual entry → silently prefer manual
+    try { const dup = findDuplicate(ev); if (!dup) events.push(ev); }
+    catch(_){ events.push(ev); }
   });
 
   // ── 2. Sync from MediCloud iCal feeds ──
   if(!CONFIG.ICAL_FEEDS?.length) {
     setSyncBadge(citasOnline.length ? 'ok' : '');
     const total = citasOnline.length;
-    if (total) document.getElementById('sync-text').textContent = `App citas · ${total} citas`;
+    if (total){ const st=document.getElementById('sync-text'); if(st) st.textContent = `App citas · ${total} citas`; }
     render(); return;
   }
 
-  const results=await Promise.all(CONFIG.ICAL_FEEDS.map(fetchFeed));
+  console.log('🔄 Sincronizando MediCloud:', CONFIG.ICAL_FEEDS.length, 'feeds');
+  let results;
+  try {
+    results = await Promise.all(CONFIG.ICAL_FEEDS.map(fetchFeed));
+  } catch(e){
+    console.error('Error general en feeds MediCloud:', e);
+    results = [];
+  }
   const failedFeeds = results.filter(r => r && r._failed);
   const icalEvs = results.filter(r => Array.isArray(r)).flat();
   events=events.filter(e=>e.source!=='medicloud');
