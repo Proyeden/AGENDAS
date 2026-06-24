@@ -1623,20 +1623,29 @@ function parseIcal(text,clinic,doctor){
     else if(line==='END:VEVENT'&&cur){
       if(cur.date&&cur.name){
         const phone = extractPhone(cur.tel, cur.notes, cur.name, cur.attendee, cur.contact);
-        // ID ESTABLE: si MediCloud da UID, usarlo; si no, derivar uno determinista
-        // de fecha+hora+nombre. NUNCA aleatorio, o el ajuste manual se perdería
-        // en cada sincronización (el override se busca por este id).
+        // ID ESTABLE POR CITA: combina el expediente del paciente (que MediCloud
+        // antepone al nombre, ej. "222077 - Gloria...") con la fecha y hora de la
+        // cita. Así el ajuste de duración es POR CITA —Gloria puede tener 45 min
+        // un día y 30 otro— pero estable: el expediente garantiza que es la misma
+        // paciente aunque el nombre venga escrito distinto.
+        const expMatch = cur.name.match(/^\s*(\d{4,})\s*[-–—:]\s*(.+)$/);
+        const expediente = expMatch ? expMatch[1] : null;
+        const nombreLimpio = expMatch ? expMatch[2].trim() : cur.name;
         const slug = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'').slice(0,24);
-        const citaId = cur.uid
-          ? 'ical_'+slug(cur.uid)
-          : `ical_${cur.date}_${(cur.time||'').replace(':','')}_${slug(cur.name)}`;
+        const horaSlug = (cur.time||'').replace(':','');
+        // Prioridad: expediente+fecha+hora > UID+fecha > derivado por nombre
+        const citaId = expediente
+          ? `exp_${expediente}_${cur.date}_${horaSlug}`
+          : cur.uid
+            ? `ical_${slug(cur.uid)}_${cur.date}_${horaSlug}`
+            : `ical_${cur.date}_${horaSlug}_${slug(nombreLimpio)}`;
         const durDetectada = cur._durMin || null;
         const durFinal = cur._durMin || 45;
         // Ajuste manual guardado (manda sobre lo que diga MediCloud)
         const durManual = durOverrides[citaId];
         const durUsada = (durManual!=null) ? durManual : durFinal;
-        console.log(`📅 ${cur.name} · ${cur.time||'??'} · dur=${durManual!=null?durManual+'min (ajuste manual)':(durDetectada?durDetectada+'min':'NO DETECTADA (usando 45)')} · id=${citaId}`);
-        evs.push({id:citaId,doctor,type:clinic,name:cur.name,phone,date:cur.date,time:cur.time||'08:00',duration:Math.max(1,Math.round(durUsada/60)),durMin:durUsada,durAjustada:(durManual!=null),who:[],source:'medicloud',status:'confirmed',notes:cur.notes||'',readonly:true});
+        console.log(`📅 ${nombreLimpio} · ${cur.time||'??'} · dur=${durManual!=null?durManual+'min (ajuste manual)':(durDetectada?durDetectada+'min':'NO DETECTADA (usando 45)')} · id=${citaId}`);
+        evs.push({id:citaId,expediente,doctor,type:clinic,name:nombreLimpio,phone,date:cur.date,time:cur.time||'08:00',duration:Math.max(1,Math.round(durUsada/60)),durMin:durUsada,durAjustada:(durManual!=null),who:[],source:'medicloud',status:'confirmed',notes:cur.notes||'',readonly:true});
       }
       cur=null;
     } else if(cur){
@@ -1700,6 +1709,11 @@ async function fetchFeed(feed){
       // Promise.any → first to succeed
       const winner = await Promise.any(attempts);
       console.log('MediCloud OK [' + feed.doctor + '] via', winner.proxy.slice(0,32));
+      // Guardar muestra cruda del primer evento para diagnóstico (sin consola)
+      try {
+        const ve = winner.text.split('BEGIN:VEVENT')[1];
+        if(ve && !window._rawSample) window._rawSample = 'BEGIN:VEVENT'+ve.split('END:VEVENT')[0]+'END:VEVENT';
+      } catch(_){}
       return parseIcal(winner.text, feed.clinic, feed.doctor);
     } catch(e) {
       // All in this batch failed — try next batch
@@ -1839,8 +1853,14 @@ function verDiagnostico(){
   msg += `Citas traídas (todas las fechas): ${d.icalTotal}\n\n`;
   msg += `Citas de HOY desde MediCloud (${d.icalHoy.length}):\n`;
   msg += d.icalHoy.length ? d.icalHoy.map(x=>'• '+x).join('\n') : '(ninguna)';
-  msg += `\n\nSi una cita está en MediCloud pero NO aparece aquí, el feed aún no la refleja (suele tardar). Si aparece aquí pero no en el calendario, el problema es de visualización.`;
+  msg += `\n\n⏱ Ajustes de duración guardados (${(d.overrides||[]).length}):\n`;
+  msg += (d.overrides && d.overrides.length) ? d.overrides.map(x=>'• '+x).join('\n') : '(ninguno)';
+  msg += `\n\nPara que un ajuste funcione, su id debe COINCIDIR exacto con el id que aparece en la cita de hoy arriba.`;
   alert(msg);
+  // Segundo cuadro: muestra cruda de un evento de MediCloud (qué campos trae)
+  if(window._rawSample){
+    alert('🔍 Ejemplo crudo de una cita de MediCloud\n(esto me dice qué campos manda MediCloud, incluido si hay ID de paciente):\n\n'+window._rawSample.slice(0,900));
+  }
 }
 
 // Sincronización manual (al tocar el botón). Da feedback y evita toques dobles.
@@ -1904,7 +1924,8 @@ async function loadIcalFeedsWithDupCheck(){
     feedsOk: results.filter(r=>Array.isArray(r)).length,
     feedsFail: failedFeeds.length,
     icalTotal: icalEvs.length,
-    icalHoy: icalEvs.filter(e=>e.date===hoyStr).map(e=>`${e.time} ${e.name}`),
+    icalHoy: icalEvs.filter(e=>e.date===hoyStr).map(e=>`${e.time} ${e.name} [${e.durMin}min] id=${e.id}`),
+    overrides: Object.keys(durOverrides||{}).map(k=>`${k} → ${durOverrides[k]}min`),
   };
   events=events.filter(e=>e.source!=='medicloud');
   const pending=[];
