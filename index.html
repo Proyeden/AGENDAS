@@ -357,29 +357,36 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 /* ── AGENDA SCREEN ── */
 #s-agenda { background:var(--bg); }
 
-.agenda-tabs {
+.ag-toolbar {
   background:var(--white);
   border-bottom:1px solid var(--border);
-  display:flex; align-items:center;
-  padding:0 20px; gap:2px;
-  overflow-x:auto;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 20px; gap:12px;
 }
-.atab {
-  padding:13px 14px 12px;
-  border-bottom:2px solid transparent;
-  font-size:13px; font-weight:500;
-  color:var(--muted); cursor:pointer;
-  background:none; border-top:none;
-  border-left:none; border-right:none;
-  font-family:var(--font); white-space:nowrap;
-  transition:color .15s;
-  display:flex; align-items:center; gap:6px;
+.ag-select-wrap { position:relative; }
+.ag-select {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 12px; border:1px solid var(--border); border-radius:10px;
+  background:var(--white); cursor:pointer; font-family:var(--font);
+  font-size:14px; font-weight:600; color:var(--text); transition:all .15s;
 }
-.atab:hover { color:var(--text); }
-.atab.on { color:var(--text); border-bottom-color:var(--text); }
-.atab.on.denis { color:var(--denis); border-bottom-color:var(--denis); }
-.atab.on.majo  { color:var(--majo);  border-bottom-color:var(--majo);  }
-.tab-dot { width:7px; height:7px; border-radius:50%; }
+.ag-select:hover { border-color:var(--text); }
+.ag-select-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.ag-select-caret { font-size:10px; color:var(--muted); margin-left:2px; }
+.ag-menu {
+  position:absolute; top:calc(100% + 5px); left:0; z-index:50;
+  background:var(--white); border:1px solid var(--border); border-radius:11px;
+  box-shadow:0 8px 24px rgba(0,0,0,.12); padding:5px; min-width:190px;
+  display:none;
+}
+.ag-menu.on { display:block; }
+.ag-menu-item {
+  display:flex; align-items:center; gap:9px; width:100%;
+  padding:10px 12px; border:none; background:none; cursor:pointer;
+  font-family:var(--font); font-size:14px; font-weight:500; color:var(--text);
+  border-radius:8px; text-align:left; transition:background .12s;
+}
+.ag-menu-item:hover { background:var(--bg); }
 
 .week-bar {
   background:var(--white);
@@ -405,8 +412,8 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 }
 .wb-today:hover { border-color:var(--text); background:var(--bg); }
 #week-label {
-  font-family:var(--font); font-size:13px; font-weight:600;
-  color:var(--text); flex:1; text-align:center;
+  font-family:var(--font); font-size:14px; font-weight:600;
+  color:var(--text); flex:1; text-align:right;
   letter-spacing:-.2px;
 }
 .view-toggle {
@@ -584,6 +591,8 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   color:var(--sanc); align-items:center; gap:10px;
 }
 .pending-notice.on { display:flex; }
+.pending-notice.reconsulta { background:#FFFBEB; border-color:#FDE68A; color:#92400E; }
+.pending-notice.reconsulta .btn-rev { background:#D97706; }
 .btn-rev { margin-left:auto; background:var(--sanc); color:var(--white); border:none; border-radius:6px; padding:4px 12px; font-size:12px; font-weight:600; font-family:var(--font); cursor:pointer; }
 
 .cal-wrap { background:var(--white); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
@@ -974,16 +983,24 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 
 <!-- AGENDA -->
 <div id="s-agenda" class="screen">
-  <div class="agenda-tabs">
-    <button class="atab on denis" id="at-denis" onclick="setView('denis')">
-      <span class="tab-dot" style="background:var(--denis)"></span>Dr. Denis
-    </button>
-    <button class="atab" id="at-majo" onclick="setView('majo')">
-      <span class="tab-dot" style="background:var(--majo)"></span>Dra. María José
-    </button>
-    <button class="atab" id="at-compare" onclick="setView('compare')">
-      <span class="tab-dot" style="background:var(--mixco)"></span>Comparar
-    </button>
+  <div class="ag-toolbar">
+    <div class="ag-select-wrap">
+      <button class="ag-select" id="ag-doc-btn" onclick="toggleDocMenu()">
+        <span class="ag-select-dot" id="ag-doc-dot" style="background:var(--denis)"></span>
+        <span id="ag-doc-label">Dr. Denis</span>
+        <span class="ag-select-caret">▾</span>
+      </button>
+      <div class="ag-menu" id="ag-doc-menu">
+        <button class="ag-menu-item" onclick="pickView('denis')"><span class="ag-select-dot" style="background:var(--denis)"></span>Dr. Denis</button>
+        <button class="ag-menu-item" onclick="pickView('majo')"><span class="ag-select-dot" style="background:var(--majo)"></span>Dra. María José</button>
+        <button class="ag-menu-item" onclick="pickView('compare')"><span class="ag-select-dot" style="background:var(--mixco)"></span>Ambos</button>
+      </div>
+    </div>
+    <div class="view-toggle">
+      <button class="vt-btn on" id="vt-month" onclick="setCalMode('month')">Mes</button>
+      <button class="vt-btn" id="vt-week" onclick="setCalMode('week')">Semana</button>
+      <button class="vt-btn" id="vt-day" onclick="setCalMode('day')">Día</button>
+    </div>
   </div>
 
   <div class="week-bar">
@@ -993,11 +1010,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       <button class="wb-btn" id="next-week">›</button>
     </div>
     <span id="week-label"></span>
-    <div class="view-toggle">
-      <button class="vt-btn" id="vt-day" onclick="setCalMode('day')">Día</button>
-      <button class="vt-btn on" id="vt-week" onclick="setCalMode('week')">Semana</button>
-      <button class="vt-btn" id="vt-month" onclick="setCalMode('month')">Mes</button>
-    </div>
   </div>
 
   <div class="qbar">
@@ -1021,13 +1033,9 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   <div class="mic-status" id="mic-status"></div>
 
   <div class="main">
-    <div class="stats">
-      <div class="stat"><div class="stat-top"><span class="stat-dot" style="background:var(--denis)"></span><span class="stat-val" id="s-dm" style="color:var(--denis)">0</span></div><span class="stat-label">Denis Mixco</span></div>
-      <div class="stat"><div class="stat-top"><span class="stat-dot" style="background:var(--denis)"></span><span class="stat-val" id="s-ds" style="color:var(--denis)">0</span></div><span class="stat-label">Denis S.C.</span></div>
-      <div class="stat"><div class="stat-top"><span class="stat-dot" style="background:var(--majo)"></span><span class="stat-val" id="s-mm" style="color:var(--majo)">0</span></div><span class="stat-label">Majo Mixco</span></div>
-      <div class="stat"><div class="stat-top"><span class="stat-dot" style="background:var(--majo)"></span><span class="stat-val" id="s-ms" style="color:var(--majo)">0</span></div><span class="stat-label">Majo S.C.</span></div>
-      <span style="display:none" id="s-pend">0</span>
-    </div>
+    <span style="display:none" id="s-dm">0</span><span style="display:none" id="s-ds">0</span>
+    <span style="display:none" id="s-mm">0</span><span style="display:none" id="s-ms">0</span>
+    <span style="display:none" id="s-pend">0</span>
     <div class="pending-notice" id="pending-bar">
       🔔 Hay <strong id="pending-count">0</strong> citas sin confirmar
       <button class="btn-rev" onclick="openPendingModal()">Revisar</button>
@@ -1035,6 +1043,10 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <div class="pending-notice" id="control-bar" style="display:none;background:var(--mixco-bg);border-color:#BBF7D0;color:var(--mixco)">
       🔁 <strong id="control-count">0</strong> controles tentativos programados
       <button class="btn-rev" onclick="openControlsPanel()" style="background:var(--mixco)">Ver controles</button>
+    </div>
+    <div class="pending-notice reconsulta" id="reconsulta-bar" style="display:none">
+      <span id="reconsulta-text"></span>
+      <button class="btn-rev" id="reconsulta-btn" onclick="dismissReconsulta()">Ya lo hice</button>
     </div>
     <div id="cal-root"></div>
   </div>
@@ -1230,7 +1242,7 @@ const CONFIG = {
 let events = [];
 let currentView = 'denis';
 let currentWeekOffset = 0;
-let calMode = 'week';
+let calMode = 'month';
 let currentDayOffset = 0;
 let currentMonthOffset = 0;
 let agendarDefaultDoc = 'denis';
@@ -1316,8 +1328,51 @@ function calcularHuecos(doctorId, dateStr){
   return huecos;
 }
 
-// Construye el elemento visual de huecos para un médico/fecha. Devuelve null si no hay.
-// (La vista Día ahora usa el lienzo a escala; los huecos van dentro de buildDayTimeline.)
+// ═══ RECORDATORIO DE RECONSULTAS (para la asistente) ═══════════════════════
+// Aviso genérico anclado a la jornada de Mixco:
+//  • "ayer": desde el inicio de Mixco hasta el cierre → recordar agendar las
+//    consultas de los pacientes de ayer.
+//  • "hoy": desde el cierre de Mixco en adelante → recordar agendar las
+//    reconsultas de los pacientes de hoy.
+// Se descarta por día con "Ya lo hice" (llave en localStorage por fecha+turno).
+function _reconsultaKey(turno){ return `reconsulta_${turno}_${todayKey()}`; }
+function _reconsultaDismissed(turno){
+  try { return localStorage.getItem(_reconsultaKey(turno))==='1'; } catch(_){ return false; }
+}
+function dismissReconsulta(){
+  const turno = document.getElementById('reconsulta-bar')?.dataset.turno;
+  if(turno){ try { localStorage.setItem(_reconsultaKey(turno),'1'); } catch(_){} }
+  refreshReconsultaBanner();
+}
+function refreshReconsultaBanner(){
+  const bar=document.getElementById('reconsulta-bar');
+  const txt=document.getElementById('reconsulta-text');
+  if(!bar||!txt) return;
+  const now=new Date();
+  const dow=now.getDay();
+  const j = JORNADA.denis ? JORNADA.denis(dow) : null;  // jornada de Mixco (Denis)
+  const nowMin = now.getHours()*60 + now.getMinutes();
+
+  let turno=null, mensaje='';
+  if(j){
+    if(nowMin >= j.fin){
+      turno='hoy';
+      mensaje='📋 ¿Ya programaste las reconsultas de los pacientes de hoy?';
+    } else if(nowMin >= j.ini){
+      turno='ayer';
+      mensaje='📋 ¿Ya programaste las consultas de los pacientes de ayer?';
+    }
+  }
+
+  if(turno && !_reconsultaDismissed(turno)){
+    bar.dataset.turno=turno;
+    txt.textContent=mensaje;
+    bar.style.display='flex';
+  } else {
+    bar.style.display='none';
+  }
+}
+
 
 // Regla de descomposición: 45 min mientras lo que reste después sea >=30; si no, 30.
 // Devuelve el PRIMER tramo de una franja de 'totalMin' minutos.
@@ -1985,6 +2040,7 @@ function render(){
   else if(calMode==='day')   renderDay(root);
   else                        renderWeek(root);
   refreshControlBar();
+  try { refreshReconsultaBanner(); } catch(_){}
 }
 
 function renderWeek(root){
@@ -2252,14 +2308,28 @@ function handleClick(ev){
   openModal(ev);
 }
 
-// ═══ VIEW TABS ═════════════════════════════════════════════════════════════
+// ═══ VIEW: selector de médico (desplegable) ════════════════════════════════
+const DOC_LABELS = { denis:'Dr. Denis', majo:'Dra. María José', compare:'Ambos' };
+const DOC_COLORS = { denis:'var(--denis)', majo:'var(--majo)', compare:'var(--mixco)' };
 function setView(v){
   currentView=v;
-  ['denis','majo','compare'].forEach(k=>{
-    const btn=document.getElementById('at-'+k);
-    if(btn) btn.className='atab'+(v===k?' on'+(k!=='compare'?' '+k:''):' '+(k!=='compare'?k:''));
-  });
+  const lbl=document.getElementById('ag-doc-label'); if(lbl) lbl.textContent=DOC_LABELS[v]||v;
+  const dot=document.getElementById('ag-doc-dot'); if(dot) dot.style.background=DOC_COLORS[v]||'var(--denis)';
 }
+function toggleDocMenu(){
+  const m=document.getElementById('ag-doc-menu'); if(m) m.classList.toggle('on');
+}
+function pickView(v){
+  setView(v);
+  const m=document.getElementById('ag-doc-menu'); if(m) m.classList.remove('on');
+  render();
+}
+// Cerrar el menú al tocar fuera
+document.addEventListener('click', e=>{
+  const wrap=document.querySelector('.ag-select-wrap');
+  const m=document.getElementById('ag-doc-menu');
+  if(m && m.classList.contains('on') && wrap && !wrap.contains(e.target)) m.classList.remove('on');
+});
 
 // ═══ MODAL ═════════════════════════════════════════════════════════════════
 // Genera horas en múltiplos de 15 min, de 6:00 a 21:00.
@@ -2328,9 +2398,15 @@ async function saveEvent(){
   const isMixco = currentClinic==='clinic1';
   closeModal();
   await saveWithDupCheck(ev);
-  // If this is a block in Mixco, push it to the citas system so patients
-  // can't book that slot. The agenda is the source of truth.
-  if(currentClinic==='blocked' && isMixco){ await pushBloqueoToCitas(ev); }
+  // Sincronizar con el sistema de citas (Mixco). La agenda es la fuente de verdad.
+  if(currentClinic==='blocked' && isMixco){
+    // pushBloqueoToCitas ya limpia los slots viejos de este evento antes de escribir
+    await pushBloqueoToCitas(ev);
+  } else if(!wasNew){
+    // Si se editó un evento que ANTES era bloqueo de Mixco y ya no lo es
+    // (cambió de clínica, dejó de ser bloqueo), retirar sus slots huérfanos.
+    await removeBloqueoFromCitas(ev);
+  }
   // After saving a real (non-block) appointment, offer to schedule a control
   // Controles/recordatorios por ahora solo para Zona 1 Mixco
   if(isRealAppt && isMixco) openControlModal(ev);
@@ -2442,6 +2518,9 @@ async function pushBloqueoToCitas(ev){
   const medicoNombre = ev.doctor==='denis' ? 'Denis Cotzojay' : 'María José Nóchez';
   const tm=(t)=>{const[h,m]=t.split(':').map(Number);return h*60+m;};
   const fmt=(mins)=>`${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
+  // Idempotente: retirar primero los slots viejos de ESTE evento, para que
+  // editar la hora o duración no deje duplicados en el sistema de citas.
+  await removeBloqueoFromCitas(ev);
   try {
     const startM = tm(ev.time||'08:00');
     const totalMin = ev.durMin || ((ev.duration||1)*60);
@@ -2787,7 +2866,7 @@ async function init(){
 // Some environments don't put top-level function declarations on window where
 // inline onclick="" can reach them. Assign them explicitly so buttons always work.
 Object.assign(window, {
-  goScreen, goHome, goBack, setView, setMode, setClinic, setDoc,
+  goScreen, goHome, goBack, setView, pickView, toggleDocMenu, setMode, setClinic, setDoc, dismissReconsulta,
   enterAgenda, enterAgendaFromAgendar, openModal, closeModal, closeIfOutside,
   saveEvent, deleteEvent, setCalMode, openPendingModal, closePendingModal,
   closePendingIfOutside, qConfirm, qReject, openControlsPanel, closeControlsPanel,
