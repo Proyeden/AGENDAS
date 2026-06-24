@@ -644,6 +644,26 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 }
 .occ-pill.free { background:var(--mixco-bg); color:var(--mixco); }
 .occ-pill.busy { background:var(--denis-bg); color:var(--denis); }
+
+/* Huecos libres — vista Día */
+.huecos-bar {
+  display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+  margin:-4px 0 12px; padding:8px 12px;
+  background:var(--mixco-bg); border:1px solid #BBF7D0; border-radius:11px;
+}
+.huecos-lbl { font-size:12px; font-weight:700; color:var(--mixco); }
+.hueco-chip {
+  font-size:12px; color:var(--mixco); background:var(--white);
+  border:1px solid #BBF7D0; border-radius:8px; padding:4px 9px;
+  cursor:pointer; white-space:nowrap; font-weight:500;
+}
+.hueco-chip strong { font-weight:700; }
+.hueco-chip:hover { background:var(--mixco); color:#fff; }
+.hueco-chip.sm { font-size:10px; padding:2px 5px; display:block; margin:2px 0; width:100%; text-align:center; }
+/* Huecos — fila resumen vista Semana */
+.huecos-corner { font-size:9px; font-weight:700; color:var(--mixco); text-transform:uppercase; display:flex; align-items:center; justify-content:center; }
+.huecos-cell { padding:3px 2px; border-bottom:1px solid var(--border); min-height:24px; }
+.huecos-none { font-size:11px; color:var(--muted); display:block; text-align:center; }
 .ev.denis   { background:var(--denis-bg); color:var(--denis); border-left:3px solid var(--denis); }
 .ev.majo    { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo);  }
 .ev.blocked { background:var(--block-bg); color:var(--block); border-left:3px solid var(--block); }
@@ -1203,6 +1223,78 @@ function sameHour(evTime, slotHour){
 const DURS   = {1:'30 min',2:'1 hora',3:'1.5h',4:'2 horas',30:'30 min',45:'45 min',60:'1 hora',90:'1.5h',120:'2 horas'};
 function durLabel(d){ return DURS[d] || `${d} min`; }
 
+// ═══ HUECOS LIBRES ═════════════════════════════════════════════════════════
+// Jornada laboral por médico y día (réplica del sistema de citas). Devuelve
+// {ini, fin} en minutos desde medianoche, o null si no atiende ese día.
+// dow: 0=domingo … 6=sábado.
+const JORNADA = {
+  denis: dow => {
+    if(dow>=1&&dow<=4) return {ini:13*60, fin:17*60};   // lun-jue 13:00-17:00
+    if(dow===5)        return {ini:9*60,  fin:15*60};    // vie 09:00-15:00
+    if(dow===6)        return {ini:8*60,  fin:14*60};    // sáb 08:00-14:00
+    return null;
+  },
+  majo: dow => {
+    if(dow>=1&&dow<=4) return {ini:16*60, fin:17*60};    // lun-jue 16:00 (1 slot)
+    if(dow===6)        return {ini:8*60,  fin:10*60};    // sáb 08:00-09:00
+    return null;
+  },
+};
+const tMin=(t)=>{ const[h,m]=t.split(':').map(Number); return h*60+m; };
+const tFmt=(m)=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+
+// Calcula los huecos libres de un médico en una fecha dada.
+// Algoritmo de línea de tiempo: ordena las franjas ocupadas (con su duración
+// real) y reporta los espacios entre ellas dentro de la jornada. Solo cuenta
+// huecos de al menos 30 min (no tiene sentido ofrecer menos).
+function calcularHuecos(doctorId, dateStr){
+  const [Y,Mo,D] = dateStr.split('-').map(Number);
+  const dow = new Date(Y, Mo-1, D).getDay();
+  const j = JORNADA[doctorId] ? JORNADA[doctorId](dow) : null;
+  if(!j) return [];
+
+  const ocup = events
+    .filter(e => e.date===dateStr && e.status!=='cancelled' &&
+                 (e.doctor===doctorId || e.type==='blocked') && e.time)
+    .map(e => { const s=tMin(e.time); const dur=e.durMin || ((e.duration||1)*(e.source==='medicloud'?30:60)); return {s, e:s+dur}; })
+    .filter(o => o.e > j.ini && o.s < j.fin)   // solo lo que cae en la jornada
+    .sort((a,b)=>a.s-b.s);
+
+  // Fusionar ocupaciones solapadas en franjas continuas
+  const merged=[];
+  for(const o of ocup){
+    const last=merged[merged.length-1];
+    if(last && o.s <= last.e) last.e = Math.max(last.e, o.e);
+    else merged.push({...o});
+  }
+
+  // Los huecos son los espacios entre franjas, desde ini hasta fin de jornada
+  const huecos=[];
+  let cur=j.ini;
+  for(const m of merged){
+    if(m.s > cur){ const dur=m.s-cur; if(dur>=30) huecos.push({ini:tFmt(cur), durMin:dur}); }
+    cur=Math.max(cur, m.e);
+  }
+  if(j.fin > cur){ const dur=j.fin-cur; if(dur>=30) huecos.push({ini:tFmt(cur), durMin:dur}); }
+  return huecos;
+}
+
+// Construye el elemento visual de huecos para un médico/fecha. Devuelve null si no hay.
+function buildHuecosBar(doctorId, dateStr){
+  const huecos = calcularHuecos(doctorId, dateStr);
+  if(!huecos.length) return null;
+  const bar=document.createElement('div'); bar.className='huecos-bar';
+  const lbl=document.createElement('span'); lbl.className='huecos-lbl'; lbl.textContent='Libre:';
+  bar.appendChild(lbl);
+  huecos.forEach(h=>{
+    const chip=document.createElement('button'); chip.className='hueco-chip';
+    chip.innerHTML=`<strong>${h.ini}</strong> · ${durLabel(h.durMin)}`;
+    chip.onclick=()=>openModal(null, dateStr, h.ini, doctorId);
+    bar.appendChild(chip);
+  });
+  return bar;
+}
+
 function getWeekDays(off=0){
   const now=new Date(), day=now.getDay();
   const diff=now.getDate()-day+(day===0?-6:1);
@@ -1361,6 +1453,8 @@ function parseIcal(text,clinic,doctor){
     else if(line==='END:VEVENT'&&cur){
       if(cur.date&&cur.name){
         const phone = extractPhone(cur.tel, cur.notes, cur.name, cur.attendee, cur.contact);
+        const durDetectada = cur._durMin || null;
+        console.log(`📅 ${cur.name} · ${cur.time||'??'} · dur=${durDetectada?durDetectada+'min':'NO DETECTADA (default '+((cur.duration||2)*30)+')'}`);
         evs.push({id:'ical_'+(cur.uid||uid()),doctor,type:clinic,name:cur.name,phone,date:cur.date,time:cur.time||'08:00',duration:cur.duration||2,durMin:cur._durMin||((cur.duration||2)*30),who:[],source:'medicloud',status:'confirmed',notes:cur.notes||'',readonly:true});
       }
       cur=null;
@@ -1374,10 +1468,14 @@ function parseIcal(text,clinic,doctor){
       else if(line.startsWith('CONTACT')) cur.contact=line.replace(/^[^:]*:/,'').trim();
       else if(line.startsWith('DTSTART')){
         const r = parseIcalDateTime(line);
-        if(r){ cur.date=r.date; cur.time=r.time; cur._startMins=r.mins; }
-      } else if(line.startsWith('DTEND')&&cur._startMins!=null){
+        if(r){ cur.date=r.date; cur.time=r.time; cur._startMins=r.mins; cur._startObj=r._dateObj; }
+      } else if(line.startsWith('DTEND')&&cur._startObj){
         const r = parseIcalDateTime(line);
-        if(r){ const diff=r.mins-cur._startMins; cur._durMin=Math.max(5,diff); cur.duration=Math.max(1,Math.round(diff/30)); }
+        if(r&&r._dateObj){ const diff=Math.round((r._dateObj-cur._startObj)/60000); if(diff>0){ cur._durMin=diff; cur.duration=Math.max(1,Math.round(diff/30)); } }
+      } else if(/^DURATION/i.test(line)){
+        // Formato ISO8601, ej. DURATION:PT45M, PT1H, PT1H30M
+        const m=line.match(/PT(?:(\d+)H)?(?:(\d+)M)?/i);
+        if(m){ const mins=(parseInt(m[1]||0,10)*60)+parseInt(m[2]||0,10); if(mins>0){ cur._durMin=mins; cur.duration=Math.max(1,Math.round(mins/30)); } }
       }
     }
   }
@@ -1884,6 +1982,9 @@ function renderDay(root){
       <span class="occ-stat">${occ} ${occ===1?'espacio ocupado':'espacios ocupados'}${blk?` · ${blk} bloqueado${blk>1?'s':''}`:''}</span>
       <span class="occ-pill ${free?'free':'busy'}">${free?'Día libre':'Hay ocupación'}</span>`;
     root.appendChild(bar);
+    // Barra de huecos libres (con hora y duración real)
+    const hb = buildHuecosBar(dc, key);
+    if(hb) root.appendChild(hb);
   });
 
   const wrap=document.createElement('div'); wrap.className='day-wrap'; root.appendChild(wrap);
@@ -1984,6 +2085,24 @@ function buildGrid(grid,days,doctor){
   days.forEach((day,i)=>{
     const h=document.createElement('div'); h.className='day-hdr'+(dateKey(day)===todayKey()?' today':'');
     h.innerHTML=`<div class="dn">${DAYS[i]}</div><div class="dd">${day.getDate()}</div>`; grid.appendChild(h);
+  });
+  // Fila de huecos libres por día (hora + duración)
+  const corner2=document.createElement('div'); corner2.className='time-corner huecos-corner'; corner2.textContent='Libre'; grid.appendChild(corner2);
+  days.forEach(day=>{
+    const key=dateKey(day);
+    const cell=document.createElement('div'); cell.className='huecos-cell'+(key===todayKey()?' today-col':'');
+    const huecos=calcularHuecos(doctor,key);
+    if(huecos.length){
+      huecos.forEach(hk=>{
+        const chip=document.createElement('button'); chip.className='hueco-chip sm';
+        chip.innerHTML=`<strong>${hk.ini}</strong> ${hk.durMin}′`;
+        chip.onclick=()=>openModal(null,key,hk.ini,doctor);
+        cell.appendChild(chip);
+      });
+    } else {
+      cell.innerHTML='<span class="huecos-none">—</span>';
+    }
+    grid.appendChild(cell);
   });
   const docEvs=events.filter(e=>(e.doctor===doctor||e.type==='blocked')&&e.status!=='cancelled');
   HOURS.forEach(hour=>{
