@@ -866,7 +866,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       <div class="logo-icon">A</div>
       <span class="logo-txt">Agenda</span>
     </a>
-    <div class="sync-tag" id="sync-badge" onclick="syncNow()" title="Tocar para sincronizar MediCloud"><div class="dot"></div><span id="sync-text">Local</span></div>
+    <div class="sync-tag" id="sync-badge" onclick="verDiagnostico()" title="Ver diagnóstico de sincronización"><div class="dot"></div><span id="sync-text">Local</span></div>
   </div>
   <div class="hdr-right">
     <button class="btn-back" id="btn-back" onclick="goBack()">← Volver</button>
@@ -1829,6 +1829,20 @@ async function loadBloqueosOnline(){
   }
 }
 
+// Muestra en pantalla qué trajo la última sincronización de MediCloud.
+// Sirve para diagnosticar sin necesidad de la consola del navegador.
+function verDiagnostico(){
+  const d = window._diag;
+  if(!d){ alert('Todavía no se ha sincronizado MediCloud en esta sesión.\nTocá "Sincronizar" primero.'); return; }
+  let msg = `📊 Última sincronización MediCloud\n\n`;
+  msg += `Feeds OK: ${d.feedsOk} de ${d.feedsOk+d.feedsFail}\n`;
+  msg += `Citas traídas (todas las fechas): ${d.icalTotal}\n\n`;
+  msg += `Citas de HOY desde MediCloud (${d.icalHoy.length}):\n`;
+  msg += d.icalHoy.length ? d.icalHoy.map(x=>'• '+x).join('\n') : '(ninguna)';
+  msg += `\n\nSi una cita está en MediCloud pero NO aparece aquí, el feed aún no la refleja (suele tardar). Si aparece aquí pero no en el calendario, el problema es de visualización.`;
+  alert(msg);
+}
+
 // Sincronización manual (al tocar el botón). Da feedback y evita toques dobles.
 let _syncing = false;
 async function syncNow(){
@@ -1884,6 +1898,14 @@ async function loadIcalFeedsWithDupCheck(){
   }
   const failedFeeds = results.filter(r => r && r._failed);
   const icalEvs = results.filter(r => Array.isArray(r)).flat();
+  // Diagnóstico visible: guardar qué trajo MediCloud para hoy
+  const hoyStr = todayKey();
+  window._diag = {
+    feedsOk: results.filter(r=>Array.isArray(r)).length,
+    feedsFail: failedFeeds.length,
+    icalTotal: icalEvs.length,
+    icalHoy: icalEvs.filter(e=>e.date===hoyStr).map(e=>`${e.time} ${e.name}`),
+  };
   events=events.filter(e=>e.source!=='medicloud');
   const pending=[];
   for(const ev of icalEvs){
@@ -3146,7 +3168,7 @@ async function init(){
 // Some environments don't put top-level function declarations on window where
 // inline onclick="" can reach them. Assign them explicitly so buttons always work.
 Object.assign(window, {
-  goScreen, goHome, goBack, setView, pickView, toggleDocMenu, setMode, setClinic, setDoc, dismissReconsulta, onRecurChange, syncNow, resolverDuplicadoVisual,
+  goScreen, goHome, goBack, setView, pickView, toggleDocMenu, setMode, setClinic, setDoc, dismissReconsulta, onRecurChange, syncNow, resolverDuplicadoVisual, verDiagnostico,
   enterAgenda, enterAgendaFromAgendar, openModal, closeModal, closeIfOutside,
   saveEvent, deleteEvent, setCalMode, openPendingModal, closePendingModal,
   closePendingIfOutside, qConfirm, qReject, openControlsPanel, closeControlsPanel,
