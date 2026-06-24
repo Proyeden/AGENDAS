@@ -664,6 +664,36 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .huecos-corner { font-size:9px; font-weight:700; color:var(--mixco); text-transform:uppercase; display:flex; align-items:center; justify-content:center; }
 .huecos-cell { padding:3px 2px; border-bottom:1px solid var(--border); min-height:24px; }
 .huecos-none { font-size:11px; color:var(--muted); display:block; text-align:center; }
+
+/* ── Lienzo a escala (vista Día) ── */
+.tl-cols { display:flex; gap:12px; }
+.tl-cols.tl-2 .tl-col { flex:1; min-width:0; }
+.tl-col { flex:1; }
+.tl-hdr { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--text); padding:6px 0 10px; }
+.tl-empty { font-size:12px; color:var(--muted); padding:16px; text-align:center; background:var(--white); border:1px dashed var(--border); border-radius:10px; }
+.tl-canvas { position:relative; background:var(--white); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.tl-hour { position:absolute; left:0; right:0; border-top:1px solid #F1F5F9; pointer-events:none; }
+.tl-hour-lbl { position:absolute; left:6px; top:-8px; font-size:10px; font-weight:600; color:var(--muted); background:var(--white); padding:0 3px; }
+
+.tl-hueco { position:absolute; left:52px; right:6px; border:1.5px dashed #BBF7D0; background:var(--mixco-bg);
+  border-radius:9px; cursor:pointer; padding:0; overflow:hidden; transition:background .12s; }
+.tl-hueco:hover { background:#DCFCE7; }
+.tl-hueco-in { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--mixco); padding:5px 9px; flex-wrap:wrap; }
+.tl-hueco-in strong { font-weight:700; }
+.tl-hueco-add { font-size:10px; font-weight:700; opacity:.7; margin-left:auto; }
+
+.tl-ev { position:absolute; left:52px; right:6px; border-radius:9px; padding:5px 9px; overflow:hidden;
+  cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+.tl-ev-top { display:flex; align-items:center; gap:6px; }
+.tl-ev-time { font-size:10px; font-weight:700; opacity:.85; }
+.tl-ev-name { font-size:13px; font-weight:600; line-height:1.25; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tl-ev-dur { font-size:10px; opacity:.7; margin-top:1px; }
+.tl-ev.denis   { background:var(--denis-bg); color:var(--denis); border-left:3px solid var(--denis); }
+.tl-ev.majo    { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo); }
+.tl-ev.medic   { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo); }
+.tl-ev.blocked { background:var(--block-bg); color:var(--block); border-left:3px solid var(--block); }
+.tl-ev.pend    { background:var(--sanc-bg);  color:var(--sanc);  border-left:3px dashed var(--sanc); }
+.tl-ev.virtual { background:repeating-linear-gradient(135deg,#F8FAFC,#F8FAFC 6px,#EEF2F7 6px,#EEF2F7 12px); color:#64748B; border-left:3px dashed #94A3B8; }
 .ev.denis   { background:var(--denis-bg); color:var(--denis); border-left:3px solid var(--denis); }
 .ev.majo    { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo);  }
 .ev.blocked { background:var(--block-bg); color:var(--block); border-left:3px solid var(--block); }
@@ -1280,20 +1310,8 @@ function calcularHuecos(doctorId, dateStr){
 }
 
 // Construye el elemento visual de huecos para un médico/fecha. Devuelve null si no hay.
-function buildHuecosBar(doctorId, dateStr){
-  const huecos = calcularHuecos(doctorId, dateStr);
-  if(!huecos.length) return null;
-  const bar=document.createElement('div'); bar.className='huecos-bar';
-  const lbl=document.createElement('span'); lbl.className='huecos-lbl'; lbl.textContent='Libre:';
-  bar.appendChild(lbl);
-  huecos.forEach(h=>{
-    const chip=document.createElement('button'); chip.className='hueco-chip';
-    chip.innerHTML=`<strong>${h.ini}</strong> · ${durLabel(h.durMin)}`;
-    chip.onclick=()=>openModal(null, dateStr, h.ini, doctorId);
-    bar.appendChild(chip);
-  });
-  return bar;
-}
+// (La vista Día ahora usa el lienzo a escala; los huecos van dentro de buildDayTimeline.)
+
 
 function getWeekDays(off=0){
   const now=new Date(), day=now.getDay();
@@ -1955,7 +1973,8 @@ function renderWeek(root){
   }
 }
 
-// ── DAY VIEW ──
+// ── DAY VIEW (lienzo a escala, tipo Google Calendar) ──
+const PX_PER_MIN = 1.1;   // altura en píxeles por minuto
 function renderDay(root){
   const base=new Date(); base.setHours(0,0,0,0); base.setDate(base.getDate()+currentDayOffset);
   const dayName=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][base.getDay()];
@@ -1964,72 +1983,100 @@ function renderDay(root){
   const docs = currentView==='compare' ? ['denis','majo'] : [currentView];
   const key=dateKey(base);
 
-  // Occupation summary: which hours are taken vs free for this day
+  // Resumen de ocupación por médico (se mantiene)
   docs.forEach(dc=>{
     const occHours=new Set();
     events.filter(e=>e.date===key&&e.status!=='cancelled'&&e.type!=='blocked'&&(e.doctor===dc))
-      .forEach(e=>{ if(e.time) occHours.add(parseInt(e.time.split(':')[0],10)); });
-    const blocked=new Set();
-    events.filter(e=>e.date===key&&e.type==='blocked')
-      .forEach(e=>{ if(e.time) blocked.add(parseInt(e.time.split(':')[0],10)); });
-    const occ=occHours.size, blk=blocked.size;
+      .forEach(e=>{ if(e.time) occHours.add(e.time); });
+    const blocked=events.filter(e=>e.date===key&&e.type==='blocked'&&e.time).length;
+    const occ=occHours.size;
     const d=CONFIG.DOCTORS[dc]||{};
     const bar=document.createElement('div'); bar.className='occ-summary';
-    const free = occ===0 && blk===0;
+    const free = occ===0 && blocked===0;
     bar.innerHTML=`
       <span class="occ-dot" style="background:${d.color||'#888'}"></span>
       <strong>${d.name||dc}</strong>
-      <span class="occ-stat">${occ} ${occ===1?'espacio ocupado':'espacios ocupados'}${blk?` · ${blk} bloqueado${blk>1?'s':''}`:''}</span>
+      <span class="occ-stat">${occ} ${occ===1?'cita':'citas'}${blocked?` · ${blocked} bloqueo${blocked>1?'s':''}`:''}</span>
       <span class="occ-pill ${free?'free':'busy'}">${free?'Día libre':'Hay ocupación'}</span>`;
     root.appendChild(bar);
-    // Barra de huecos libres (con hora y duración real)
-    const hb = buildHuecosBar(dc, key);
-    if(hb) root.appendChild(hb);
   });
 
-  const wrap=document.createElement('div'); wrap.className='day-wrap'; root.appendChild(wrap);
-  const grid=document.createElement('div');
-  grid.className='day-grid'+(docs.length>1?' compare2':'');
-  wrap.appendChild(grid);
+  // Lienzo a escala por médico
+  const cols=document.createElement('div'); cols.className='tl-cols'+(docs.length>1?' tl-2':'');
+  root.appendChild(cols);
+  docs.forEach(dc=> cols.appendChild(buildDayTimeline(dc, key, base.getDay())));
+}
 
-  // headers
-  const corner=document.createElement('div'); corner.className='time-corner'; grid.appendChild(corner);
-  docs.forEach(dc=>{
-    const d=CONFIG.DOCTORS[dc];
-    const h=document.createElement('div'); h.className='day-colhdr';
-    h.innerHTML=`<span style="width:9px;height:9px;border-radius:50%;background:${d.color};display:inline-block"></span>${d.name}`;
-    grid.appendChild(h);
+// Construye la columna-lienzo de un médico para un día.
+function buildDayTimeline(doctorId, dateStr, dow){
+  const d=CONFIG.DOCTORS[doctorId]||{};
+  const col=document.createElement('div'); col.className='tl-col';
+
+  // Encabezado del médico
+  const hdr=document.createElement('div'); hdr.className='tl-hdr';
+  hdr.innerHTML=`<span style="width:9px;height:9px;border-radius:50%;background:${d.color};display:inline-block"></span>${d.name||doctorId}`;
+  col.appendChild(hdr);
+
+  // Ventana de tiempo del lienzo: jornada del médico, o un rango por defecto
+  const j = JORNADA[doctorId] ? JORNADA[doctorId](dow) : null;
+  // Eventos del día (citas + bloqueos), con duración real
+  const evs = events
+    .filter(e => e.date===dateStr && e.status!=='cancelled' && (e.doctor===doctorId || e.type==='blocked') && e.time)
+    .map(e => { const s=tMin(e.time); const dur=e.durMin || ((e.duration||1)*(e.source==='medicloud'?30:60)); return {ev:e, s, e:s+dur, dur}; })
+    .sort((a,b)=>a.s-b.s);
+
+  if(!j && !evs.length){
+    const empty=document.createElement('div'); empty.className='tl-empty'; empty.textContent='No atiende este día';
+    col.appendChild(empty); return col;
+  }
+
+  // Rango visible: desde lo más temprano (jornada o primer evento) a lo más tarde
+  let winIni = j ? j.ini : evs[0].s;
+  let winFin = j ? j.fin : evs[evs.length-1].e;
+  if(evs.length){ winIni=Math.min(winIni, evs[0].s); winFin=Math.max(winFin, evs[evs.length-1].e); }
+  // Redondear a horas para que las guías queden limpias
+  winIni = Math.floor(winIni/60)*60;
+  winFin = Math.ceil(winFin/60)*60;
+
+  const canvas=document.createElement('div'); canvas.className='tl-canvas';
+  canvas.style.height = ((winFin-winIni)*PX_PER_MIN)+'px';
+  col.appendChild(canvas);
+
+  // Líneas guía cada hora con etiqueta
+  for(let m=winIni; m<=winFin; m+=60){
+    const y=(m-winIni)*PX_PER_MIN;
+    const line=document.createElement('div'); line.className='tl-hour'; line.style.top=y+'px';
+    line.innerHTML=`<span class="tl-hour-lbl">${tFmt(m)}</span>`;
+    canvas.appendChild(line);
+  }
+
+  // Huecos libres (espacios vacíos tocables)
+  const huecos = calcularHuecos(doctorId, dateStr);
+  huecos.forEach(h=>{
+    const s=tMin(h.ini); const y=(s-winIni)*PX_PER_MIN; const ht=h.durMin*PX_PER_MIN;
+    const g=document.createElement('button'); g.className='tl-hueco'; g.style.top=y+'px'; g.style.height=ht+'px';
+    g.innerHTML=`<span class="tl-hueco-in"><strong>Libre ${h.ini}</strong> · ${durLabel(h.durMin)}<span class="tl-hueco-add">+ agendar</span></span>`;
+    g.onclick=()=>openModal(null, dateStr, h.ini, doctorId);
+    canvas.appendChild(g);
   });
 
-  HOURS.forEach(hour=>{
-    const tl=document.createElement('div'); tl.className='time-lbl'; tl.textContent=hour; grid.appendChild(tl);
-    docs.forEach(dc=>{
-      const slot=document.createElement('div'); slot.className='slot';
-      const docEvs=events.filter(e=>(e.doctor===dc||e.type==='blocked')&&e.status!=='cancelled'&&e.date===key&&sameHour(e.time,hour));
-      const pend=events.filter(e=>e.status==='pending'&&e.doctor===dc&&e.date===key&&sameHour(e.time,hour));
-      const all=[...docEvs,...pend];
-      const seen=new Set(); const unique=all.filter(e=>{if(seen.has(e.id))return false;seen.add(e.id);return true;});
-      unique.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-      if(unique.length){
-        slot.classList.add('full');
-        unique.forEach(ev=>{
-          const el=document.createElement('div');
-          const isPend=ev.status==='pending';
-          const cls=isPend?'pend':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
-          el.className=`ev ${cls}`;
-          const clin=CONFIG.CLINICS[ev.type];
-          const pill=ev.type!=='blocked'?`<span class="cpill ${clin?.cls||''}">${clin?.short||''}</span>`:'';
-          const hm=ev.time&&ev.time.split(':')[1]!=='00'?`<span class="ev-time">${ev.time}</span> `:'';
-          el.innerHTML=`<span class="ev-name">${isPend?'🔔 ':''}${hm}${ev.name}</span><span class="ev-sub">${pill}</span>`;
-          el.onclick=e=>{e.stopPropagation();handleClick(ev);};
-          slot.appendChild(el);
-        });
-      } else {
-        slot.onclick=()=>openModal(null,key,hour,dc);
-      }
-      grid.appendChild(slot);
-    });
+  // Citas y bloqueos como barras a escala
+  evs.forEach(({ev,s,dur})=>{
+    const y=(s-winIni)*PX_PER_MIN; const ht=Math.max(dur*PX_PER_MIN, 22);
+    const isPend=ev.status==='pending';
+    const isVirtual=ev.reservaVirtual && !ev.expediente;
+    const cls=isPend?'pend':isVirtual?'virtual':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
+    const el=document.createElement('div'); el.className=`tl-ev ${cls}`;
+    el.style.top=y+'px'; el.style.height=ht+'px';
+    const clin=CONFIG.CLINICS[ev.type];
+    const pill=ev.type!=='blocked'&&clin?`<span class="cpill ${clin.cls||''}">${clin.short||''}</span>`:'';
+    const endStr=tFmt(s+dur);
+    el.innerHTML=`<div class="tl-ev-top"><span class="tl-ev-time">${ev.time}–${endStr}</span>${pill}</div><div class="tl-ev-name">${isPend?'🔔 ':''}${ev.name}</div><div class="tl-ev-dur">${durLabel(dur)}</div>`;
+    el.onclick=e=>{e.stopPropagation();handleClick(ev);};
+    canvas.appendChild(el);
   });
+
+  return col;
 }
 
 // ── MONTH VIEW ──
