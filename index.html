@@ -420,6 +420,17 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   color:var(--text); flex:1; text-align:right;
   letter-spacing:-.2px;
 }
+.wb-sync {
+  margin-left:10px; height:30px; padding:0 12px;
+  border:1px solid var(--mixco); border-radius:8px;
+  background:var(--mixco-bg); color:var(--mixco);
+  font-family:var(--font); font-size:12px; font-weight:700;
+  cursor:pointer; transition:all .15s; white-space:nowrap;
+  display:flex; align-items:center; gap:5px;
+}
+.wb-sync:hover { background:var(--mixco); color:#fff; }
+.wb-sync.syncing { pointer-events:none; opacity:.7; }
+@media (max-width:480px){ .wb-sync-txt { display:none; } .wb-sync { padding:0 10px; font-size:15px; } }
 .view-toggle {
   display:flex; gap:0;
   border:1px solid var(--border); border-radius:9px;
@@ -1017,6 +1028,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       <button class="wb-btn" id="next-week">›</button>
     </div>
     <span id="week-label"></span>
+    <button class="wb-sync" id="btn-sync" onclick="syncNow()" title="Sincronizar MediCloud y citas">↻ <span class="wb-sync-txt">Sincronizar</span></button>
   </div>
 
   <div class="main">
@@ -1814,11 +1826,14 @@ async function loadBloqueosOnline(){
   }
 }
 
-// Sincronización manual (al tocar el badge). Da feedback y evita toques dobles.
+// Sincronización manual (al tocar el botón). Da feedback y evita toques dobles.
 let _syncing = false;
 async function syncNow(){
   if(_syncing) return;
   _syncing = true;
+  const btn=document.getElementById('btn-sync');
+  let oldHtml='';
+  if(btn){ oldHtml=btn.innerHTML; btn.classList.add('syncing'); btn.innerHTML='↻ <span class="wb-sync-txt">Sincronizando…</span>'; }
   setSyncBadge('loading', 'Sincronizando…');
   try {
     await loadIcalFeedsWithDupCheck();
@@ -1827,6 +1842,7 @@ async function syncNow(){
     console.warn('syncNow error', e);
   } finally {
     _syncing = false;
+    if(btn){ btn.classList.remove('syncing'); btn.innerHTML=oldHtml||'↻ <span class="wb-sync-txt">Sincronizar</span>'; }
   }
 }
 
