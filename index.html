@@ -667,11 +667,15 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 
 /* ── Lienzo a escala (vista Día) ── */
 .tl-cols { display:flex; gap:12px; }
+.tl-legend { display:flex; gap:14px; margin:0 0 8px; font-size:11px; color:var(--muted); }
+.tl-leg-item { display:flex; align-items:center; gap:5px; }
+.tl-leg-bar { width:14px; height:4px; border-radius:2px; display:inline-block; }
 .tl-cols.tl-2 .tl-col { flex:1; min-width:0; }
 .tl-col { flex:1; }
 .tl-hdr { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--text); padding:6px 0 10px; }
 .tl-empty { font-size:12px; color:var(--muted); padding:16px; text-align:center; background:var(--white); border:1px dashed var(--border); border-radius:10px; }
 .tl-canvas { position:relative; background:var(--white); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.tl-jornada { position:absolute; left:0; right:0; background:#FBFDFF; border-top:1px solid #EAF2FB; border-bottom:1px solid #EAF2FB; pointer-events:none; }
 .tl-hour { position:absolute; left:0; right:0; border-top:1px solid #F1F5F9; pointer-events:none; }
 .tl-hour-lbl { position:absolute; left:6px; top:-8px; font-size:10px; font-weight:600; color:var(--muted); background:var(--white); padding:0 3px; }
 
@@ -694,6 +698,9 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .tl-ev.blocked { background:var(--block-bg); color:var(--block); border-left:3px solid var(--block); }
 .tl-ev.pend    { background:var(--sanc-bg);  color:var(--sanc);  border-left:3px dashed var(--sanc); }
 .tl-ev.virtual { background:repeating-linear-gradient(135deg,#F8FAFC,#F8FAFC 6px,#EEF2F7 6px,#EEF2F7 12px); color:#64748B; border-left:3px dashed #94A3B8; }
+/* Distintivo de clínica: borde derecho grueso */
+.tl-ev.in-mixco { border-right:5px solid var(--mixco); }
+.tl-ev.in-sanc  { border-right:5px solid var(--sanc); }
 .ev.denis   { background:var(--denis-bg); color:var(--denis); border-left:3px solid var(--denis); }
 .ev.majo    { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo);  }
 .ev.blocked { background:var(--block-bg); color:var(--block); border-left:3px solid var(--block); }
@@ -1312,6 +1319,33 @@ function calcularHuecos(doctorId, dateStr){
 // Construye el elemento visual de huecos para un médico/fecha. Devuelve null si no hay.
 // (La vista Día ahora usa el lienzo a escala; los huecos van dentro de buildDayTimeline.)
 
+// Regla de descomposición: 45 min mientras lo que reste después sea >=30; si no, 30.
+// Devuelve el PRIMER tramo de una franja de 'totalMin' minutos.
+function primerTramo(totalMin){
+  if(totalMin<=0) return 0;
+  if(totalMin<=60) return totalMin>45 ? Math.round(totalMin/2) : totalMin;
+  return (totalMin-45>=30) ? 45 : 30;
+}
+
+// Calcula la duración de una cita del sistema de citas (que no guarda duración).
+// Mira hasta dónde llega el tiempo libre desde su hora (próxima cita/bloqueo o
+// fin de jornada) y aplica la regla de cadencia. Ej: hueco 13:00–14:30 → 45;
+// hueco 15:30–16:30 con cita a 15:30 → 30 (porque 60 se parte 30+30).
+function duracionCitaOnline(doctorId, dateStr, hora, idExcluir){
+  const [Y,Mo,D] = dateStr.split('-').map(Number);
+  const dow = new Date(Y, Mo-1, D).getDay();
+  const j = JORNADA[doctorId] ? JORNADA[doctorId](dow) : null;
+  const startM = tMin(hora);
+  // Frontera superior: fin de jornada, o la siguiente ocupación, lo que venga antes
+  let frontera = j ? j.fin : startM+45;
+  events
+    .filter(e => e.date===dateStr && e.status!=='cancelled' && e.time && e.id!==idExcluir &&
+                 (e.doctor===doctorId || e.type==='blocked'))
+    .forEach(e => { const s=tMin(e.time); if(s>startM && s<frontera) frontera=s; });
+  const disponible = Math.max(0, frontera - startM);
+  const tramo = primerTramo(disponible);
+  return tramo>0 ? tramo : 45; // fallback defensivo
+}
 
 function getWeekDays(off=0){
   const now=new Date(), day=now.getDay();
@@ -1583,6 +1617,7 @@ async function loadCitasOnline(){
       if (c.estado === 'cancelada') return;
       const doctorId = MEDICO_MAP[c.medicoId] || 'denis';
       const clinicId = (c.clinica && CLINIC_MAP[c.clinica]) ? CLINIC_MAP[c.clinica] : 'clinic1';
+      const durCita = duracionCitaOnline(doctorId, c.fecha, c.hora || '08:00', 'online_'+d.id);
       evs.push({
         id: 'online_' + d.id,
         doctor: doctorId,
@@ -1590,7 +1625,8 @@ async function loadCitasOnline(){
         name: c.nombre || '(sin nombre)',
         date: c.fecha,
         time: c.hora || '08:00',
-        duration: 2,
+        duration: Math.max(1, Math.round(durCita/60)),
+        durMin: durCita,
         source: 'online',
         reservaVirtual: true,
         expediente: false,
@@ -2002,6 +2038,9 @@ function renderDay(root){
   });
 
   // Lienzo a escala por médico
+  const legend=document.createElement('div'); legend.className='tl-legend';
+  legend.innerHTML=`<span class="tl-leg-item"><span class="tl-leg-bar" style="background:var(--mixco)"></span>Mixco</span><span class="tl-leg-item"><span class="tl-leg-bar" style="background:var(--sanc)"></span>San Cristóbal</span>`;
+  root.appendChild(legend);
   const cols=document.createElement('div'); cols.className='tl-cols'+(docs.length>1?' tl-2':'');
   root.appendChild(cols);
   docs.forEach(dc=> cols.appendChild(buildDayTimeline(dc, key, base.getDay())));
@@ -2030,17 +2069,24 @@ function buildDayTimeline(doctorId, dateStr, dow){
     col.appendChild(empty); return col;
   }
 
-  // Rango visible: desde lo más temprano (jornada o primer evento) a lo más tarde
-  let winIni = j ? j.ini : evs[0].s;
-  let winFin = j ? j.fin : evs[evs.length-1].e;
+  // Ventana visible: día completo 6:00–19:00 para tener contexto, aunque la
+  // jornada sea más corta. Se expande si hay eventos fuera de ese rango.
+  let winIni = 6*60;   // 06:00
+  let winFin = 19*60;  // 19:00
   if(evs.length){ winIni=Math.min(winIni, evs[0].s); winFin=Math.max(winFin, evs[evs.length-1].e); }
-  // Redondear a horas para que las guías queden limpias
   winIni = Math.floor(winIni/60)*60;
   winFin = Math.ceil(winFin/60)*60;
 
   const canvas=document.createElement('div'); canvas.className='tl-canvas';
   canvas.style.height = ((winFin-winIni)*PX_PER_MIN)+'px';
   col.appendChild(canvas);
+
+  // Sombrear la franja de jornada laboral (fuera de ella el fondo va más tenue)
+  if(j){
+    const jy=(j.ini-winIni)*PX_PER_MIN; const jh=(j.fin-j.ini)*PX_PER_MIN;
+    const band=document.createElement('div'); band.className='tl-jornada'; band.style.top=jy+'px'; band.style.height=jh+'px';
+    canvas.appendChild(band);
+  }
 
   // Líneas guía cada hora con etiqueta
   for(let m=winIni; m<=winFin; m+=60){
@@ -2066,7 +2112,9 @@ function buildDayTimeline(doctorId, dateStr, dow){
     const isPend=ev.status==='pending';
     const isVirtual=ev.reservaVirtual && !ev.expediente;
     const cls=isPend?'pend':isVirtual?'virtual':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
-    const el=document.createElement('div'); el.className=`tl-ev ${cls}`;
+    // Distintivo de clínica (borde derecho): Mixco vs San Cristóbal
+    const clinCls = ev.type==='clinic2' ? 'in-sanc' : ev.type==='clinic1' ? 'in-mixco' : '';
+    const el=document.createElement('div'); el.className=`tl-ev ${cls} ${clinCls}`;
     el.style.top=y+'px'; el.style.height=ht+'px';
     const clin=CONFIG.CLINICS[ev.type];
     const pill=ev.type!=='blocked'&&clin?`<span class="cpill ${clin.cls||''}">${clin.short||''}</span>`:'';
