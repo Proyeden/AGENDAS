@@ -2242,13 +2242,20 @@ function cargarRecordatorios(){
   if(!status||!list) return;
   const hoy=new Date(); hoy.setHours(0,0,0,0);
   const min=CONFIG.RECORDATORIO_DIAS_MIN, max=CONFIG.RECORDATORIO_DIAS_MAX;
-  // Solo citas reales pendientes (no confirmadas, no canceladas, no bloqueos)
+  // Filtro principal: FECHA FUTURA dentro de la ventana (12-16 días).
+  // No dependemos del estado de MediCloud (que puede no venir en el feed).
+  // Excluimos: bloqueos, canceladas, y citas de fuentes manuales que no son pacientes reales.
   const candidatas = events.filter(e=>{
-    if(e.type==='blocked' || e.status==='cancelled') return false;
-    if(e.status==='confirmed' && e.source==='medicloud') return false; // ya confirmadas no necesitan recordatorio
-    if(!e.date) return false;
+    if(e.type==='blocked') return false;
+    if(e.status==='cancelled') return false;
+    if(!e.date || !e.name) return false;
+    // Solo citas de MediCloud o del sistema de citas (no bloqueos manuales)
+    if(e.source!=='medicloud' && e.source!=='online') return false;
+    // Excluir confirmadas explícitas — pendientes y sin estado pasan
+    if(e.status==='confirmed' && e.mcEstado && e.mcEstado.toLowerCase().includes('confirm')) return false;
     const f=new Date(e.date+'T12:00:00'); f.setHours(0,0,0,0);
     const dias=Math.round((f-hoy)/86400000);
+    // Estrictamente futuro dentro de la ventana
     return dias>=min && dias<=max;
   }).sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
 
