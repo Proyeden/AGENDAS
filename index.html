@@ -1686,22 +1686,29 @@ function parseIcal(text,clinic,doctor){
         const durManual = durOverrides[citaId];
         const durUsada = (durManual!=null) ? durManual : durFinal;
         // Estado de la cita desde MediCloud:
-        // iCal STATUS: CONFIRMED, TENTATIVE, CANCELLED
-        // MediCloud puede usar sus propios estados en X-MEDICLOUD-STATUS o en el nombre
-        // Mapeamos a: 'pendiente' | 'confirmada' | 'cancelada' | 'otro'
+        // Viene en DESCRIPTION como "Estado: N" donde N es:
+        // 0=Pendiente, 1=Aún No Confirma, 2=Confirmada, 3=Sala de Espera,
+        // 4=En Consulta, 5=Atendida, 6=Cancelada
+        // Solo mostramos recordatorio para 0 y 1 (pendientes de confirmar)
+        const estadoMap = {'0':'0-Pendiente','1':'1-Aún No Confirma','2':'2-Confirmada','3':'3-En Sala de Espera','4':'4-En Consulta','5':'5-Atendida','6':'6-Cancelada'};
         let mcEstado = cur.mcEstado || '';
-        if(!mcEstado && cur.icalStatus){
-          if(cur.icalStatus==='CANCELLED') mcEstado='cancelada';
-          else if(cur.icalStatus==='TENTATIVE') mcEstado='pendiente';
-          else if(cur.icalStatus==='CONFIRMED') mcEstado='confirmada';
+        if(!mcEstado && cur.notes){
+          const mEst = cur.notes.match(/Estado:\s*(\d)/i);
+          if(mEst) mcEstado = estadoMap[mEst[1]] || mEst[1];
         }
-        // Fallback: si no hay estado explícito, asumir pendiente
-        if(!mcEstado) mcEstado='pendiente';
-        const statusNorm = mcEstado.toLowerCase().includes('cancel') ? 'cancelled'
-          : mcEstado.toLowerCase().includes('confirm') ? 'confirmed'
+        if(!mcEstado && cur.icalStatus){
+          if(cur.icalStatus==='CANCELLED') mcEstado='6-Cancelada';
+          else if(cur.icalStatus==='TENTATIVE') mcEstado='0-Pendiente';
+          else if(cur.icalStatus==='CONFIRMED') mcEstado='2-Confirmada';
+        }
+        if(!mcEstado) mcEstado='0-Pendiente'; // fallback conservador
+        // Solo pendientes (0 y 1) necesitan recordatorio
+        const esPendiente = mcEstado.startsWith('0') || mcEstado.startsWith('1');
+        const statusNorm = mcEstado.startsWith('6') ? 'cancelled'
+          : (mcEstado.startsWith('2')||mcEstado.startsWith('3')||mcEstado.startsWith('4')||mcEstado.startsWith('5')) ? 'confirmed'
           : 'pending';
         console.log(`📅 ${nombreLimpio} · ${cur.time||'SIN HORA→'+horaCita} · dur=${durManual!=null?durManual+'min (ajuste manual)':(durDetectada?durDetectada+'min':'NO DETECTADA (usando 45)')} · estado=${mcEstado} · id=${citaId}`);
-        evs.push({id:citaId,expediente,doctor,type:clinic,name:nombreLimpio,phone,date:cur.date,time:horaCita,sinHora:!cur.time,duration:Math.max(1,Math.round(durUsada/60)),durMin:durUsada,durAjustada:(durManual!=null),mcEstado,who:[],source:'medicloud',status:statusNorm,notes:cur.notes||'',readonly:true});
+        evs.push({id:citaId,expediente,doctor,type:clinic,name:nombreLimpio,phone,date:cur.date,time:horaCita,sinHora:!cur.time,duration:Math.max(1,Math.round(durUsada/60)),durMin:durUsada,durAjustada:(durManual!=null),mcEstado,esPendiente,who:[],source:'medicloud',status:statusNorm,notes:cur.notes||'',readonly:true});
       }
       cur=null;
     } else if(cur){
@@ -2251,8 +2258,8 @@ function cargarRecordatorios(){
     if(!e.date || !e.name) return false;
     // Solo citas de MediCloud o del sistema de citas (no bloqueos manuales)
     if(e.source!=='medicloud' && e.source!=='online') return false;
-    // Excluir confirmadas explícitas — pendientes y sin estado pasan
-    if(e.status==='confirmed' && e.mcEstado && e.mcEstado.toLowerCase().includes('confirm')) return false;
+    // Solo pendientes (estado 0 o 1) — confirmadas, atendidas, etc. no necesitan recordatorio
+    if(e.source==='medicloud' && !e.esPendiente) return false;
     const f=new Date(e.date+'T12:00:00'); f.setHours(0,0,0,0);
     const dias=Math.round((f-hoy)/86400000);
     // Estrictamente futuro dentro de la ventana
