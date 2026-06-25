@@ -232,6 +232,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .rec-badge-sent { font-size:11px; font-weight:700; color:var(--mixco); background:var(--mixco-bg); border:1px solid #BBF7D0; border-radius:7px; padding:3px 8px; white-space:nowrap; }
 .rec-send-btn { width:100%; padding:11px; border:none; border-radius:10px; background:var(--mixco); color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
 .rec-send-btn:disabled { opacity:.45; cursor:not-allowed; }
+.rec-estado { font-size:10px; font-weight:700; color:var(--muted); background:var(--light); border-radius:5px; padding:2px 6px; vertical-align:middle; margin-left:4px; }
 
 .card-title {
   font-size:20px;
@@ -1684,8 +1685,23 @@ function parseIcal(text,clinic,doctor){
         // Ajuste manual guardado (manda sobre lo que diga MediCloud)
         const durManual = durOverrides[citaId];
         const durUsada = (durManual!=null) ? durManual : durFinal;
-        console.log(`📅 ${nombreLimpio} · ${cur.time||'SIN HORA→'+horaCita} · dur=${durManual!=null?durManual+'min (ajuste manual)':(durDetectada?durDetectada+'min':'NO DETECTADA (usando 45)')} · id=${citaId}`);
-        evs.push({id:citaId,expediente,doctor,type:clinic,name:nombreLimpio,phone,date:cur.date,time:horaCita,sinHora:!cur.time,duration:Math.max(1,Math.round(durUsada/60)),durMin:durUsada,durAjustada:(durManual!=null),who:[],source:'medicloud',status:'confirmed',notes:cur.notes||'',readonly:true});
+        // Estado de la cita desde MediCloud:
+        // iCal STATUS: CONFIRMED, TENTATIVE, CANCELLED
+        // MediCloud puede usar sus propios estados en X-MEDICLOUD-STATUS o en el nombre
+        // Mapeamos a: 'pendiente' | 'confirmada' | 'cancelada' | 'otro'
+        let mcEstado = cur.mcEstado || '';
+        if(!mcEstado && cur.icalStatus){
+          if(cur.icalStatus==='CANCELLED') mcEstado='cancelada';
+          else if(cur.icalStatus==='TENTATIVE') mcEstado='pendiente';
+          else if(cur.icalStatus==='CONFIRMED') mcEstado='confirmada';
+        }
+        // Fallback: si no hay estado explícito, asumir pendiente
+        if(!mcEstado) mcEstado='pendiente';
+        const statusNorm = mcEstado.toLowerCase().includes('cancel') ? 'cancelled'
+          : mcEstado.toLowerCase().includes('confirm') ? 'confirmed'
+          : 'pending';
+        console.log(`📅 ${nombreLimpio} · ${cur.time||'SIN HORA→'+horaCita} · dur=${durManual!=null?durManual+'min (ajuste manual)':(durDetectada?durDetectada+'min':'NO DETECTADA (usando 45)')} · estado=${mcEstado} · id=${citaId}`);
+        evs.push({id:citaId,expediente,doctor,type:clinic,name:nombreLimpio,phone,date:cur.date,time:horaCita,sinHora:!cur.time,duration:Math.max(1,Math.round(durUsada/60)),durMin:durUsada,durAjustada:(durManual!=null),mcEstado,who:[],source:'medicloud',status:statusNorm,notes:cur.notes||'',readonly:true});
       }
       cur=null;
     } else if(cur){
@@ -1696,6 +1712,8 @@ function parseIcal(text,clinic,doctor){
       else if(/^(TEL|X-TEL|X-PHONE|PHONE)/i.test(line)) cur.tel=line.replace(/^[^:]*:/,'').trim();
       else if(line.startsWith('ATTENDEE')) cur.attendee=(cur.attendee||'')+' '+line;
       else if(line.startsWith('CONTACT')) cur.contact=line.replace(/^[^:]*:/,'').trim();
+      else if(/^STATUS[;:]/i.test(line)){ cur.icalStatus=line.replace(/^[^:]*:/,'').trim().toUpperCase(); }
+      else if(/^X-MEDICLOUD-STATUS[;:]/i.test(line)){ cur.mcEstado=line.replace(/^[^:]*:/,'').trim(); }
       else if(line.startsWith('DTSTART')){
         const r = parseIcalDateTime(line);
         if(r){ cur.date=r.date; cur.time=r.time; cur._startMins=r.mins; cur._startObj=r._dateObj; }
@@ -2224,9 +2242,10 @@ function cargarRecordatorios(){
   if(!status||!list) return;
   const hoy=new Date(); hoy.setHours(0,0,0,0);
   const min=CONFIG.RECORDATORIO_DIAS_MIN, max=CONFIG.RECORDATORIO_DIAS_MAX;
-  // Citas reales (MediCloud + online) dentro de la ventana, no bloqueos
+  // Solo citas reales pendientes (no confirmadas, no canceladas, no bloqueos)
   const candidatas = events.filter(e=>{
     if(e.type==='blocked' || e.status==='cancelled') return false;
+    if(e.status==='confirmed' && e.source==='medicloud') return false; // ya confirmadas no necesitan recordatorio
     if(!e.date) return false;
     const f=new Date(e.date+'T12:00:00'); f.setHours(0,0,0,0);
     const dias=Math.round((f-hoy)/86400000);
@@ -2243,10 +2262,11 @@ function cargarRecordatorios(){
     const f=new Date(e.date+'T12:00:00');
     const fechaCorta=`${f.getDate()}/${f.getMonth()+1}`;
     const yaEnviado = _recordatorioEnviado(e.id);
+    const estadoBadge = e.mcEstado ? `<span class="rec-estado">${e.mcEstado}</span>` : '';
     return `<div class="rec-card ${yaEnviado?'sent':''}">
       <div class="rec-card-top">
         <div>
-          <div class="rec-name">${e.name}</div>
+          <div class="rec-name">${e.name} ${estadoBadge}</div>
           <div class="rec-meta">${fechaCorta} · ${e.time||'sin hora'} · ${tel||'⚠ sin teléfono'}</div>
         </div>
         ${yaEnviado?'<span class="rec-badge-sent">✓ Enviado</span>':''}
