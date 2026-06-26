@@ -233,6 +233,11 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .rec-send-btn { width:100%; padding:11px; border:none; border-radius:10px; background:var(--mixco); color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
 .rec-send-btn:disabled { opacity:.45; cursor:not-allowed; }
 .rec-estado { font-size:10px; font-weight:700; color:var(--muted); background:var(--light); border-radius:5px; padding:2px 6px; vertical-align:middle; margin-left:4px; }
+.rec-mes-hdr { font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; padding:16px 0 8px; border-bottom:1px solid var(--border); margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+.rec-mes-count { font-size:11px; font-weight:700; background:var(--denis-bg); color:var(--denis); border-radius:20px; padding:2px 8px; }
+.rec-doc-seg { display:flex; gap:6px; margin:16px 0 4px; }
+.rec-doc-btn { flex:1; padding:9px 6px; border:1.5px solid var(--border); border-radius:10px; background:var(--white); font-family:var(--font); font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .15s; }
+.rec-doc-btn.on { border-color:var(--denis); color:var(--denis); background:var(--denis-bg); }
 
 .card-title {
   font-size:20px;
@@ -1028,6 +1033,11 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </div>
   </div>
   <div style="padding:0 20px 40px;max-width:620px;margin:0 auto">
+    <div class="rec-doc-seg">
+      <button class="rec-doc-btn on" data-doc="denis" onclick="recSetDoc('denis')">Dr. Denis</button>
+      <button class="rec-doc-btn" data-doc="majo" onclick="recSetDoc('majo')">Dra. María José</button>
+      <button class="rec-doc-btn" data-doc="ambos" onclick="recSetDoc('ambos')">Ambos</button>
+    </div>
     <div id="rec-status" class="rec-status">Cargando…</div>
     <div id="rec-list"></div>
   </div>
@@ -2238,8 +2248,17 @@ function mensajeRecordatorio(nombre, fechaStr){
     `Y cuando guste, coordinamos el día y la hora exacta. ¿Le contactamos?`;
 }
 
+let recDocFiltro = 'denis';
+function recSetDoc(doc){
+  recDocFiltro = doc;
+  document.querySelectorAll('.rec-doc-btn').forEach(b=>b.classList.toggle('on', b.dataset.doc===doc));
+  cargarRecordatorios();
+}
+
 function openRecordatorios(){
   goScreen('s-recordatorios');
+  recDocFiltro = 'denis';
+  document.querySelectorAll('.rec-doc-btn').forEach(b=>b.classList.toggle('on', b.dataset.doc==='denis'));
   cargarRecordatorios();
 }
 
@@ -2258,7 +2277,9 @@ function cargarRecordatorios(){
     if(!e.date || !e.name) return false;
     // Solo citas de MediCloud o del sistema de citas (no bloqueos manuales)
     if(e.source!=='medicloud' && e.source!=='online') return false;
-    // Solo pendientes (estado 0 o 1) — confirmadas, atendidas, etc. no necesitan recordatorio
+    // Filtro por médico
+    if(recDocFiltro!=='ambos' && e.doctor!==recDocFiltro) return false;
+    // Solo pendientes (estado 0 o 1)
     if(e.source==='medicloud' && !e.esPendiente) return false;
     const f=new Date(e.date+'T12:00:00'); f.setHours(0,0,0,0);
     const dias=Math.round((f-hoy)/86400000);
@@ -2267,28 +2288,43 @@ function cargarRecordatorios(){
   }).sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
 
   if(!candidatas.length){
-    status.textContent = `No hay citas entre ${min} y ${max} días desde hoy.`;
+    status.textContent = `No hay citas pendientes entre ${min} y ${max} días desde hoy.`;
     list.innerHTML=''; return;
   }
-  status.textContent = `${candidatas.length} paciente(s) con cita próxima. Revisá y enviá el recordatorio.`;
-  list.innerHTML = candidatas.map((e,i)=>{
-    const tel = e.phone || '';
+  status.textContent = `${candidatas.length} paciente(s) pendiente(s) con cita próxima.`;
+
+  // Agrupar por mes y año
+  const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const grupos={};
+  candidatas.forEach(e=>{
     const f=new Date(e.date+'T12:00:00');
-    const fechaCorta=`${f.getDate()}/${f.getMonth()+1}`;
-    const yaEnviado = _recordatorioEnviado(e.id);
-    const estadoBadge = e.mcEstado ? `<span class="rec-estado">${e.mcEstado}</span>` : '';
-    return `<div class="rec-card ${yaEnviado?'sent':''}">
-      <div class="rec-card-top">
-        <div>
-          <div class="rec-name">${e.name} ${estadoBadge}</div>
-          <div class="rec-meta">${fechaCorta} · ${e.time||'sin hora'} · ${tel||'⚠ sin teléfono'}</div>
+    const key=`${f.getFullYear()}-${String(f.getMonth()).padStart(2,'0')}`;
+    if(!grupos[key]) grupos[key]={label:`${MESES[f.getMonth()]} ${f.getFullYear()}`, citas:[]};
+    grupos[key].citas.push(e);
+  });
+
+  list.innerHTML = Object.keys(grupos).sort().map(key=>{
+    const g=grupos[key];
+    const items=g.citas.map(e=>{
+      const tel=e.phone||'';
+      const f=new Date(e.date+'T12:00:00');
+      const fechaCorta=`${f.getDate()}/${f.getMonth()+1}`;
+      const yaEnviado=_recordatorioEnviado(e.id);
+      const estadoBadge=e.mcEstado?`<span class="rec-estado">${e.mcEstado}</span>`:'';
+      return `<div class="rec-card ${yaEnviado?'sent':''}">
+        <div class="rec-card-top">
+          <div>
+            <div class="rec-name">${e.name} ${estadoBadge}</div>
+            <div class="rec-meta">${fechaCorta} · ${e.time||'sin hora'} · ${tel||'⚠ sin teléfono'}</div>
+          </div>
+          ${yaEnviado?'<span class="rec-badge-sent">✓ Enviado</span>':''}
         </div>
-        ${yaEnviado?'<span class="rec-badge-sent">✓ Enviado</span>':''}
-      </div>
-      <button class="rec-send-btn" ${!tel?'disabled':''} onclick="enviarRecordatorio('${e.id}')">
-        ${yaEnviado?'Enviar de nuevo':'Enviar recordatorio'}
-      </button>
-    </div>`;
+        <button class="rec-send-btn" ${!tel?'disabled':''} onclick="enviarRecordatorio('${e.id}')">
+          ${yaEnviado?'Enviar de nuevo':'Enviar recordatorio'}
+        </button>
+      </div>`;
+    }).join('');
+    return `<div class="rec-mes-hdr">${g.label} <span class="rec-mes-count">${g.citas.length}</span></div>${items}`;
   }).join('');
 }
 
@@ -3358,7 +3394,7 @@ async function init(){
 // Some environments don't put top-level function declarations on window where
 // inline onclick="" can reach them. Assign them explicitly so buttons always work.
 Object.assign(window, {
-  goScreen, goHome, goBack, setView, pickView, toggleDocMenu, setMode, setClinic, setDoc, dismissReconsulta, onRecurChange, syncNow, resolverDuplicadoVisual, verDiagnostico, openRecordatorios, enviarRecordatorio,
+  goScreen, goHome, goBack, setView, pickView, toggleDocMenu, setMode, setClinic, setDoc, dismissReconsulta, onRecurChange, syncNow, resolverDuplicadoVisual, verDiagnostico, openRecordatorios, enviarRecordatorio, recSetDoc,
   enterAgenda, enterAgendaFromAgendar, openModal, closeModal, closeIfOutside,
   saveEvent, deleteEvent, setCalMode, openPendingModal, closePendingModal,
   closePendingIfOutside, qConfirm, qReject, openControlsPanel, closeControlsPanel,
