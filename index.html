@@ -2337,16 +2337,19 @@ async function enviarRecordatorio(id){
   const ev=events.find(e=>e.id===id);
   if(!ev){ alert('No encontré esa cita.'); return; }
   if(!ev.phone){ alert('Esta cita no tiene teléfono registrado.'); return; }
-  const msg=mensajeRecordatorio(ev.name, ev.date);
+  // Limpiar nombre: quitar prefijos como "Cita: ", números de expediente residuales
+  const nombreLimpio = (ev.name||'').replace(/^Cita:\s*/i,'').replace(/^\d+\s*[-–]\s*/,'').trim();
+  // Expediente: solo si es un número real, no un booleano
+  const expNum = (ev.expediente && typeof ev.expediente==='string') ? ev.expediente : '';
+  const msg=mensajeRecordatorio(nombreLimpio, ev.date);
   const payload={
     tipo:'recordatorio_cita',
-    paciente:ev.name,
+    paciente:nombreLimpio,
     telefono:ev.phone,
     fecha:ev.date,
     hora:ev.time||'',
-    expediente:ev.expediente||'',
+    expediente:expNum,
     mensaje:msg,
-    // Botones para la plantilla de WhatsApp (respuesta inequívoca)
     boton_si:'Sí, contáctenme',
     boton_no:'Aún no',
   };
