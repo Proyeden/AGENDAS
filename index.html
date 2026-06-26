@@ -2341,11 +2341,15 @@ async function enviarRecordatorio(id){
   const nombreLimpio = (ev.name||'').replace(/^Cita:\s*/i,'').replace(/^\d+\s*[-–]\s*/,'').trim();
   // Expediente: solo si es un número real, no un booleano
   const expNum = (ev.expediente && typeof ev.expediente==='string') ? ev.expediente : '';
+  // Limpiar teléfono: quitar guiones, espacios y caracteres no numéricos
+  // y agregar código de país 502 (Guatemala) si no lo tiene
+  let telLimpio = (ev.phone||'').replace(/[^0-9]/g,'');
+  if(telLimpio && !telLimpio.startsWith('502')) telLimpio = '502'+telLimpio;
   const msg=mensajeRecordatorio(nombreLimpio, ev.date);
   const payload={
     tipo:'recordatorio_cita',
     paciente:nombreLimpio,
-    telefono:ev.phone,
+    telefono:telLimpio,
     fecha:ev.date,
     hora:ev.time||'',
     expediente:expNum,
