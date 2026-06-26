@@ -2394,7 +2394,7 @@ function render(){
   document.getElementById('s-ds').textContent=wev.filter(e=>e.doctor==='denis'&&e.type==='clinic2').length;
   document.getElementById('s-mm').textContent=wev.filter(e=>e.doctor==='majo' &&e.type==='clinic1').length;
   document.getElementById('s-ms').textContent=wev.filter(e=>e.doctor==='majo' &&e.type==='clinic2').length;
-  const pCount=events.filter(e=>e.status==='pending').length;
+  const pCount=events.filter(e=>e.status==='pending' && e.source==='online').length;
   document.getElementById('s-pend').textContent=pCount;
   document.getElementById('pending-bar').classList.toggle('on',pCount>0);
   document.getElementById('pending-count').textContent=pCount;
@@ -3220,13 +3220,21 @@ async function deleteEvent(){ if(!editingId) return; const ev=events.find(e=>e.i
 
 // ═══ PENDING MODAL ══════════════════════════════════════════════════════════
 function openPendingModal(){
-  const pending=events.filter(e=>e.status==='pending');
+  // Solo reservas del sistema de citas online (no citas de MediCloud)
+  const pending=events.filter(e=>e.status==='pending' && e.source==='online');
   const list=document.getElementById('plist'); list.innerHTML='';
-  if(!pending.length){ list.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px;font-size:13px">No hay citas pendientes</p>'; }
+  if(!pending.length){ list.innerHTML='<p style="color:var(--muted);text-align:center;padding:16px;font-size:13px">No hay reservas pendientes de confirmar</p>'; }
   else pending.forEach(ev=>{
     const doc2=CONFIG.DOCTORS[ev.doctor]||{}, clin=CONFIG.CLINICS[ev.type]||{};
+    // Limpiar notas: quitar campos internos de MediCloud (Estado, Clasificación, Detalles, \n)
+    const notasLimpias = (ev.notes||'')
+      .replace(/\*?Estado:\s*\d+/gi,'')
+      .replace(/Clasificaci[oó]n:\s*\w+/gi,'')
+      .replace(/Detalles?:[^\n]*/gi,'')
+      .replace(/\\n/g,' ').replace(/\n/g,' ')
+      .replace(/\s{2,}/g,' ').trim();
     const item=document.createElement('div'); item.className='pitem';
-    item.innerHTML=`<div class="pitem-info"><div class="pitem-name">${ev.name}</div><div class="pitem-det">${doc2.name} · ${clin.name} · ${ev.date} ${ev.time}${ev.notes?' · "'+ev.notes+'"':''}</div></div><div class="pitem-btns"><button class="p-ok" onclick="qConfirm('${ev.id}')">✓</button><button class="p-no" onclick="qReject('${ev.id}')">✗</button></div>`;
+    item.innerHTML=`<div class="pitem-info"><div class="pitem-name">${ev.name}</div><div class="pitem-det">${doc2.name} · ${clin.name} · ${ev.date} ${ev.time}${notasLimpias?' · '+notasLimpias:''}</div></div><div class="pitem-btns"><button class="p-ok" onclick="qConfirm('${ev.id}')">✓</button><button class="p-no" onclick="qReject('${ev.id}')">✗</button></div>`;
     list.appendChild(item);
   });
   document.getElementById('poverlay').classList.add('on');
