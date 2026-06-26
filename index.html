@@ -2367,6 +2367,20 @@ async function enviarRecordatorio(id){
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload),
     });
+    // Guardar en Firebase el cruce teléfono → paciente para identificar quien responde
+    if(_db){
+      try{
+        await _db.collection('recordatorios_enviados').doc(telLimpio).set({
+          telefono: telLimpio,
+          paciente: nombreLimpio,
+          expediente: expNum,
+          fecha: ev.date,
+          hora: ev.time||'',
+          doctor: ev.doctor||'',
+          enviadoEn: new Date().toISOString(),
+        });
+      } catch(e){ console.warn('No se pudo guardar cruce teléfono→paciente:', e.message); }
+    }
     _marcarRecordatorioEnviado(id);
     cargarRecordatorios();
   }catch(e){
