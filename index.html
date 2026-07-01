@@ -408,6 +408,15 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 }
 .wb-sync:hover { background:var(--mixco); color:#fff; }
 .wb-sync.syncing { pointer-events:none; opacity:.7; }
+.wb-fin {
+  margin-left:6px; height:30px; padding:0 12px;
+  border:1px solid var(--block); border-radius:8px;
+  background:var(--block-bg); color:var(--block);
+  font-family:var(--font); font-size:12px; font-weight:700;
+  cursor:pointer; transition:all .15s; white-space:nowrap;
+  display:flex; align-items:center; gap:5px;
+}
+.wb-fin:hover { background:var(--block); color:#fff; }
 @media (max-width:480px){ .wb-sync-txt { display:none; } .wb-sync { padding:0 10px; font-size:15px; } }
 .view-toggle {
   display:flex; gap:0; height:38px;
@@ -1147,6 +1156,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </div>
     <span id="week-label"></span>
     <button class="wb-sync" id="btn-sync" onclick="syncNow()" title="Sincronizar MediCloud y citas">↻ <span class="wb-sync-txt">Sincronizar</span></button>
+    <button class="wb-fin" id="btn-fin-jornada" onclick="finalizarJornada()" style="display:none" title="Cerrar la franja activa y bloquear el resto">⏹ <span class="wb-sync-txt">Finalizar jornada</span></button>
   </div>
 
   <div class="main">
@@ -1438,17 +1448,48 @@ function durLabel(d){ return DURS[d] || `${d} min`; }
 // Jornada laboral por médico y día (réplica del sistema de citas). Devuelve
 // {ini, fin} en minutos desde medianoche, o null si no atiende ese día.
 // dow: 0=domingo … 6=sábado.
-const JORNADA = {
+// ── JORNADAS COMPLETAS POR DÍA ─────────────────────────────────────────────
+// FRANJAS describe todas las franjas del día por médico, clínica y horario.
+// Es la fuente de verdad para: huecos libres, bloqueos de traslado, y
+// el botón "Finalizar jornada".
+// dow: 0=dom, 1=lun, 2=mar, 3=mié, 4=jue, 5=vie, 6=sáb
+const FRANJAS = {
   denis: dow => {
-    if(dow>=1&&dow<=4) return {ini:13*60, fin:17*60};   // lun-jue 13:00-17:00
-    if(dow===5)        return {ini:9*60,  fin:15*60};    // vie 09:00-15:00
-    if(dow===6)        return {ini:8*60,  fin:14*60};    // sáb 08:00-14:00
-    return null;
+    if(dow>=1&&dow<=4) return [
+      { clinica:'clinic2', ini:9*60,      fin:12*60     }, // SC   09:00-12:00
+      { clinica:'clinic1', ini:13*60,     fin:17*60     }, // Mixco 13:00-17:00
+      { clinica:'clinic2', ini:17*60+30,  fin:19*60     }, // SC   17:30-19:00
+    ];
+    if(dow===5) return [
+      { clinica:'clinic1', ini:9*60,      fin:15*60     }, // Mixco 09:00-15:00
+      { clinica:'clinic2', ini:15*60+30,  fin:18*60     }, // SC   15:30-18:00
+    ];
+    if(dow===6) return [
+      { clinica:'clinic1', ini:8*60,      fin:14*60     }, // Mixco 08:00-14:00
+    ];
+    return [];
   },
   majo: dow => {
-    if(dow>=1&&dow<=4) return {ini:16*60, fin:17*60};    // lun-jue 16:00 (1 slot)
-    if(dow===6)        return {ini:8*60,  fin:10*60};    // sáb 08:00-09:00
-    return null;
+    if(dow>=1&&dow<=4) return [
+      { clinica:'clinic1', ini:16*60,     fin:17*60     }, // Mixco 16:00-17:00
+    ];
+    if(dow===6) return [
+      { clinica:'clinic1', ini:8*60,      fin:10*60     }, // Mixco 08:00-10:00
+    ];
+    return [];
+  },
+};
+
+// JORNADA sigue siendo la función que usa calcularHuecos para Mixco
+// (la franja principal de Mixco ese día, o la jornada especial si existe)
+const JORNADA = {
+  denis: dow => {
+    const f = FRANJAS.denis(dow).find(x=>x.clinica==='clinic1');
+    return f ? {ini:f.ini, fin:f.fin} : null;
+  },
+  majo: dow => {
+    const f = FRANJAS.majo(dow).find(x=>x.clinica==='clinic1');
+    return f ? {ini:f.ini, fin:f.fin} : null;
   },
 };
 const tMin=(t)=>{ const[h,m]=t.split(':').map(Number); return h*60+m; };
@@ -3840,8 +3881,54 @@ function setCalMode(mode){
     const b=document.getElementById('vt-'+m);
     if(b) b.className='vt-btn'+(m===mode?' on':'');
   });
+  // Mostrar "Finalizar jornada" solo en vista Día
+  const fb=document.getElementById('btn-fin-jornada');
+  if(fb) fb.style.display = mode==='day' ? 'flex' : 'none';
   render();
 }
+
+// ── FINALIZAR JORNADA ──────────────────────────────────────────────────────
+async function finalizarJornada(){
+  const now = new Date();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const dow = now.getDay();
+  const dateStr = todayKey();
+  const doctorId = (currentView==='majo') ? 'majo' : 'denis';
+  const franjas = FRANJAS[doctorId] ? FRANJAS[doctorId](dow) : [];
+  if(!franjas.length){ alert('No hay jornada activa hoy para este médico.'); return; }
+  const franjaActiva = franjas.find(f => nowMin >= f.ini && nowMin < f.fin);
+  if(!franjaActiva){
+    const proxima = franjas.find(f => nowMin < f.ini);
+    if(proxima){ alert(`Estás entre franjas. La próxima empieza a las ${tFmt(proxima.ini)}.`); }
+    else { alert('La jornada de hoy ya terminó.'); }
+    return;
+  }
+  const clinicaNombre = CONFIG.CLINICS[franjaActiva.clinica]?.name || franjaActiva.clinica;
+  const docNombre = CONFIG.DOCTORS[doctorId]?.name || doctorId;
+  const horaActual = tFmt(nowMin);
+  const horaFin = tFmt(franjaActiva.fin);
+  const durResta = franjaActiva.fin - nowMin;
+  if(durResta <= 0){ alert('La franja activa ya terminó.'); return; }
+  const ok = confirm(
+    `⏹ Finalizar jornada\n\n${docNombre} · ${clinicaNombre}\n` +
+    `Hora actual: ${horaActual} · Fin de franja: ${horaFin}\n\n` +
+    `Se bloquearán los ${durResta} minutos restantes (${horaActual}–${horaFin}) ` +
+    `en la agenda y en el sistema de citas.\n\n¿Confirmás?`
+  );
+  if(!ok) return;
+  const bloqueoEv = {
+    id: uid(), doctor:doctorId, type:franjaActiva.clinica,
+    name:'Fin de jornada anticipado', date:dateStr,
+    time:horaActual, durMin:durResta, endTime:horaFin,
+    duration:Math.max(1,Math.round(durResta/60)),
+    source:'manual', status:'confirmed', origenFin:true,
+  };
+  await DB.save(bloqueoEv);
+  if(franjaActiva.clinica==='clinic1') await pushBloqueoToCitas(bloqueoEv);
+  render();
+  alert(`✅ Jornada finalizada. ${clinicaNombre} bloqueada de ${horaActual} a ${horaFin}.`);
+}
+
 // Wire up listeners defensively — a missing element must never kill the script.
 function wireUp(){
   const on = (id, ev, fn) => { const el=document.getElementById(id); if(el) el.addEventListener(ev, fn); };
@@ -3891,7 +3978,8 @@ Object.assign(window, {
   discardControl, quickParse, quickSave, quickEdit, quickCancel, toggleMic,
   dupKeepBoth, dupKeepSelected, navStep, goToday, handleClick, addQuick,
   onStartTimeChange, setFullDayBlock, onBlockDateChange,
-  openJornadaEspecial, jdSetDoc, jdSetCli, jdToggleRango, jdGuardar, jdEliminar
+  openJornadaEspecial, jdSetDoc, jdSetCli, jdToggleRango, jdGuardar, jdEliminar,
+  finalizarJornada
 });
 
 // ── BOOTSTRAP ──────────────────────────────────────────────────────────────
