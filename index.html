@@ -37,6 +37,9 @@
   --sanc-bg: #F5F3FF;
   --block:  #DC2626;
   --block-bg: #FEF2F2;
+  --reserva: #D97706;
+  --reserva-bg: #FFFBEB;
+  --reserva-border: #FDE68A;
 
   --font: 'Inter', sans-serif;
   --mono: 'DM Mono', monospace;
@@ -475,8 +478,10 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .mn-ev.blocked::before { background:var(--block); }
 .mn-ev.pend::before    { background:var(--sanc); }
 .mn-ev.medic::before   { background:var(--majo); opacity:.6; }
+.mn-ev.reserva::before { background:var(--reserva); }
 .mn-ev.blocked { color:var(--muted); }
 .mn-ev.pend { color:var(--sanc); font-weight:600; }
+.mn-ev.reserva { color:var(--reserva); font-style:italic; }
 .mn-more { font-size:10px; color:var(--muted); padding:1px 0 0 11px; }
 
 /* ── DAY VIEW (single column wide) ── */
@@ -718,6 +723,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .tl-ev.majo    { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo); }
 .tl-ev.medic   { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo); }
 .tl-ev.blocked { background:var(--block-bg); color:var(--block); border-left:3px solid var(--block); }
+.tl-ev.reserva { background:var(--reserva-bg); color:var(--reserva); border-left:3px dashed var(--reserva); }
 .tl-ev.pend    { background:var(--sanc-bg);  color:var(--sanc);  border-left:3px dashed var(--sanc); }
 .tl-ev.tl-dup { outline:2px solid #F59E0B; outline-offset:-1px; box-shadow:0 0 0 1px #F59E0B; }
 .tl-dup-tag { font-size:9px; font-weight:700; text-transform:uppercase; opacity:.85; margin-top:1px; display:block; }
@@ -729,6 +735,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .ev.denis   { background:var(--denis-bg); color:var(--denis); border-left:3px solid var(--denis); }
 .ev.majo    { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo);  }
 .ev.blocked { background:var(--block-bg); color:var(--block); border-left:3px solid var(--block); }
+.ev.reserva { background:var(--reserva-bg); color:var(--reserva); border-left:3px dashed var(--reserva); }
 .ev.pend    { background:var(--sanc-bg);  color:var(--sanc);  border-left:3px dashed var(--sanc); }
 .ev.medic   { background:var(--majo-bg);  color:var(--majo);  border-left:3px solid var(--majo); opacity:.75; }
 /* Reserva virtual: tiempo apartado, aún sin expediente */
@@ -797,6 +804,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 .seg-btn.on-mixco { border-color:var(--mixco); background:var(--mixco-bg); color:var(--mixco); }
 .seg-btn.on-sanc  { border-color:var(--sanc);  background:var(--sanc-bg);  color:var(--sanc);  }
 .seg-btn.on-block { border-color:var(--block); background:var(--block-bg); color:var(--block); }
+.seg-btn.on-reserva { border-color:var(--reserva); background:var(--reserva-bg); color:var(--reserva); }
 
 .mactions { display:flex; gap:6px; justify-content:flex-end; margin-top:16px; }
 .m-cancel { background:none; border:1.5px solid var(--border); border-radius:8px; padding:0 14px; height:34px; font-size:12px; font-weight:500; font-family:var(--font); cursor:pointer; color:var(--muted); }
@@ -1230,9 +1238,10 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       <button class="seg-btn" id="db-majo"  onclick="setDoc('majo')">Dra. María José</button>
     </div>
     <label style="margin-bottom:6px">Tipo</label>
-    <div class="seg cols3">
+    <div class="seg cols2" style="grid-template-columns:1fr 1fr 1fr 1fr">
       <button class="seg-btn" id="cb-mixco" onclick="setClinic('clinic1')">Zona 1 Mixco</button>
       <button class="seg-btn" id="cb-sanc"  onclick="setClinic('clinic2')">San Cristóbal</button>
+      <button class="seg-btn" id="cb-reserva" onclick="setClinic('reserva')">Reserva</button>
       <button class="seg-btn" id="cb-block" onclick="setClinic('blocked')">Bloqueo</button>
     </div>
     <div class="fld"><label>Paciente / motivo</label><input type="text" id="f-name" placeholder="Ej. Consulta Pérez, Reunión, Día libre…"></div>
@@ -2934,7 +2943,8 @@ function buildDayTimeline(doctorId, dateStr, dow){
     const y=(s-winIni)*PX_PER_MIN; const ht=Math.max(dur*PX_PER_MIN, 22);
     const isPend=ev.status==='pending';
     const isVirtual=ev.reservaVirtual && !ev.expediente;
-    const cls=isPend?'pend':isVirtual?'virtual':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
+    const isReservaEv=ev.status==='reserva'||ev.esReserva;
+    const cls=isReservaEv?'reserva':isPend?'pend':isVirtual?'virtual':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
     const clinCls = ev.type==='clinic2' ? 'in-sanc' : ev.type==='clinic1' ? 'in-mixco' : '';
     const isDup = dupPairs.has(ev.id);
     const el=document.createElement('div'); el.className=`tl-ev ${cls} ${clinCls}${isDup?' tl-dup':''}`;
@@ -2994,7 +3004,8 @@ function renderMonth(root){
     dayEvs.slice(0,MAX).forEach(ev=>{
       const e=document.createElement('div');
       const isPend=ev.status==='pending';
-      const cls=isPend?'pend':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
+      const isReservaEv=ev.status==='reserva'||ev.esReserva;
+      const cls=isReservaEv?'reserva':isPend?'pend':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
       e.className=`mn-ev ${cls}`;
       e.textContent=`${ev.time?formatHM(ev.time)+' ':''}${ev.name}`;
       e.onclick=ev2=>{ev2.stopPropagation();handleClick(ev);};
@@ -3074,6 +3085,20 @@ function buildGrid(grid,days,doctor){
 }
 
 function handleClick(ev){
+  // Reserva pendiente — ofrecer confirmar o eliminar
+  if(ev.status==='reserva' || ev.esReserva){
+    const d=CONFIG.DOCTORS[ev.doctor]||{};
+    const r = confirm(
+      `🟡 Reserva pendiente\n\n${ev.name}\n${d.name} · Mixco\n${ev.date} · ${ev.time}\n\n` +
+      `• Aceptar → Confirmar como cita real\n• Cancelar → Ver opciones`
+    );
+    if(r){
+      confirmarReserva(ev);
+    } else {
+      if(confirm('¿Querés eliminar esta reserva?')) deleteEventById(ev.id);
+    }
+    return;
+  }
   if(ev.readonly){
     const c=CONFIG.CLINICS[ev.type]||{}, d=CONFIG.DOCTORS[ev.doctor]||{};
     const ph = ev.phone ? `\n📞 ${ev.phone}` : '';
@@ -3081,15 +3106,12 @@ function handleClick(ev){
     const durTxt = ev.durAjustada ? `${ev.durMin} min ✏️ ajustada` : `${ev.durMin} min`;
     const info = `${ev.name}\n${d.name} · ${c.name}\n${ev.date} · ${ev.time} · ${durTxt}${ph}${ev.notes?'\n'+ev.notes:''}\n\n(Cita de MediCloud)`;
     if(isMixco){
-      // Acción principal: programar control. Secundaria: ajustar duración (seguridad).
       const r = confirm(`${info}\n\n• Aceptar → Programar control\n• Cancelar → Más opciones`);
       if(r){ openControlModal(ev); return; }
-      // "Más opciones": ofrecer el ajuste de duración solo si lo pide
       if(confirm('¿La duración de esta cita está mal y querés corregirla?')){
         ajustarDuracionManual(ev);
       }
     } else {
-      // San Cristóbal: solo info + opción de ajustar duración si hace falta
       if(confirm(`${info}\n\n¿Corregir la duración de esta cita?`)){
         ajustarDuracionManual(ev);
       }
@@ -3097,6 +3119,24 @@ function handleClick(ev){
     return;
   }
   openModal(ev);
+}
+
+// Confirmar una reserva pendiente → la convierte en cita real confirmada
+async function confirmarReserva(ev){
+  const nombre = prompt('Nombre del paciente (podés editarlo):', ev.name || 'Reserva pendiente');
+  if(nombre===null) return; // canceló
+  const evConfirmado = {...ev, name:nombre.trim()||ev.name, status:'confirmed', esReserva:false};
+  await DB.save(evConfirmado);
+  publicarSlotsDisponibles().catch(()=>{});
+  render();
+  alert(`✅ Cita confirmada para ${evConfirmado.name}`);
+}
+
+// Eliminar evento por ID (para reservas)
+async function deleteEventById(id){
+  await DB.remove(id);
+  publicarSlotsDisponibles().catch(()=>{});
+  render();
 }
 
 // Ajuste manual de duración para una cita de MediCloud. Se recuerda en Firebase.
@@ -3193,9 +3233,13 @@ function onStartTimeChange(){
   if(!end || end<=start){ const [h,m]=start.split(':').map(Number); const em=h*60+m+45; buildEndTimes(`${String(Math.floor(em/60)).padStart(2,'0')}:${String(em%60).padStart(2,'0')}`); }
 }
 function setDoc(d){ currentDoc=d; document.getElementById('db-denis').className='seg-btn'+(d==='denis'?' on-denis':''); document.getElementById('db-majo').className='seg-btn'+(d==='majo'?' on-majo':''); }
-function setClinic(c){ currentClinic=c; document.getElementById('cb-mixco').className='seg-btn'+(c==='clinic1'?' on-mixco':''); document.getElementById('cb-sanc').className='seg-btn'+(c==='clinic2'?' on-sanc':''); document.getElementById('cb-block').className='seg-btn'+(c==='blocked'?' on-block':'');
-  // Bloqueo → inicio + fin (franja). Cita → duración en bloques.
+function setClinic(c){ currentClinic=c;
+  document.getElementById('cb-mixco').className='seg-btn'+(c==='clinic1'?' on-mixco':'');
+  document.getElementById('cb-sanc').className='seg-btn'+(c==='clinic2'?' on-sanc':'');
+  document.getElementById('cb-block').className='seg-btn'+(c==='blocked'?' on-block':'');
+  const cbr=document.getElementById('cb-reserva'); if(cbr) cbr.className='seg-btn'+(c==='reserva'?' on-reserva':'');
   const isBlock = c==='blocked';
+  const isReserva = c==='reserva';
   const fd=document.getElementById('field-duration'), fe=document.getElementById('field-endtime');
   if(fd) fd.style.display = isBlock?'none':'block';
   if(fe) fe.style.display = isBlock?'block':'none';
@@ -3204,7 +3248,10 @@ function setClinic(c){ currentClinic=c; document.getElementById('cb-mixco').clas
     const cur=document.getElementById('f-endtime').value;
     if(!cur || cur<=start){ const [h,m]=start.split(':').map(Number); let em=h*60+m+45; buildEndTimes(`${String(Math.floor(em/60)).padStart(2,'0')}:${String(em%60).padStart(2,'0')}`); }
   }
-  // Recurrencia solo para bloqueos NUEVOS (no al editar uno existente)
+  // Mostrar campo teléfono solo para citas reales
+  const fp=document.getElementById('field-phone');
+  if(fp) fp.style.display=(isBlock||isReserva)?'none':'block';
+  // Recurrencia solo para bloqueos NUEVOS
   const fr=document.getElementById('field-recur');
   if(fr) fr.style.display = (isBlock && !editingId) ? 'block' : 'none';
   const bf=document.getElementById('btn-fullday');
@@ -3268,6 +3315,7 @@ async function saveEvent(){
   const date=document.getElementById('f-date').value;
   const time=document.getElementById('f-time').value;
   const isBlock = currentClinic==='blocked';
+  const isReserva = currentClinic==='reserva';
   const tm=(t)=>{const[h,m]=t.split(':').map(Number);return h*60+m;};
   let durMin, endTime;
   if(isBlock){
@@ -3280,11 +3328,15 @@ async function saveEvent(){
     const endMins=tm(time)+durMin;
     endTime=`${String(Math.floor(endMins/60)).padStart(2,'0')}:${String(endMins%60).padStart(2,'0')}`;
   }
-  const duration=Math.max(1,Math.round(durMin/60)); // bloques sólo para vistas
-  if(!name||!date){ document.getElementById('f-name').style.borderColor='var(--block)'; setTimeout(()=>document.getElementById('f-name').style.borderColor='',1200); return; }
+  const duration=Math.max(1,Math.round(durMin/60));
+  // Reserva: nombre opcional, poner placeholder si vacío
+  const nombreFinal = name || (isReserva ? 'Reserva pendiente' : '');
+  if(!nombreFinal||!date){ document.getElementById('f-name').style.borderColor='var(--block)'; setTimeout(()=>document.getElementById('f-name').style.borderColor='',1200); return; }
   const wasNew = !editingId;
-  const isRealAppt = currentClinic!=='blocked';
-  const isMixco = currentClinic==='clinic1';
+  // Reserva se guarda como clinic1 (Mixco) con status 'reserva' y type especial
+  const tipoFinal = isReserva ? 'clinic1' : currentClinic;
+  const isRealAppt = !isBlock && !isReserva;
+  const isMixco = tipoFinal==='clinic1';
 
   // ¿Recurrencia? Solo para bloqueos nuevos.
   const recurVal = (isBlock && wasNew) ? (document.getElementById('f-recur')?.value||'none') : 'none';
@@ -3302,7 +3354,16 @@ async function saveEvent(){
     return;
   }
 
-  const ev={id:editingId||uid(),doctor:currentDoc,type:currentClinic,name,phone,date,time,duration,durMin,endTime,source:editingId?(events.find(e=>e.id===editingId)?.source||'manual'):'manual',status:'confirmed'};
+  const ev={
+    id:editingId||uid(),
+    doctor:currentDoc,
+    type:tipoFinal,
+    name:nombreFinal,
+    phone,date,time,duration,durMin,endTime,
+    source:editingId?(events.find(e=>e.id===editingId)?.source||'manual'):'manual',
+    status: isReserva ? 'reserva' : 'confirmed',
+    esReserva: isReserva,
+  };
   closeModal();
   await saveWithDupCheck(ev);
   // Sincronizar con el sistema de citas (Mixco). La agenda es la fuente de verdad.
@@ -3312,13 +3373,14 @@ async function saveEvent(){
     await removeBloqueoFromCitas(ev);
   }
   // ── Bloqueo de traslado San Cristóbal ↔ Mixco ──────────────────────────
-  // Cuando agendás en San Cristóbal, si el margen de traslado (45 min) invade
-  // la jornada de Mixco, bloqueamos esos slots en el sistema de citas para que
-  // ningún paciente online pueda reservar en ese hueco.
-  // Solo aplica si ya hay algo en Mixco ese día (si Mixco está vacío, no hay
-  // razón para el traslado y la disponibilidad queda abierta).
   if(currentClinic==='clinic2' && wasNew){
     await bloquearTrasladoSanCristobal(ev);
+  }
+  // Re-publicar slots disponibles si el evento afecta Mixco (clinic1)
+  // Esto asegura que citas manuales, de palabra, o bloqueos se reflejen
+  // inmediatamente en el sistema de citas sin esperar la próxima sincronización.
+  if(currentClinic==='clinic1' || currentClinic==='clinic2'){
+    publicarSlotsDisponibles().catch(e=>console.warn('auto-publish slots:', e.message));
   }
   if(isRealAppt && isMixco) openControlModal(ev);
 }
@@ -4041,6 +4103,17 @@ async function init(){
     events = await DB.load();
     controles = await DB.loadControls();
     durOverrides = await DB.loadDurOverrides();
+    // Cargar jornadas especiales al inicio para que calcularHuecos las use
+    // desde el primer sync, sin necesidad de abrir la pantalla de Jornada especial.
+    if(_db){
+      try{
+        const snap = await _db.collection('jornadas_especiales')
+          .where('fecha','>=',todayKey()).get();
+        jornadasEspeciales = snap.docs.map(d=>({...d.data(),id:d.id}));
+        if(jornadasEspeciales.length)
+          console.log(`📅 Jornadas especiales cargadas: ${jornadasEspeciales.length}`);
+      }catch(e){ console.warn('jornadasEspeciales load:', e.message); }
+    }
     setSyncBadge('ok','Firebase ✓');
     DB.subscribeRealtime(updated=>{ events=updated; render(); const active=ALL_SCREENS.find(s=>document.getElementById(s)?.classList.contains('on')); if(active==='s-home') updateHome(); if(active==='s-consultar') updateBadges(); });
   }catch(e){
@@ -4067,7 +4140,7 @@ Object.assign(window, {
   dupKeepBoth, dupKeepSelected, navStep, goToday, handleClick, addQuick,
   onStartTimeChange, setFullDayBlock, onBlockDateChange,
   openJornadaEspecial, jdSetDoc, jdSetCli, jdToggleRango, jdGuardar, jdEliminar,
-  finalizarJornada, publicarSlotsDisponibles
+  finalizarJornada, publicarSlotsDisponibles, confirmarReserva, deleteEventById
 });
 
 // ── BOOTSTRAP ──────────────────────────────────────────────────────────────
