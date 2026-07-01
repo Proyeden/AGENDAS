@@ -1156,6 +1156,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </div>
     <span id="week-label"></span>
     <button class="wb-sync" id="btn-sync" onclick="syncNow()" title="Sincronizar MediCloud y citas">↻ <span class="wb-sync-txt">Sincronizar</span></button>
+    <button class="wb-sync" id="btn-publish" onclick="publicarSlotsDisponibles().then(()=>alert('✅ Slots publicados en el sistema de citas'))" title="Publicar slots disponibles al sistema de citas" style="background:var(--denis-bg);border-color:var(--denis);color:var(--denis)">⬆ <span class="wb-sync-txt">Publicar</span></button>
     <button class="wb-fin" id="btn-fin-jornada" onclick="finalizarJornada()" style="display:none" title="Cerrar la franja activa y bloquear el resto">⏹ <span class="wb-sync-txt">Finalizar jornada</span></button>
   </div>
 
@@ -2214,6 +2215,8 @@ async function loadIcalFeedsWithDupCheck(){
   // tocándolos. Esto evita que una cita desaparezca por un modal sin resolver.
   // Empujar duraciones reales de MediCloud al sistema de citas (no bloqueante)
   syncMedicloudDurationsToCitas().catch(e=>console.warn('sync MC duraciones:', e.message));
+  // Publicar slots disponibles en Firebase para el sistema de citas (no bloqueante)
+  publicarSlotsDisponibles().catch(e=>console.warn('publicarSlots:', e.message));
 }
 
 // Make the sync badge tappable to force a MediCloud re-sync
@@ -3435,6 +3438,91 @@ function generarFechasRecurrentes(fechaBase, tipo, veces){
   return out;
 }
 
+// ═══ PUBLICAR SLOTS DISPONIBLES → SISTEMA DE CITAS ═══════════════════════
+// La agenda es la fuente de verdad. Esta función calcula los huecos libres
+// de Mixco para cada día con datos y los escribe en Firebase (citas-mixco)
+// colección `slots_disponibles`. El sistema de citas los lee directamente
+// en vez de generar sus propios slots — así siempre están sincronizados.
+//
+// Lógica: por cada fecha con eventos (pasado/futuro), calcula calcularHuecos
+// para Denis en Mixco. Escribe SOLO los días futuros (desde hoy). Limpia
+// slots viejos del mismo día antes de escribir los nuevos (idempotente).
+//
+// Se corre: automáticamente después de cada syncNow, y con botón manual.
+
+let _publicando = false;
+
+async function publicarSlotsDisponibles(){
+  if(!_citasDb || _publicando) return;
+  _publicando = true;
+  try {
+    const hoy = todayKey();
+    const medicoId = 'denis'; // Solo Mixco/Denis por ahora
+    const MEDICO_CITAS_ID = 'denis';
+
+    // Recopilar fechas únicas con datos (desde hoy, hasta 30 días adelante)
+    const fechas = new Set();
+    const limite = new Date(); limite.setDate(limite.getDate() + 30);
+    const limiteStr = dateKey(limite);
+
+    // Incluir fechas con citas existentes
+    events.filter(e => e.date >= hoy && e.date <= limiteStr && e.doctor === medicoId)
+      .forEach(e => fechas.add(e.date));
+
+    // Incluir también los días laborables aunque estén vacíos (para mostrar disponibilidad)
+    for(let i=0; i<=30; i++){
+      const d = new Date(); d.setDate(d.getDate()+i);
+      const dow = d.getDay();
+      if(dow===0) continue; // domingo
+      const franjas = FRANJAS[medicoId] ? FRANJAS[medicoId](dow) : [];
+      if(franjas.some(f=>f.clinica==='clinic1')) fechas.add(dateKey(d));
+    }
+
+    for(const fecha of [...fechas].sort()){
+      if(fecha < hoy) continue;
+
+      // Calcular huecos libres reales para ese día
+      const huecos = calcularHuecos(medicoId, fecha, 'clinic1');
+
+      // Borrar slots anteriores de este día (idempotente)
+      try {
+        const viejos = await _citasDb.collection('slots_disponibles')
+          .where('fecha','==',fecha)
+          .where('medicoId','==',MEDICO_CITAS_ID).get();
+        for(const d of viejos.docs) await d.ref.delete();
+      } catch(e){ console.warn('slots borrar:', e.message); }
+
+      // Escribir los huecos nuevos como slots individuales
+      for(const h of huecos){
+        // Descomponer cada hueco en slots de 45 min (unidad del sistema de citas)
+        let cur = tMin(h.ini);
+        const fin = cur + h.durMin;
+        while(cur < fin){
+          const rest = fin - cur;
+          const durSlot = rest >= 45 ? 45 : rest;
+          if(durSlot >= 30){ // no publicar slots menores a 30 min
+            await _citasDb.collection('slots_disponibles').add({
+              fecha,
+              hora: tFmt(cur),
+              durMin: durSlot,
+              medicoId: MEDICO_CITAS_ID,
+              disponible: true,
+              extendido: h.extendido || false,
+              publicadoEn: new Date().toISOString(),
+            });
+          }
+          cur += durSlot;
+        }
+      }
+    }
+    console.log(`✅ Slots publicados para ${fechas.size} días`);
+  } catch(e){
+    console.warn('publicarSlotsDisponibles error:', e.message);
+  } finally {
+    _publicando = false;
+  }
+}
+
 // ═══ SYNC MEDICLOUD DURATIONS TO CITAS SYSTEM ══════════════════════════════
 // Empuja la duración real de cada cita de MediCloud (Mixco) al sistema de
 // citas como slots ocupados, para que el paciente no vea huecos falsos.
@@ -3979,7 +4067,7 @@ Object.assign(window, {
   dupKeepBoth, dupKeepSelected, navStep, goToday, handleClick, addQuick,
   onStartTimeChange, setFullDayBlock, onBlockDateChange,
   openJornadaEspecial, jdSetDoc, jdSetCli, jdToggleRango, jdGuardar, jdEliminar,
-  finalizarJornada
+  finalizarJornada, publicarSlotsDisponibles
 });
 
 // ── BOOTSTRAP ──────────────────────────────────────────────────────────────
