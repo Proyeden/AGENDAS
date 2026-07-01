@@ -157,83 +157,33 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 /* ── HOME ── */
 #s-home {
   min-height:calc(100vh - 54px);
-  display:none;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  padding:40px 20px;
-  text-align:center;
-  background:var(--white);
+  display:none; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:40px 24px 48px; background:var(--bg);
 }
 #s-home.on { display:flex; }
-
-.home-label {
-  font-size:11px;
-  font-weight:600;
-  letter-spacing:1px;
-  text-transform:uppercase;
-  color:var(--muted);
-  margin-bottom:16px;
-}
-
-.home-title {
-  font-size:clamp(32px,7vw,56px);
-  font-weight:700;
-  letter-spacing:-2px;
-  line-height:1;
-  color:var(--text);
-  margin-bottom:8px;
-}
-
-.home-date {
-  font-family:var(--mono);
-  font-size:12px;
-  color:var(--muted);
-  margin-bottom:48px;
-}
-
-.home-cards {
-  display:flex;
-  gap:12px;
-  justify-content:center;
-  flex-wrap:wrap;
-  width:100%;
-  max-width:420px;
-}
-
-.home-card {
-  flex:1;
-  min-width:160px;
-  background:var(--white);
-  border:1.5px solid var(--border);
-  border-radius:16px;
-  padding:24px 20px;
-  cursor:pointer;
-  text-align:left;
-  transition:border-color .15s, box-shadow .15s;
-  font-family:var(--font);
-}
-.home-card:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,.08);
-}
-.home-card.agendar:hover { border-color:var(--denis); }
-.home-card.consultar:hover { border-color:var(--mixco); }
-.home-card.recordar:hover { border-color:var(--mixco); }
-.home-card.admin:hover { border-color:var(--sanc); }
-.home-card.admin { text-decoration:none; }
-
-.card-tag {
-  font-size:11px;
-  font-weight:600;
-  letter-spacing:.5px;
-  text-transform:uppercase;
-  margin-bottom:12px;
-  display:block;
-}
-.card-tag.agendar { color:var(--denis); }
-.card-tag.consultar { color:var(--mixco); }
-.card-tag.recordar { color:var(--mixco); }
-.card-tag.admin { color:var(--sanc); }
+.home-hero { text-align:center; margin-bottom:36px; }
+.home-eyebrow { font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.home-date { font-size:20px; font-weight:700; color:var(--text); letter-spacing:-.4px; line-height:1.25; }
+.home-btns { display:flex; flex-direction:column; gap:12px; width:100%; max-width:400px; margin-bottom:28px; }
+.home-btn { width:100%; padding:18px 20px; border-radius:16px; border:2px solid transparent; cursor:pointer; font-family:var(--font); display:flex; align-items:center; gap:16px; transition:opacity .15s, transform .1s; }
+.home-btn:active { transform:scale(.98); opacity:.9; }
+.home-btn-blue  { background:#DBEAFE; border-color:#93C5FD; }
+.home-btn-purple{ background:#EDE9FE; border-color:#C4B5FD; }
+.home-btn-icon-wrap { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.home-btn-icon-blue   { background:#BFDBFE; }
+.home-btn-icon-purple { background:#DDD6FE; }
+.home-btn-text { flex:1; text-align:left; }
+.home-btn-title { display:block; font-size:16px; font-weight:700; letter-spacing:-.3px; line-height:1.2; }
+.home-btn-sub   { display:block; font-size:12px; margin-top:3px; }
+.home-btn-blue  .home-btn-title { color:#1E3A8A; }
+.home-btn-blue  .home-btn-sub   { color:#2563EB; }
+.home-btn-purple .home-btn-title { color:#4C1D95; }
+.home-btn-purple .home-btn-sub   { color:#7C3AED; }
+.home-btn-arr { font-size:22px; flex-shrink:0; }
+.home-btn-blue   .home-btn-arr { color:#60A5FA; }
+.home-btn-purple .home-btn-arr { color:#A78BFA; }
+.home-sync-bar { font-size:11px; color:var(--muted); text-align:center; }
 .rec-status { font-size:13px; color:var(--muted); padding:14px 0 10px; }
 .rec-card { background:var(--white); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:12px; box-shadow:0 1px 2px rgba(0,0,0,.05); }
 .rec-card.sent { opacity:.7; }
@@ -914,32 +864,74 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 
 <!-- HOME -->
 <div id="s-home" class="on">
-  <div class="home-label">Agenda médica</div>
-  <div class="home-title">¿Qué quieres<br>hacer?</div>
-  <div class="home-date" id="home-date"></div>
-  <div class="home-cards">
-    <button class="home-card agendar" onclick="goScreen('s-agendar')">
-      <span class="card-tag agendar">Agendar</span>
-      <span class="card-title">Nuevo evento</span>
-      <span class="card-sub">Registrá una consulta, actividad o bloqueo</span>
+  <div class="home-hero">
+    <div class="home-eyebrow">Agenda médica</div>
+    <div class="home-date" id="home-date"></div>
+  </div>
+
+  <div class="home-btns">
+    <!-- Botón 1: Agenda — azul -->
+    <button class="home-btn home-btn-blue" onclick="goScreen('s-consultar')">
+      <div class="home-btn-icon-wrap home-btn-icon-blue">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <div class="home-btn-text">
+        <span class="home-btn-title">Ver agenda · Agendar</span>
+        <span class="home-btn-sub">Consultar y registrar citas</span>
+      </div>
+      <span class="home-btn-arr">›</span>
     </button>
-    <button class="home-card consultar" onclick="goScreen('s-consultar')">
-      <span class="card-tag consultar">Consultar</span>
-      <span class="card-title">Ver agenda</span>
-      <span class="card-sub">Por médico o por clínica</span>
+
+    <!-- Botón 2: Gestión — morado -->
+    <button class="home-btn home-btn-purple" onclick="goScreen('s-gestion')">
+      <div class="home-btn-icon-wrap home-btn-icon-purple">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </div>
+      <div class="home-btn-text">
+        <span class="home-btn-title">Gestión</span>
+        <span class="home-btn-sub">Recordatorios · Jornada · Admin</span>
+      </div>
+      <span class="home-btn-arr">›</span>
     </button>
-    <button class="home-card recordar" onclick="openRecordatorios()">
-      <span class="card-tag recordar">Recordatorios</span>
-      <span class="card-title">Citas próximas</span>
-      <span class="card-sub">Avisar a pacientes con cita en ~2 semanas</span>
-    </button>
-    <a class="home-card admin" href="https://proyeden.github.io/Citas-Mixco/" target="_blank" rel="noopener">
-      <span class="card-tag admin">Sistema de citas</span>
-      <span class="card-title">Panel admin</span>
-      <span class="card-sub">Abrir el sistema de citas (pedirá tu PIN)</span>
+  </div>
+
+  <div class="home-sync-bar" id="home-sync"></div>
+</div>
+
+<!-- GESTIÓN (pantalla secundaria) -->
+<div id="s-gestion" class="screen">
+  <div class="pick-hero" style="--accent:var(--sanc)">
+    <div class="pick-hero-inner">
+      <div class="pick-eyebrow">GESTIÓN</div>
+      <h1 class="pick-title">¿Qué necesitás?<span class="pt-sub">Administrá recordatorios, jornadas y el sistema de citas.</span></h1>
+    </div>
+  </div>
+  <div class="pick-list">
+    <div class="pick-item" onclick="openRecordatorios()" style="cursor:pointer">
+      <div class="pick-av" style="background:#EDE9FE;color:#6D28D9;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔔</div>
+      <div class="pick-info">
+        <div class="pick-name">Recordatorios</div>
+        <div class="pick-sub">Avisar pacientes con cita en ~2 semanas</div>
+      </div>
+      <span class="pick-arrow">›</span>
+    </div>
+    <div class="pick-item" onclick="openJornadaEspecial()" style="cursor:pointer">
+      <div class="pick-av" style="background:#EDE9FE;color:#6D28D9;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⏰</div>
+      <div class="pick-info">
+        <div class="pick-name">Jornada especial</div>
+        <div class="pick-sub">Ajustar horario de un día específico</div>
+      </div>
+      <span class="pick-arrow">›</span>
+    </div>
+    <a class="pick-item" href="https://proyeden.github.io/Citas-Mixco/" target="_blank" rel="noopener" style="text-decoration:none">
+      <div class="pick-av" style="background:#EDE9FE;color:#6D28D9;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⚙️</div>
+      <div class="pick-info">
+        <div class="pick-name">Panel admin</div>
+        <div class="pick-sub">Sistema de citas · requiere PIN</div>
+      </div>
+      <span class="pick-arrow">↗</span>
     </a>
   </div>
-  <div style="margin-top:28px;font-size:11px;color:var(--muted)" id="home-sync"></div>
 </div>
 
 <!-- AGENDAR -->
@@ -1047,6 +1039,62 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       </div>
       <span class="pick-arrow">›</span>
     </div>
+  </div>
+</div>
+
+<!-- JORNADA ESPECIAL -->
+<div id="s-jornada" class="screen">
+  <div class="pick-hero" style="--accent:var(--sanc)">
+    <div class="pick-hero-inner">
+      <div class="pick-eyebrow">JORNADA ESPECIAL</div>
+      <h1 class="pick-title">Cambiar horario<span class="pt-sub">Definí un horario distinto para un día específico. Reemplaza la jornada normal y actualiza el sistema de citas.</span></h1>
+    </div>
+  </div>
+  <div style="padding:0 20px 40px;max-width:520px;margin:0 auto;width:100%">
+
+    <!-- Formulario nueva jornada -->
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">Nueva jornada especial</div>
+
+      <div class="fld">
+        <label>Médico</label>
+        <div class="seg cols2">
+          <button class="seg-btn on-denis" id="jd-doc-denis" onclick="jdSetDoc('denis')">Dr. Denis</button>
+          <button class="seg-btn" id="jd-doc-majo" onclick="jdSetDoc('majo')">Dra. María José</button>
+        </div>
+      </div>
+      <div class="fld">
+        <label>Clínica</label>
+        <div class="seg cols2">
+          <button class="seg-btn on-mixco" id="jd-cli-mixco" onclick="jdSetCli('clinic1')">Mixco</button>
+          <button class="seg-btn" id="jd-cli-sanc" onclick="jdSetCli('clinic2')">San Cristóbal</button>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>Fecha</label><input type="date" id="jd-fecha"></div>
+        <div class="fld" style="display:none" id="jd-fecha2-wrap">
+          <label>Hasta (opcional)</label><input type="date" id="jd-fecha2">
+        </div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>Hora inicio</label><select id="jd-ini"></select></div>
+        <div class="fld"><label>Hora fin</label><select id="jd-fin"></select></div>
+      </div>
+      <div class="fld">
+        <label>Motivo <span style="font-weight:400;text-transform:none;color:var(--muted)">(opcional)</span></label>
+        <input type="text" id="jd-motivo" placeholder="Ej. Congreso, turno médico, cita personal…">
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:14px;cursor:pointer">
+        <input type="checkbox" id="jd-rango" onchange="jdToggleRango()"> Aplicar a varios días seguidos
+      </label>
+      <button onclick="jdGuardar()" style="width:100%;padding:12px;border:none;border-radius:10px;background:var(--sanc);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">
+        Guardar jornada especial
+      </button>
+    </div>
+
+    <!-- Lista de jornadas guardadas -->
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Jornadas programadas</div>
+    <div id="jd-list"><div style="font-size:13px;color:var(--muted);text-align:center;padding:20px">Cargando…</div></div>
   </div>
 </div>
 
@@ -1413,7 +1461,7 @@ const tFmt=(m)=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padS
 function calcularHuecos(doctorId, dateStr, clinicId){
   const [Y,Mo,D] = dateStr.split('-').map(Number);
   const dow = new Date(Y, Mo-1, D).getDay();
-  const j = JORNADA[doctorId] ? JORNADA[doctorId](dow) : null;
+  const j = getJornadaEfectiva(doctorId, dateStr);
   if(!j) return [];
 
   const ocup = events
@@ -2229,7 +2277,7 @@ async function saveWithDupCheck(ev){
 }
 
 // ═══ SCREEN NAV ════════════════════════════════════════════════════════════
-const ALL_SCREENS=['s-home','s-agendar','s-consultar','s-agenda','s-recordatorios'];
+const ALL_SCREENS=['s-home','s-agendar','s-consultar','s-agenda','s-recordatorios','s-jornada','s-gestion'];
 
 function goScreen(id){
   ALL_SCREENS.forEach(s=>{
@@ -2306,6 +2354,206 @@ function recSetDoc(doc){
   recDocFiltro = doc;
   document.querySelectorAll('.rec-doc-btn').forEach(b=>b.classList.toggle('on', b.dataset.doc===doc));
   cargarRecordatorios();
+}
+
+function openJornadaEspecial(){
+  goScreen('s-jornada');
+  renderJornadaEspecial();
+}
+
+// ═══ JORNADA ESPECIAL ══════════════════════════════════════════════════════
+// Permite definir un horario distinto al normal para un médico + clínica +
+// fecha (o rango de fechas). Se guarda en Firebase 'jornadas_especiales' y
+// la agenda lo lee al calcular huecos. También sincroniza con el sistema de
+// citas: abre los slots nuevos y cierra los del horario original.
+
+let jdDoc = 'denis', jdCli = 'clinic1';
+let jornadasEspeciales = [];
+
+function jdSetDoc(doc){
+  jdDoc = doc;
+  document.getElementById('jd-doc-denis').className='seg-btn'+(doc==='denis'?' on-denis':'');
+  document.getElementById('jd-doc-majo').className='seg-btn'+(doc==='majo'?' on-majo':'');
+}
+function jdSetCli(cli){
+  jdCli = cli;
+  document.getElementById('jd-cli-mixco').className='seg-btn'+(cli==='clinic1'?' on-mixco':'');
+  document.getElementById('jd-cli-sanc').className='seg-btn'+(cli==='clinic2'?' on-sanc':'');
+}
+function jdToggleRango(){
+  const on = document.getElementById('jd-rango').checked;
+  document.getElementById('jd-fecha2-wrap').style.display = on ? 'block' : 'none';
+}
+
+function jdBuildTimes(){
+  const slots = [];
+  for(let h=6;h<=21;h++) for(const m of [0,15,30,45]) slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+  ['jd-ini','jd-fin'].forEach((id,i) => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '';
+    slots.forEach(s => { const op=document.createElement('option'); op.value=s; op.textContent=s; sel.appendChild(op); });
+    sel.value = i===0 ? '12:00' : '16:00';
+  });
+}
+
+// Fechas entre dos strings inclusivo
+function jdFechasEntre(desde, hasta){
+  const out = [];
+  const d = new Date(desde+'T12:00:00');
+  const h = new Date((hasta||desde)+'T12:00:00');
+  while(d <= h){
+    out.push(d.toISOString().split('T')[0]);
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+
+async function jdGuardar(){
+  const fecha = document.getElementById('jd-fecha').value;
+  const fecha2 = document.getElementById('jd-rango').checked ? document.getElementById('jd-fecha2').value : '';
+  const ini = document.getElementById('jd-ini').value;
+  const fin = document.getElementById('jd-fin').value;
+  const motivo = document.getElementById('jd-motivo').value.trim();
+  if(!fecha){ alert('Elegí una fecha'); return; }
+  if(tMin(fin) <= tMin(ini)){ alert('La hora de fin debe ser posterior al inicio'); return; }
+
+  const fechas = jdFechasEntre(fecha, fecha2||fecha);
+  for(const f of fechas){
+    const id = `je_${jdDoc}_${jdCli}_${f}`;
+    const jornada = {
+      id, doctor:jdDoc, clinica:jdCli, fecha:f,
+      ini, fin, motivo,
+      creadoEn: new Date().toISOString(),
+    };
+    jornadasEspeciales = jornadasEspeciales.filter(j=>j.id!==id);
+    jornadasEspeciales.push(jornada);
+    if(_db) try{ await _db.collection('jornadas_especiales').doc(id).set(jornada); }catch(e){ console.warn('jd save',e); }
+    // Sincronizar con sistema de citas si es Mixco
+    if(jdCli==='clinic1') await jdSyncCitas(jornada);
+  }
+  document.getElementById('jd-fecha').value='';
+  document.getElementById('jd-motivo').value='';
+  renderJornadaEspecial();
+  alert(`✅ Jornada especial guardada para ${fechas.length} día${fechas.length>1?'s':''}.`);
+}
+
+// Sincroniza la jornada especial con el sistema de citas:
+// 1. Borra bloqueos del horario ORIGINAL que ya no aplican
+// 2. Los slots del nuevo horario quedan libres (pacientes pueden reservar)
+async function jdSyncCitas(jornada){
+  if(!_citasDb) return;
+  const medicoId = MEDICO_TO_CITAS[jornada.doctor];
+  if(!medicoId) return;
+  const medicoNombre = jornada.doctor==='denis' ? 'Denis Cotzojay' : 'María José Nóchez';
+  const [Y,Mo,D] = jornada.fecha.split('-').map(Number);
+  const dow = new Date(Y, Mo-1, D).getDay();
+  const jNormal = JORNADA[jornada.doctor] ? JORNADA[jornada.doctor](dow) : null;
+  const jNueva = { ini: tMin(jornada.ini), fin: tMin(jornada.fin) };
+
+  try {
+    // Borrar bloqueos de jornada_especial previos de este día
+    const viejos = await _citasDb.collection('bloqueos')
+      .where('fecha','==',jornada.fecha)
+      .where('medicoId','==',medicoId)
+      .where('origen','==','jornada-especial').get();
+    for(const d of viejos.docs) await d.ref.delete();
+
+    if(!jNormal) return;
+
+    // Bloquear los slots del horario ORIGINAL que quedan fuera de la nueva jornada
+    // Franja antes de la nueva jornada (si la normal empieza antes)
+    const bloques = [];
+    if(jNormal.ini < jNueva.ini) bloques.push({s:jNormal.ini, e:jNueva.ini});
+    if(jNormal.fin > jNueva.fin) bloques.push({s:jNueva.fin, e:jNormal.fin});
+
+    for(const b of bloques){
+      let cur = b.s;
+      while(cur < b.e){
+        const rest = b.e - cur;
+        const dur = rest>=45?45:rest>=30?30:rest;
+        if(dur >= 15){
+          await _citasDb.collection('bloqueos').add({
+            fecha: jornada.fecha, hora: tFmt(cur), slotMin: dur,
+            medicoId, medicoNombre,
+            motivo: motivo||'Jornada especial',
+            tipo: 'directo', origen: 'jornada-especial',
+            agendaJornadaId: jornada.id,
+            creadoEn: new Date().toISOString(),
+          });
+        }
+        cur += Math.max(dur, 15);
+      }
+    }
+    console.log(`📅 Jornada especial sincronizada: ${jornada.fecha} ${jornada.ini}-${jornada.fin}`);
+  } catch(e){ console.warn('jdSyncCitas error', e.message); }
+}
+
+async function jdEliminar(id){
+  if(!confirm('¿Eliminar esta jornada especial?')) return;
+  const j = jornadasEspeciales.find(x=>x.id===id);
+  jornadasEspeciales = jornadasEspeciales.filter(x=>x.id!==id);
+  if(_db) try{ await _db.collection('jornadas_especiales').doc(id).delete(); }catch(e){}
+  // Limpiar bloqueos de jornada especial en sistema de citas
+  if(j && j.clinica==='clinic1' && _citasDb){
+    const medicoId = MEDICO_TO_CITAS[j.doctor];
+    if(medicoId){
+      try{
+        const snap = await _citasDb.collection('bloqueos')
+          .where('agendaJornadaId','==',id).get();
+        for(const d of snap.docs) await d.ref.delete();
+      }catch(e){}
+    }
+  }
+  renderJornadaEspecial();
+}
+
+async function renderJornadaEspecial(){
+  // Inicializar selector de tiempos si no está listo
+  if(!document.getElementById('jd-ini').options.length) jdBuildTimes();
+  // Default fecha = mañana
+  if(!document.getElementById('jd-fecha').value){
+    const m = new Date(); m.setDate(m.getDate()+1);
+    document.getElementById('jd-fecha').value = m.toISOString().split('T')[0];
+  }
+  // Cargar de Firebase si no tenemos datos
+  if(!jornadasEspeciales.length && _db){
+    try{
+      const snap = await _db.collection('jornadas_especiales')
+        .where('fecha','>=',todayKey()).get();
+      jornadasEspeciales = snap.docs.map(d=>({...d.data(),id:d.id}));
+    }catch(e){}
+  }
+  const list = document.getElementById('jd-list');
+  const futuras = jornadasEspeciales
+    .filter(j=>j.fecha>=todayKey())
+    .sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  if(!futuras.length){
+    list.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:20px">No hay jornadas especiales programadas</div>';
+    return;
+  }
+  const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const fmtFecha = f => { const [Y,Mo,D]=f.split('-').map(Number); return `${D} ${MESES[Mo-1]} ${Y}`; };
+  const docNombre = d => d==='denis'?'Dr. Denis':'Dra. María José';
+  const cliNombre = c => c==='clinic1'?'Mixco':'San Cristóbal';
+  list.innerHTML = futuras.map(j=>`
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:13px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">⏰</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${docNombre(j.doctor)} · ${cliNombre(j.clinica)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${fmtFecha(j.fecha)} · ${j.ini}–${j.fin}${j.motivo?' · '+j.motivo:''}</div>
+      </div>
+      <button onclick="jdEliminar('${j.id}')" style="background:var(--block-bg);color:var(--block);border:1px solid #FECACA;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer">Eliminar</button>
+    </div>
+  `).join('');
+}
+
+// Lectura de jornada especial para sobreescribir la normal en calcularHuecos
+function getJornadaEfectiva(doctorId, dateStr){
+  const je = jornadasEspeciales.find(j=>j.doctor===doctorId && j.fecha===dateStr);
+  if(je) return { ini:tMin(je.ini), fin:tMin(je.fin), especial:true };
+  const [Y,Mo,D] = dateStr.split('-').map(Number);
+  const dow = new Date(Y, Mo-1, D).getDay();
+  return JORNADA[doctorId] ? JORNADA[doctorId](dow) : null;
 }
 
 function openRecordatorios(){
@@ -3019,7 +3267,115 @@ async function saveEvent(){
   } else if(!wasNew){
     await removeBloqueoFromCitas(ev);
   }
+  // ── Bloqueo de traslado San Cristóbal ↔ Mixco ──────────────────────────
+  // Cuando agendás en San Cristóbal, si el margen de traslado (45 min) invade
+  // la jornada de Mixco, bloqueamos esos slots en el sistema de citas para que
+  // ningún paciente online pueda reservar en ese hueco.
+  // Solo aplica si ya hay algo en Mixco ese día (si Mixco está vacío, no hay
+  // razón para el traslado y la disponibilidad queda abierta).
+  if(currentClinic==='clinic2' && wasNew){
+    await bloquearTrasladoSanCristobal(ev);
+  }
   if(isRealAppt && isMixco) openControlModal(ev);
+}
+
+// ── Bloqueo de traslado San Cristóbal → Mixco ─────────────────────────────
+// Cuando se agenda una cita en San Cristóbal, calcula si el margen de traslado
+// (45 min) invade la jornada de Mixco y bloquea esos slots en el sistema de
+// citas. Solo actúa si ya hay citas en Mixco ese día (si Mixco está vacío,
+// no hay razón para el traslado y la disponibilidad se mantiene abierta).
+async function bloquearTrasladoSanCristobal(ev){
+  if(!_citasDb) return;
+  const MARGEN = 45; // minutos de traslado
+  const HORA_CORTE_MANANA = 13 * 60; // 13:00 — antes=mañana, después=tarde
+  const medicoId = MEDICO_TO_CITAS[ev.doctor];
+  if(!medicoId) return;
+
+  const [Y,Mo,D] = ev.date.split('-').map(Number);
+  const dow = new Date(Y, Mo-1, D).getDay();
+  const j = JORNADA[ev.doctor] ? JORNADA[ev.doctor](dow) : null;
+  if(!j) return; // no hay jornada de Mixco este día
+
+  const inicioSanc = tMin(ev.time);
+  const finSanc = inicioSanc + (ev.durMin || 45);
+  const esMañana = inicioSanc < HORA_CORTE_MANANA;
+
+  // ¿Hay algo en Mixco ese día? Si no, no bloqueamos nada.
+  const hayMixco = events.some(e =>
+    e.date===ev.date && e.status!=='cancelled' &&
+    e.doctor===ev.doctor && e.type==='clinic1'
+  );
+  if(!hayMixco) {
+    console.log('🚗 San Cristóbal: Mixco vacío este día, no se bloquea traslado');
+    return;
+  }
+
+  // Calcular la franja a bloquear en Mixco según dirección del traslado
+  let bloqIni, bloqFin;
+  if(esMañana){
+    // Mañana: viajás de San Cristóbal a Mixco después de la cita
+    // Bloqueamos la ventana de llegada a Mixco (fin de cita + 45 min)
+    bloqIni = finSanc;
+    bloqFin = finSanc + MARGEN;
+    // Solo si esa ventana cae dentro de la jornada de Mixco
+    if(bloqFin <= j.ini || bloqIni >= j.fin) return;
+    bloqIni = Math.max(bloqIni, j.ini);
+    bloqFin = Math.min(bloqFin, j.ini + 45); // máximo un slot al inicio
+  } else {
+    // Tarde: viajás de Mixco a San Cristóbal antes de la cita
+    // Bloqueamos los slots previos al inicio de la cita (inicio - 45 min)
+    bloqIni = inicioSanc - MARGEN;
+    bloqFin = inicioSanc;
+    // Solo si esa ventana cae dentro de la jornada de Mixco
+    if(bloqFin <= j.ini || bloqIni >= j.fin) return;
+    bloqIni = Math.max(bloqIni, j.ini);
+    bloqFin = Math.min(bloqFin, j.fin);
+  }
+
+  // ¿El margen es menor a 45 min? Solo bloqueamos si realmente es necesario
+  const margenReal = esMañana ? (j.ini - finSanc) : (inicioSanc - j.fin);
+  if(margenReal >= MARGEN) {
+    console.log('🚗 San Cristóbal: margen suficiente, no se bloquea traslado');
+    return;
+  }
+
+  const durTotal = bloqFin - bloqIni;
+  if(durTotal <= 0) return;
+
+  // Crear bloqueo fantasma en sistema de citas usando la misma lógica que otros bloqueos
+  const medicoNombre = ev.doctor==='denis' ? 'Denis Cotzojay' : 'María José Nóchez';
+  const fmt=(m)=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+
+  try {
+    // Primero borramos bloqueos de traslado previos de este evento
+    const viejos = await _citasDb.collection('bloqueos')
+      .where('agendaEventId','==','traslado_'+ev.id).get();
+    for(const d of viejos.docs) await d.ref.delete();
+
+    // Crear los slots de traslado
+    let cur = bloqIni;
+    while(cur < bloqFin){
+      const rest = bloqFin - cur;
+      const dur = rest >= 45 ? 45 : rest >= 30 ? rest : 30;
+      await _citasDb.collection('bloqueos').add({
+        fecha: ev.date,
+        hora: fmt(cur),
+        slotMin: dur,
+        medicoId,
+        medicoNombre,
+        motivo: 'Traslado a otra clínica',
+        tipo: 'directo',
+        origen: 'agenda-traslado',
+        agendaEventId: 'traslado_'+ev.id,
+        creadoEn: new Date().toISOString(),
+      });
+      cur += dur;
+      if(cur >= bloqFin) break;
+    }
+    console.log(`🚗 Traslado San Cristóbal bloqueado en Mixco: ${fmt(bloqIni)}-${fmt(bloqFin)}`);
+  } catch(e){
+    console.warn('Error bloqueando traslado:', e.message);
+  }
 }
 
 // Genera fechas recurrentes a partir de una fecha base.
@@ -3534,7 +3890,8 @@ Object.assign(window, {
   saveControl, setControlInterval, clearControlPreset, markControlScheduled,
   discardControl, quickParse, quickSave, quickEdit, quickCancel, toggleMic,
   dupKeepBoth, dupKeepSelected, navStep, goToday, handleClick, addQuick,
-  onStartTimeChange, setFullDayBlock, onBlockDateChange
+  onStartTimeChange, setFullDayBlock, onBlockDateChange,
+  openJornadaEspecial, jdSetDoc, jdSetCli, jdToggleRango, jdGuardar, jdEliminar
 });
 
 // ── BOOTSTRAP ──────────────────────────────────────────────────────────────
