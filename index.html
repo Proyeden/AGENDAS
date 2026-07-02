@@ -4223,90 +4223,144 @@ async function finalizarJornada(){
 }
 
 // ── REDUCIR SLOTS A 30 MIN ────────────────────────────────────────────────
-// Cuando estás agotado y querés consultas más cortas el resto del día.
-// Pide desde qué hora aplicar el cambio y publica slots de 30 min en lugar
-// de 45 desde esa hora hasta el fin de la jornada.
+// Permite programar una franja horaria donde los slots libres se publican de
+// 30 min en vez de 45. Las citas existentes de MediCloud se respetan tal cual
+// y el ritmo de 30 min continúa desde donde termina cada una.
 async function reducirSlots30(){
-  const now = new Date();
-  const nowStr = tFmt(now.getHours()*60+now.getMinutes());
-  const desde = prompt(
+  // Paso 1: elegir fecha
+  const mañana = new Date(); mañana.setDate(mañana.getDate()+1);
+  const fechaDef = calMode==='day'
+    ? (() => { const d=new Date(); d.setDate(d.getDate()+currentDayOffset); return dateKey(d); })()
+    : dateKey(mañana);
+
+  const fechaInput = prompt(
     `⏱ Reducir consultas a 30 minutos\n\n` +
-    `¿Desde qué hora querés aplicarlo?\n` +
-    `(Hora actual: ${nowStr})\n\n` +
-    `Escribí la hora en formato HH:MM:`,
-    nowStr
+    `¿Para qué fecha?\n(Formato YYYY-MM-DD)`,
+    fechaDef
+  );
+  if(!fechaInput) return;
+  const fechaStr = fechaInput.trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)){ alert('Fecha inválida. Usá el formato YYYY-MM-DD'); return; }
+
+  // Paso 2: elegir franja horaria
+  const doctorId = (currentView==='majo') ? 'majo' : 'denis';
+  const [Y,Mo,D] = fechaStr.split('-').map(Number);
+  const dow = new Date(Y,Mo-1,D).getDay();
+  const j = getJornadaEfectiva(doctorId, fechaStr);
+  const jornadaRef = j ? `${tFmt(j.ini)}–${tFmt(j.fin)}` : 'sin jornada definida';
+
+  const desde = prompt(
+    `⏱ Slots de 30 min — ${fechaStr}\n` +
+    `Jornada de Mixco ese día: ${jornadaRef}\n\n` +
+    `¿Desde qué hora aplicar los 30 min?`,
+    j ? tFmt(j.ini) : '13:00'
   );
   if(!desde) return;
-  const desdeMin = tMin(desde);
-  if(isNaN(desdeMin)){ alert('Hora inválida'); return; }
 
-  const doctorId = (currentView==='majo') ? 'majo' : 'denis';
-  const dateStr = todayKey();
-  const [Y,Mo,D] = dateStr.split('-').map(Number);
-  const dow = new Date(Y,Mo-1,D).getDay();
-  const j = getJornadaEfectiva(doctorId, dateStr);
-  if(!j){ alert('No hay jornada activa hoy'); return; }
+  const hasta = prompt(
+    `⏱ Slots de 30 min — ${fechaStr}\n` +
+    `¿Hasta qué hora? (fin de la franja reducida)`,
+    j ? tFmt(j.fin) : '17:00'
+  );
+  if(!hasta) return;
+
+  const desdeMin = tMin(desde);
+  const hastaMin = tMin(hasta);
+  if(isNaN(desdeMin)||isNaN(hastaMin)||hastaMin<=desdeMin){
+    alert('Rango de horas inválido'); return;
+  }
+
+  const fechaFmt = new Date(fechaStr+'T12:00:00')
+    .toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
 
   const ok = confirm(
-    `⏱ Reducir a 30 min desde las ${desde}\n\n` +
-    `Se publicarán slots de 30 minutos desde las ${desde} hasta las ${tFmt(j.fin)}.\n` +
-    `Los slots anteriores a las ${desde} quedan igual.\n\n` +
+    `⏱ Confirmar reducción de slots\n\n` +
+    `📅 ${fechaFmt}\n` +
+    `⏰ Franja: ${desde}–${hasta}\n` +
+    `📏 Duración: 30 min por slot\n\n` +
+    `Las citas de MediCloud se respetan.\n` +
+    `Los huecos libres entre ellas se publican de 30 min.\n\n` +
     `¿Confirmás?`
   );
   if(!ok) return;
 
-  // Guardar override de duración en localStorage y publicar slots ajustados
+  // Guardar en localStorage para referencia
   try{
-    const overrideKey = `slots30_${doctorId}_${dateStr}`;
-    localStorage.setItem(overrideKey, JSON.stringify({ desde, hasta: tFmt(j.fin) }));
+    const key = `slots30_${doctorId}_${fechaStr}`;
+    const prev = JSON.parse(localStorage.getItem('slots30_overrides')||'{}');
+    prev[key] = { desde, hasta, fecha: fechaStr, doctor: doctorId };
+    localStorage.setItem('slots30_overrides', JSON.stringify(prev));
   }catch(_){}
 
-  // Republicar slots con la nueva duración
-  await publicarSlotsDisponibles30(doctorId, dateStr, desdeMin, j.fin);
+  await publicarSlotsDisponibles30(doctorId, fechaStr, desdeMin, hastaMin);
   render();
-  alert(`✅ Slots reducidos a 30 min desde las ${desde}`);
+  alert(`✅ Slots de 30 min programados para ${fechaFmt} de ${desde} a ${hasta}`);
 }
 
-async function publicarSlotsDisponibles30(doctorId, dateStr, desdeMin, finJornada){
+async function publicarSlotsDisponibles30(doctorId, dateStr, desdeMin, hastaMin){
   if(!_citasDb) return;
   const MEDICO_CITAS_ID = MEDICO_TO_CITAS[doctorId] || doctorId;
 
-  // Calcular los huecos libres a partir de desdeMin
-  const huecos = calcularHuecos(doctorId, dateStr, 'clinic1')
-    .filter(h => tMin(h.ini) >= desdeMin);
+  // Citas existentes de MediCloud en ese día y médico (se respetan)
+  const citasMC = events.filter(e =>
+    e.date===dateStr && e.doctor===doctorId &&
+    e.source==='medicloud' && e.status!=='cancelled' && e.time
+  ).map(e => ({
+    ini: tMin(e.time),
+    fin: tMin(e.time) + (e.durMin || 45),
+    hora: e.time,
+    durMin: e.durMin || 45,
+  })).sort((a,b)=>a.ini-b.ini);
 
-  // Borrar slots publicados de ese médico/fecha que empiezan desde desdeMin
+  // Borrar slots publicados en esa franja horaria para republicarlos
   try{
     const snap = await _citasDb.collection('slots_disponibles')
       .where('fecha','==',dateStr)
       .where('medicoId','==',MEDICO_CITAS_ID)
       .where('disponible','==',true).get();
     for(const d of snap.docs){
-      if(tMin(d.data().hora) >= desdeMin) await d.ref.delete();
+      const h = tMin(d.data().hora);
+      if(h >= desdeMin && h < hastaMin) await d.ref.delete();
     }
-  }catch(e){ console.warn('reducir: borrar slots', e.message); }
+  }catch(e){ console.warn('slots30: borrar', e.message); }
 
-  // Publicar slots de 30 min para los huecos restantes
-  for(const h of huecos){
-    let cur = Math.max(tMin(h.ini), desdeMin);
-    const fin = cur + h.durMin;
-    while(cur < fin){
-      const rest = fin - cur;
-      const durSlot = rest >= 30 ? 30 : rest;
-      if(durSlot >= 20){
-        try{
-          await _citasDb.collection('slots_disponibles').add({
-            fecha: dateStr, hora: tFmt(cur), durMin: durSlot,
-            medicoId: MEDICO_CITAS_ID, disponible: true,
-            reducido30: true,
-            publicadoEn: new Date().toISOString(),
-          });
-        }catch(e){ console.warn('reducir: add slot', e.message); }
-      }
-      cur += durSlot;
+  // Construir timeline de slots dentro de la franja
+  // Regla: avanzar por la franja. Si hay cita MediCloud en el punto actual,
+  // respetarla y saltar al fin de esa cita. Si hay hueco libre, slot de 30 min.
+  let cur = desdeMin;
+  const slotsNuevos = [];
+
+  while(cur < hastaMin){
+    // ¿Hay cita de MediCloud que empieza en este punto o lo cubre?
+    const citaActiva = citasMC.find(c => cur >= c.ini && cur < c.fin);
+    if(citaActiva){
+      // Saltar al fin de la cita — no publicamos nada aquí, ya existe en MediCloud
+      cur = citaActiva.fin;
+      continue;
     }
+
+    // ¿Hay cita de MediCloud que empieza antes de que termine un slot de 30 min?
+    const proxCita = citasMC.find(c => c.ini > cur && c.ini < cur+30);
+    const durSlot = proxCita ? proxCita.ini - cur : Math.min(30, hastaMin - cur);
+
+    if(durSlot >= 20){
+      slotsNuevos.push({ hora: tFmt(cur), durMin: durSlot });
+    }
+    cur += durSlot > 0 ? durSlot : 30; // avance defensivo
   }
-  console.log(`⏱ Slots reducidos a 30 min desde ${tFmt(desdeMin)}`);
+
+  // Publicar los slots calculados
+  for(const s of slotsNuevos){
+    try{
+      await _citasDb.collection('slots_disponibles').add({
+        fecha: dateStr, hora: s.hora, durMin: s.durMin,
+        medicoId: MEDICO_CITAS_ID, disponible: true,
+        reducido30: true,
+        publicadoEn: new Date().toISOString(),
+      });
+    }catch(e){ console.warn('slots30: add', e.message); }
+  }
+  console.log(`⏱ ${slotsNuevos.length} slots de 30 min publicados para ${dateStr} ${tFmt(desdeMin)}-${tFmt(hastaMin)}`);
 }
 function wireUp(){
   const on = (id, ev, fn) => { const el=document.getElementById(id); if(el) el.addEventListener(ev, fn); };
