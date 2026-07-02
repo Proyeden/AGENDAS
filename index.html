@@ -1215,7 +1215,8 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <span id="week-label"></span>
     <button class="wb-sync" id="btn-sync" onclick="syncNow()" title="Sincronizar MediCloud y citas">↻ <span class="wb-sync-txt">Sincronizar</span></button>
     <button class="wb-sync" id="btn-publish" onclick="publicarSlotsDisponibles().then(()=>alert('✅ Slots publicados en el sistema de citas'))" title="Publicar slots disponibles al sistema de citas" style="background:var(--denis-bg);border-color:var(--denis);color:var(--denis)">⬆ <span class="wb-sync-txt">Publicar</span></button>
-    <button class="wb-fin" id="btn-fin-jornada" onclick="finalizarJornada()" style="display:none" title="Cerrar la franja activa y bloquear el resto">⏹ <span class="wb-sync-txt">Finalizar jornada</span></button>
+    <button class="wb-fin" id="btn-fin-jornada" onclick="finalizarJornada()" style="display:none" title="Cerrar la franja activa y bloquear el resto">⏹ <span class="wb-sync-txt">Finalizar</span></button>
+    <button class="wb-fin" id="btn-reducir-slots" onclick="reducirSlots30()" style="display:none;border-color:#7C3AED;color:#7C3AED;background:#F5F3FF" title="Reducir slots a 30 min a partir de ahora">⏱ <span class="wb-sync-txt">30 min</span></button>
   </div>
 
   <div class="main">
@@ -2521,6 +2522,7 @@ function openJornadaEspecial(){
 
 let jdDoc = 'denis', jdCli = 'clinic1';
 let jornadasEspeciales = [];
+let _jornadasListas = false; // true cuando las jornadas especiales están cargadas y listas
 
 function jdSetDoc(doc){
   jdDoc = doc;
@@ -2998,6 +3000,17 @@ function buildDayTimeline(doctorId, dateStr, dow){
 
   const canvas=document.createElement('div'); canvas.className='tl-canvas';
   canvas.style.height = ((winFin-winIni)*PX_PER_MIN)+'px';
+  // Clic en área vacía del lienzo → abrir modal de agendar con la hora aproximada
+  canvas.onclick = e => {
+    if(e.target !== canvas) return; // solo si tocó el fondo, no un evento encima
+    const rect = canvas.getBoundingClientRect();
+    const relY = e.clientY - rect.top;
+    const minutos = Math.round(relY / PX_PER_MIN + winIni);
+    // Redondear al cuarto de hora más cercano
+    const redondeado = Math.round(minutos/15)*15;
+    const horaStr = tFmt(Math.max(winIni, Math.min(winFin-30, redondeado)));
+    openModal(null, dateStr, horaStr, doctorId);
+  };
   col.appendChild(canvas);
 
   // Sombrear la franja de jornada laboral (fuera de ella el fondo va más tenue)
@@ -3620,6 +3633,16 @@ let _publicando = false;
 
 async function publicarSlotsDisponibles(){
   if(!_citasDb || _publicando) return;
+  // Esperar a que las jornadas especiales estén cargadas (máx 3 seg)
+  // Esto evita que se publiquen slots con horario normal cuando hay jornada especial
+  if(!_jornadasListas){
+    let intentos = 0;
+    while(!_jornadasListas && intentos < 30){
+      await new Promise(r => setTimeout(r, 100));
+      intentos++;
+    }
+    if(!_jornadasListas) console.warn('publicarSlots: jornadas no cargadas aún, usando lo disponible');
+  }
   _publicando = true;
   try {
     // CRÍTICO: recargar jornadas especiales de Firebase antes de calcular huecos.
@@ -4149,9 +4172,11 @@ function setCalMode(mode){
     const b=document.getElementById('vt-'+m);
     if(b) b.className='vt-btn'+(m===mode?' on':'');
   });
-  // Mostrar "Finalizar jornada" solo en vista Día
+  // Mostrar botones solo en vista Día
   const fb=document.getElementById('btn-fin-jornada');
   if(fb) fb.style.display = mode==='day' ? 'flex' : 'none';
+  const rb=document.getElementById('btn-reducir-slots');
+  if(rb) rb.style.display = mode==='day' ? 'flex' : 'none';
   render();
 }
 
@@ -4197,7 +4222,92 @@ async function finalizarJornada(){
   alert(`✅ Jornada finalizada. ${clinicaNombre} bloqueada de ${horaActual} a ${horaFin}.`);
 }
 
-// Wire up listeners defensively — a missing element must never kill the script.
+// ── REDUCIR SLOTS A 30 MIN ────────────────────────────────────────────────
+// Cuando estás agotado y querés consultas más cortas el resto del día.
+// Pide desde qué hora aplicar el cambio y publica slots de 30 min en lugar
+// de 45 desde esa hora hasta el fin de la jornada.
+async function reducirSlots30(){
+  const now = new Date();
+  const nowStr = tFmt(now.getHours()*60+now.getMinutes());
+  const desde = prompt(
+    `⏱ Reducir consultas a 30 minutos\n\n` +
+    `¿Desde qué hora querés aplicarlo?\n` +
+    `(Hora actual: ${nowStr})\n\n` +
+    `Escribí la hora en formato HH:MM:`,
+    nowStr
+  );
+  if(!desde) return;
+  const desdeMin = tMin(desde);
+  if(isNaN(desdeMin)){ alert('Hora inválida'); return; }
+
+  const doctorId = (currentView==='majo') ? 'majo' : 'denis';
+  const dateStr = todayKey();
+  const [Y,Mo,D] = dateStr.split('-').map(Number);
+  const dow = new Date(Y,Mo-1,D).getDay();
+  const j = getJornadaEfectiva(doctorId, dateStr);
+  if(!j){ alert('No hay jornada activa hoy'); return; }
+
+  const ok = confirm(
+    `⏱ Reducir a 30 min desde las ${desde}\n\n` +
+    `Se publicarán slots de 30 minutos desde las ${desde} hasta las ${tFmt(j.fin)}.\n` +
+    `Los slots anteriores a las ${desde} quedan igual.\n\n` +
+    `¿Confirmás?`
+  );
+  if(!ok) return;
+
+  // Guardar override de duración en localStorage y publicar slots ajustados
+  try{
+    const overrideKey = `slots30_${doctorId}_${dateStr}`;
+    localStorage.setItem(overrideKey, JSON.stringify({ desde, hasta: tFmt(j.fin) }));
+  }catch(_){}
+
+  // Republicar slots con la nueva duración
+  await publicarSlotsDisponibles30(doctorId, dateStr, desdeMin, j.fin);
+  render();
+  alert(`✅ Slots reducidos a 30 min desde las ${desde}`);
+}
+
+async function publicarSlotsDisponibles30(doctorId, dateStr, desdeMin, finJornada){
+  if(!_citasDb) return;
+  const MEDICO_CITAS_ID = MEDICO_TO_CITAS[doctorId] || doctorId;
+
+  // Calcular los huecos libres a partir de desdeMin
+  const huecos = calcularHuecos(doctorId, dateStr, 'clinic1')
+    .filter(h => tMin(h.ini) >= desdeMin);
+
+  // Borrar slots publicados de ese médico/fecha que empiezan desde desdeMin
+  try{
+    const snap = await _citasDb.collection('slots_disponibles')
+      .where('fecha','==',dateStr)
+      .where('medicoId','==',MEDICO_CITAS_ID)
+      .where('disponible','==',true).get();
+    for(const d of snap.docs){
+      if(tMin(d.data().hora) >= desdeMin) await d.ref.delete();
+    }
+  }catch(e){ console.warn('reducir: borrar slots', e.message); }
+
+  // Publicar slots de 30 min para los huecos restantes
+  for(const h of huecos){
+    let cur = Math.max(tMin(h.ini), desdeMin);
+    const fin = cur + h.durMin;
+    while(cur < fin){
+      const rest = fin - cur;
+      const durSlot = rest >= 30 ? 30 : rest;
+      if(durSlot >= 20){
+        try{
+          await _citasDb.collection('slots_disponibles').add({
+            fecha: dateStr, hora: tFmt(cur), durMin: durSlot,
+            medicoId: MEDICO_CITAS_ID, disponible: true,
+            reducido30: true,
+            publicadoEn: new Date().toISOString(),
+          });
+        }catch(e){ console.warn('reducir: add slot', e.message); }
+      }
+      cur += durSlot;
+    }
+  }
+  console.log(`⏱ Slots reducidos a 30 min desde ${tFmt(desdeMin)}`);
+}
 function wireUp(){
   const on = (id, ev, fn) => { const el=document.getElementById(id); if(el) el.addEventListener(ev, fn); };
   on('prev-week','click',()=>navStep(-1));
@@ -4239,6 +4349,7 @@ async function init(){
           console.log(`📅 Jornadas especiales cargadas: ${jornadasEspeciales.length}`);
       }catch(e){ console.warn('jornadasEspeciales load:', e.message); }
     }
+    _jornadasListas = true; // ← las jornadas están listas, ahora sí se puede publicar
     setSyncBadge('ok','Firebase ✓');
     DB.subscribeRealtime(updated=>{ events=updated; render(); const active=ALL_SCREENS.find(s=>document.getElementById(s)?.classList.contains('on')); if(active==='s-home') updateHome(); if(active==='s-consultar') updateBadges(); });
   }catch(e){
@@ -4266,7 +4377,7 @@ Object.assign(window, {
   onStartTimeChange, setFullDayBlock, onBlockDateChange,
   openJornadaEspecial, jdSetDoc, jdSetCli, jdToggleRango, jdGuardar, jdEliminar,
   finalizarJornada, publicarSlotsDisponibles, confirmarReserva, deleteEventById,
-  actualizarContadoresHome, abrirListaEsperaHome
+  actualizarContadoresHome, abrirListaEsperaHome, reducirSlots30
 });
 
 // ── BOOTSTRAP ──────────────────────────────────────────────────────────────
