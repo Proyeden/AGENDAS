@@ -913,7 +913,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   </div>
   <div class="hdr-right">
     <button class="btn-back" id="btn-back" onclick="goBack()">← Volver</button>
-    <button class="btn-add show" id="btn-add" onclick="addQuick()" style="display:none">+ Agregar</button>
+    <button class="btn-add show" id="btn-add" onclick="abrirEleccionAgendar()" style="display:none">+ Agregar</button>
   </div>
 </header>
 
@@ -1010,39 +1010,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   <div class="pick-hero" style="--accent:var(--denis)">
     <div class="pick-hero-inner">
       <div class="pick-eyebrow">NUEVA CITA</div>
-      <h1 class="pick-title">¿Dónde agendás?<span class="pt-sub">Elegí el sistema donde vas a registrar la cita.</span></h1>
-    </div>
-  </div>
-  <div class="pick-list">
-
-    <!-- Opción 1: Agenda interna -->
-    <div class="pick-item denis" onclick="goScreen('s-agendar-agenda')">
-      <div class="pick-av av-denis" style="font-size:18px">📋</div>
-      <div class="pick-info">
-        <div class="pick-name">En esta agenda</div>
-        <div class="pick-sub">Cita manual, reserva o bloqueo · sin expediente requerido</div>
-      </div>
-      <span class="pick-arrow">›</span>
-    </div>
-
-    <!-- Opción 2: MediCloud -->
-    <a class="pick-item mixco" href="https://azure.medicloud.me/app/BX27_Appts.aspx" target="_blank" rel="noopener" style="text-decoration:none">
-      <div class="pick-av av-mixco" style="font-size:18px">🏥</div>
-      <div class="pick-info">
-        <div class="pick-name">En MediCloud</div>
-        <div class="pick-sub">Agendar con expediente · abre en nueva pestaña</div>
-      </div>
-      <span class="pick-arrow">↗</span>
-    </a>
-
-  </div>
-</div>
-
-<!-- AGENDAR → AGENDA INTERNA -->
-<div id="s-agendar-agenda" class="screen">
-  <div class="pick-hero" style="--accent:var(--denis)">
-    <div class="pick-hero-inner">
-      <div class="pick-eyebrow">NUEVA CITA · AGENDA</div>
       <h1 class="pick-title">¿Para quién es la cita?<span class="pt-sub">Elegí el médico y pasamos a su agenda.</span></h1>
     </div>
   </div>
@@ -1073,7 +1040,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </div>
   </div>
 </div>
-
 <!-- CONSULTAR -->
 <div id="s-consultar" class="screen">
   <div class="pick-hero" style="--accent:var(--mixco)">
@@ -1436,6 +1402,34 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <div id="plist"></div>
     <div class="mactions" style="margin-top:12px">
       <button class="m-cancel" onclick="closePendingModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ELECCIÓN AGENDAR MODAL -->
+<div class="veil" id="eleccion-overlay" onclick="if(event.target===this)cerrarEleccionAgendar()">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-hdr">
+      <h2>¿Dónde agendás?</h2>
+      <button onclick="cerrarEleccionAgendar()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+      <button onclick="elegirAgendaInterna()"
+        style="display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid #BFDBFE;border-radius:12px;background:#EFF6FF;cursor:pointer;font-family:var(--font);text-align:left">
+        <span style="font-size:24px">📋</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#1E3A8A">Esta agenda</div>
+          <div style="font-size:12px;color:#2563EB;margin-top:2px">Cita manual, reserva o bloqueo</div>
+        </div>
+      </button>
+      <button onclick="elegirMediCloud()"
+        style="display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid #BBF7D0;border-radius:12px;background:#F0FDF4;cursor:pointer;font-family:var(--font);text-align:left">
+        <span style="font-size:24px">🏥</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#166534">MediCloud</div>
+          <div style="font-size:12px;color:#16A34A;margin-top:2px">Con expediente · abre en nueva pestaña</div>
+        </div>
+      </button>
     </div>
   </div>
 </div>
@@ -2423,7 +2417,7 @@ async function saveWithDupCheck(ev){
 }
 
 // ═══ SCREEN NAV ════════════════════════════════════════════════════════════
-const ALL_SCREENS=['s-home','s-agendar','s-agendar-agenda','s-consultar','s-agenda','s-recordatorios','s-jornada','s-gestion'];
+const ALL_SCREENS=['s-home','s-agendar','s-consultar','s-agenda','s-recordatorios','s-jornada','s-gestion'];
 
 function goScreen(id){
   ALL_SCREENS.forEach(s=>{
@@ -2443,7 +2437,7 @@ function goHome(){ goScreen('s-home'); }
 function goBack(){
   const active=ALL_SCREENS.find(s=>document.getElementById(s)?.classList.contains('on'));
   if(active==='s-agenda') goScreen('s-consultar');
-  else if(active==='s-agendar-agenda') goScreen('s-agendar');
+  else if(active==='s-agendar') goScreen('s-home');
   else goScreen('s-home');
 }
 
@@ -2920,8 +2914,21 @@ function enterAgendaFromAgendar(view){
 // Wrapper for the floating "+ Agregar" button. Kept as a named, window-exposed
 // function so the inline onclick never has to reference globals directly
 // (some mobile Chrome builds don't expose top-level decls to inline handlers).
+function abrirEleccionAgendar(){
+  document.getElementById('eleccion-overlay').classList.add('on');
+}
+function cerrarEleccionAgendar(){
+  document.getElementById('eleccion-overlay').classList.remove('on');
+}
+function elegirAgendaInterna(){
+  cerrarEleccionAgendar();
+  addQuick();
+}
+function elegirMediCloud(){
+  cerrarEleccionAgendar();
+  window.open('https://azure.medicloud.me/app/BX27_Appts.aspx','_blank');
+}
 function addQuick(){
-  // Usar la fecha que el usuario está viendo, no siempre hoy
   let fecha = todayKey();
   if(calMode==='day'){
     const d = new Date(); d.setDate(d.getDate()+currentDayOffset);
@@ -4646,6 +4653,7 @@ Object.assign(window, {
   saveControl, setControlInterval, clearControlPreset, markControlScheduled,
   discardControl, quickParse, quickSave, quickEdit, quickCancel, toggleMic,
   dupKeepBoth, dupKeepSelected, navStep, goToday, handleClick, addQuick,
+  abrirEleccionAgendar, cerrarEleccionAgendar, elegirAgendaInterna, elegirMediCloud,
   onStartTimeChange, setFullDayBlock, onBlockDateChange,
   openJornadaEspecial, jdSetDoc, jdSetCli, jdToggleRango, jdGuardar, jdEliminar,
   finalizarJornada, publicarSlotsDisponibles, confirmarReserva, deleteEventById,
