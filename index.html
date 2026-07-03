@@ -1787,13 +1787,95 @@ const DB = {
   },
   subscribeRealtime(cb){
     if(!_db) return ()=>{};
-    try{
-      return _col().onSnapshot(snap=>{
-        const docs=snap.docs.map(d=>({...d.data(),id:d.id}));
-        const ical=events.filter(e=>e.source==='medicloud');
-        cb([...docs,...ical]);
-      });
-    } catch(e){ return ()=>{}; }
+
+    let pollingInterval = null;
+    let lastUpdate = Date.now();
+    let usingPolling = false;
+    let unsubscribe = null;
+
+    // Función de polling — consulta Firebase cada 30 segundos
+    const startPolling = () => {
+      if(pollingInterval) return; // ya está corriendo
+      usingPolling = true;
+      setSyncBadge('loading', '⟳ Modo polling');
+      console.warn('📡 onSnapshot no disponible — activando polling cada 30 seg');
+      pollingInterval = setInterval(async () => {
+        try {
+          const snap = await _col().get();
+          const docs = snap.docs.map(d=>({...d.data(),id:d.id}));
+          const ical = events.filter(e=>e.source==='medicloud');
+          cb([...docs,...ical]);
+          lastUpdate = Date.now();
+          setSyncBadge('ok', '⟳ Polling · sincronizado');
+        } catch(e) {
+          console.warn('Polling error:', e.message);
+          setSyncBadge('err', 'Sin conexión');
+        }
+      }, 30000);
+    };
+
+    const stopPolling = () => {
+      if(pollingInterval){ clearInterval(pollingInterval); pollingInterval=null; }
+      usingPolling = false;
+    };
+
+    // Intentar onSnapshot primero
+    try {
+      unsubscribe = _col().onSnapshot(
+        snap => {
+          const docs = snap.docs.map(d=>({...d.data(),id:d.id}));
+          const ical = events.filter(e=>e.source==='medicloud');
+          cb([...docs,...ical]);
+          lastUpdate = Date.now();
+          // Si estábamos en polling, volver a tiempo real
+          if(usingPolling){
+            stopPolling();
+            setSyncBadge('ok', '● Tiempo real');
+            console.log('✅ Conexión restaurada — volviendo a tiempo real');
+          }
+        },
+        err => {
+          // onSnapshot falló — activar polling
+          console.warn('onSnapshot error:', err.message);
+          startPolling();
+        }
+      );
+    } catch(e) {
+      console.warn('onSnapshot no disponible:', e.message);
+      startPolling();
+    }
+
+    // Watchdog: si no recibimos nada en 45 seg, activar polling como respaldo
+    const watchdog = setInterval(() => {
+      if(Date.now() - lastUpdate > 45000 && !usingPolling){
+        console.warn('⏱ Watchdog: sin actualizaciones en 45s — activando polling');
+        startPolling();
+      }
+      // Si el polling funciona y llevamos >2 min, intentar restaurar onSnapshot
+      if(usingPolling && Date.now() - lastUpdate > 120000){
+        if(unsubscribe) try{ unsubscribe(); }catch(_){}
+        try{
+          unsubscribe = _col().onSnapshot(
+            snap => {
+              const docs=snap.docs.map(d=>({...d.data(),id:d.id}));
+              const ical=events.filter(e=>e.source==='medicloud');
+              cb([...docs,...ical]);
+              lastUpdate=Date.now();
+              stopPolling();
+              setSyncBadge('ok','● Tiempo real');
+            },
+            () => {} // si falla de nuevo, el watchdog lo detectará
+          );
+        }catch(_){}
+      }
+    }, 15000);
+
+    // Retornar función de cleanup
+    return () => {
+      clearInterval(watchdog);
+      stopPolling();
+      if(unsubscribe) try{ unsubscribe(); }catch(_){}
+    };
   },
   async loadControls(){
     if(!_db) return [];
@@ -3637,7 +3719,11 @@ async function saveEvent(){
 // no hay razón para el traslado y la disponibilidad se mantiene abierta).
 async function bloquearTrasladoSanCristobal(ev){
   if(!_citasDb) return;
-  const MARGEN = 45; // minutos de traslado
+  // Tiempos de traslado reales por dirección:
+  // SC → Mixco (mañana): 45-60 min (tráfico de mediodía) → usamos 60
+  // Mixco → SC (tarde): 30-45 min → usamos 45
+  const MARGEN_SC_A_MIXCO = 60; // mañana: San Cristóbal → Mixco
+  const MARGEN_MIXCO_A_SC = 45; // tarde: Mixco → San Cristóbal
   const HORA_CORTE_MANANA = 13 * 60; // 13:00 — antes=mañana, después=tarde
   const medicoId = MEDICO_TO_CITAS[ev.doctor];
   if(!medicoId) return;
@@ -3645,18 +3731,19 @@ async function bloquearTrasladoSanCristobal(ev){
   const [Y,Mo,D] = ev.date.split('-').map(Number);
   const dow = new Date(Y, Mo-1, D).getDay();
   const j = JORNADA[ev.doctor] ? JORNADA[ev.doctor](dow) : null;
-  if(!j) return; // no hay jornada de Mixco este día
+  if(!j) return;
 
   const inicioSanc = tMin(ev.time);
   const finSanc = inicioSanc + (ev.durMin || 45);
   const esMañana = inicioSanc < HORA_CORTE_MANANA;
+  const MARGEN = esMañana ? MARGEN_SC_A_MIXCO : MARGEN_MIXCO_A_SC;
 
   // ¿Hay algo en Mixco ese día? Si no, no bloqueamos nada.
   const hayMixco = events.some(e =>
     e.date===ev.date && e.status!=='cancelled' &&
     e.doctor===ev.doctor && e.type==='clinic1'
   );
-  if(!hayMixco) {
+  if(!hayMixco){
     console.log('🚗 San Cristóbal: Mixco vacío este día, no se bloquea traslado');
     return;
   }
@@ -3664,28 +3751,24 @@ async function bloquearTrasladoSanCristobal(ev){
   // Calcular la franja a bloquear en Mixco según dirección del traslado
   let bloqIni, bloqFin;
   if(esMañana){
-    // Mañana: viajás de San Cristóbal a Mixco después de la cita
-    // Bloqueamos la ventana de llegada a Mixco (fin de cita + 45 min)
+    // SC → Mixco: bloqueamos la ventana de llegada (fin cita + 60 min)
     bloqIni = finSanc;
     bloqFin = finSanc + MARGEN;
-    // Solo si esa ventana cae dentro de la jornada de Mixco
     if(bloqFin <= j.ini || bloqIni >= j.fin) return;
     bloqIni = Math.max(bloqIni, j.ini);
-    bloqFin = Math.min(bloqFin, j.ini + 45); // máximo un slot al inicio
+    bloqFin = Math.min(bloqFin, j.ini + 60);
   } else {
-    // Tarde: viajás de Mixco a San Cristóbal antes de la cita
-    // Bloqueamos los slots previos al inicio de la cita (inicio - 45 min)
+    // Mixco → SC: bloqueamos los slots previos al inicio (inicio - 45 min)
     bloqIni = inicioSanc - MARGEN;
     bloqFin = inicioSanc;
-    // Solo si esa ventana cae dentro de la jornada de Mixco
     if(bloqFin <= j.ini || bloqIni >= j.fin) return;
     bloqIni = Math.max(bloqIni, j.ini);
     bloqFin = Math.min(bloqFin, j.fin);
   }
 
-  // ¿El margen es menor a 45 min? Solo bloqueamos si realmente es necesario
+  // Solo bloqueamos si el margen real es menor al margen requerido
   const margenReal = esMañana ? (j.ini - finSanc) : (inicioSanc - j.fin);
-  if(margenReal >= MARGEN) {
+  if(margenReal >= MARGEN){
     console.log('🚗 San Cristóbal: margen suficiente, no se bloquea traslado');
     return;
   }
@@ -3693,17 +3776,15 @@ async function bloquearTrasladoSanCristobal(ev){
   const durTotal = bloqFin - bloqIni;
   if(durTotal <= 0) return;
 
-  // Crear bloqueo fantasma en sistema de citas usando la misma lógica que otros bloqueos
   const medicoNombre = ev.doctor==='denis' ? 'Denis Cotzojay' : 'María José Nóchez';
   const fmt=(m)=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+  const direccion = esMañana ? 'San Cristóbal → Mixco' : 'Mixco → San Cristóbal';
 
   try {
-    // Primero borramos bloqueos de traslado previos de este evento
     const viejos = await _citasDb.collection('bloqueos')
       .where('agendaEventId','==','traslado_'+ev.id).get();
     for(const d of viejos.docs) await d.ref.delete();
 
-    // Crear los slots de traslado
     let cur = bloqIni;
     while(cur < bloqFin){
       const rest = bloqFin - cur;
@@ -3714,8 +3795,8 @@ async function bloquearTrasladoSanCristobal(ev){
         slotMin: dur,
         medicoId,
         medicoNombre,
-        motivo: 'Traslado a otra clínica',
-        tipo: 'directo',
+        motivo: `Bloqueo automático · Traslado ${direccion}`,
+        tipo: 'admin',
         origen: 'agenda-traslado',
         agendaEventId: 'traslado_'+ev.id,
         creadoEn: new Date().toISOString(),
@@ -3723,7 +3804,7 @@ async function bloquearTrasladoSanCristobal(ev){
       cur += dur;
       if(cur >= bloqFin) break;
     }
-    console.log(`🚗 Traslado San Cristóbal bloqueado en Mixco: ${fmt(bloqIni)}-${fmt(bloqFin)}`);
+    console.log(`🚗 Traslado bloqueado en Mixco (${direccion}): ${fmt(bloqIni)}-${fmt(bloqFin)}`);
   } catch(e){
     console.warn('Error bloqueando traslado:', e.message);
   }
@@ -4581,55 +4662,89 @@ async function init(){
       if(active==='s-consultar') updateBadges();
     });
 
+    // ── Listeners en tiempo real para todas las colecciones críticas ──────────
+    // Cuando cualquier dispositivo hace un cambio, todos los demás se actualizan.
+    // Si onSnapshot falla (ej. WebSocket bloqueado), hace polling automático.
+
+    // Helper: suscripción resiliente con fallback a polling
+    const suscribir = (query, intervaloPolling, onData, nombre) => {
+      let lastOk = Date.now();
+      let poll = null;
+      let unsub = null;
+
+      const hacerPolling = async () => {
+        try{ const s=await query.get(); onData(s); lastOk=Date.now(); }
+        catch(e){ console.warn(`Polling ${nombre}:`, e.message); }
+      };
+
+      const activarPolling = () => {
+        if(poll) return;
+        console.warn(`📡 ${nombre}: activando polling cada ${intervaloPolling/1000}s`);
+        poll = setInterval(hacerPolling, intervaloPolling);
+      };
+
+      try{
+        unsub = query.onSnapshot(
+          snap => { onData(snap); lastOk=Date.now(); if(poll){ clearInterval(poll); poll=null; } },
+          err  => { console.warn(`onSnapshot ${nombre}:`, err.message); activarPolling(); }
+        );
+      }catch(e){ activarPolling(); }
+
+      // Watchdog: si no recibimos nada en 60s, activar polling
+      const wd = setInterval(()=>{ if(Date.now()-lastOk>60000) activarPolling(); }, 20000);
+      return ()=>{ clearInterval(wd); if(poll) clearInterval(poll); if(unsub) try{unsub();}catch(_){} };
+    };
+
     if(_db){
       // 2. Jornadas especiales
-      try{
-        _db.collection('jornadas_especiales')
-          .where('fecha','>=',todayKey())
-          .onSnapshot(snap=>{
-            jornadasEspeciales = snap.docs.map(d=>({...d.data(),id:d.id}));
-            try{ localStorage.setItem('jornadas_especiales', JSON.stringify(jornadasEspeciales)); }catch(_){}
-            console.log(`🔄 Jornadas especiales sync: ${jornadasEspeciales.length}`);
-            render(); // recalcular huecos con jornada actualizada
-          }, e=>console.warn('onSnapshot jornadas:', e.message));
-      }catch(e){ console.warn('subscribeJornadas:', e.message); }
+      suscribir(
+        _db.collection('jornadas_especiales').where('fecha','>=',todayKey()),
+        30000,
+        snap => {
+          jornadasEspeciales = snap.docs.map(d=>({...d.data(),id:d.id}));
+          try{ localStorage.setItem('jornadas_especiales', JSON.stringify(jornadasEspeciales)); }catch(_){}
+          render();
+        },
+        'jornadas_especiales'
+      );
 
       // 3. Overrides de slots a 30 min
-      try{
-        _db.collection('slots30_overrides')
-          .where('fecha','>=',todayKey())
-          .onSnapshot(snap=>{
-            const fbOverrides = {};
-            snap.forEach(d=>{ fbOverrides[d.id]=d.data(); });
-            const local = JSON.parse(localStorage.getItem('slots30_overrides')||'{}');
-            const merged = {...local, ...fbOverrides};
-            localStorage.setItem('slots30_overrides', JSON.stringify(merged));
-            console.log(`🔄 Slots30 overrides sync: ${Object.keys(fbOverrides).length}`);
-            render(); // actualizar indicadores visuales de 30 min
-          }, e=>console.warn('onSnapshot slots30:', e.message));
-      }catch(e){ console.warn('subscribeSlots30:', e.message); }
+      suscribir(
+        _db.collection('slots30_overrides').where('fecha','>=',todayKey()),
+        30000,
+        snap => {
+          const fbOverrides = {};
+          snap.forEach(d=>{ fbOverrides[d.id]=d.data(); });
+          const local = JSON.parse(localStorage.getItem('slots30_overrides')||'{}');
+          localStorage.setItem('slots30_overrides', JSON.stringify({...local,...fbOverrides}));
+          render();
+        },
+        'slots30_overrides'
+      );
 
-      // 4. Overrides de duración de citas MediCloud
-      try{
-        _db.collection('duracion_overrides')
-          .onSnapshot(snap=>{
-            const map={};
-            snap.forEach(d=>{ map[d.id]=d.data().durMin; });
-            durOverrides = map;
-            try{ localStorage.setItem('dur_ovr', JSON.stringify(durOverrides)); }catch(_){}
-            console.log(`🔄 Duración overrides sync: ${Object.keys(map).length}`);
-          }, e=>console.warn('onSnapshot durOverrides:', e.message));
-      }catch(e){ console.warn('subscribeDurOverrides:', e.message); }
+      // 4. Overrides de duración MediCloud
+      suscribir(
+        _db.collection('duracion_overrides'),
+        60000,
+        snap => {
+          const map={};
+          snap.forEach(d=>{ map[d.id]=d.data().durMin; });
+          durOverrides=map;
+          try{ localStorage.setItem('dur_ovr', JSON.stringify(durOverrides)); }catch(_){}
+        },
+        'duracion_overrides'
+      );
 
       // 5. Controles tentativos
-      try{
-        _db.collection('controles_tentativos')
-          .onSnapshot(snap=>{
-            controles = snap.docs.map(d=>({...d.data(),id:d.id}));
-            console.log(`🔄 Controles sync: ${controles.length}`);
-            refreshControlBar();
-          }, e=>console.warn('onSnapshot controles:', e.message));
-      }catch(e){ console.warn('subscribeControles:', e.message); }
+      suscribir(
+        _db.collection('controles_tentativos'),
+        60000,
+        snap => {
+          controles=snap.docs.map(d=>({...d.data(),id:d.id}));
+          refreshControlBar();
+        },
+        'controles_tentativos'
+      );
     }
   }catch(e){
     console.warn('Init data error:', e);
