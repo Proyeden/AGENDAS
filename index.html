@@ -4562,7 +4562,68 @@ async function init(){
     }
     _jornadasListas = true; // ← las jornadas están listas, ahora sí se puede publicar
     setSyncBadge('ok','Firebase ✓');
-    DB.subscribeRealtime(updated=>{ events=updated; render(); const active=ALL_SCREENS.find(s=>document.getElementById(s)?.classList.contains('on')); if(active==='s-home') updateHome(); if(active==='s-consultar') updateBadges(); });
+
+    // ── Listeners en tiempo real para todas las colecciones críticas ──────────
+    // Cuando cualquier dispositivo hace un cambio, todos los demás se actualizan.
+
+    // 1. Eventos de agenda (ya existía)
+    DB.subscribeRealtime(updated=>{
+      events=updated; render();
+      const active=ALL_SCREENS.find(s=>document.getElementById(s)?.classList.contains('on'));
+      if(active==='s-home') updateHome();
+      if(active==='s-consultar') updateBadges();
+    });
+
+    if(_db){
+      // 2. Jornadas especiales
+      try{
+        _db.collection('jornadas_especiales')
+          .where('fecha','>=',todayKey())
+          .onSnapshot(snap=>{
+            jornadasEspeciales = snap.docs.map(d=>({...d.data(),id:d.id}));
+            try{ localStorage.setItem('jornadas_especiales', JSON.stringify(jornadasEspeciales)); }catch(_){}
+            console.log(`🔄 Jornadas especiales sync: ${jornadasEspeciales.length}`);
+            render(); // recalcular huecos con jornada actualizada
+          }, e=>console.warn('onSnapshot jornadas:', e.message));
+      }catch(e){ console.warn('subscribeJornadas:', e.message); }
+
+      // 3. Overrides de slots a 30 min
+      try{
+        _db.collection('slots30_overrides')
+          .where('fecha','>=',todayKey())
+          .onSnapshot(snap=>{
+            const fbOverrides = {};
+            snap.forEach(d=>{ fbOverrides[d.id]=d.data(); });
+            const local = JSON.parse(localStorage.getItem('slots30_overrides')||'{}');
+            const merged = {...local, ...fbOverrides};
+            localStorage.setItem('slots30_overrides', JSON.stringify(merged));
+            console.log(`🔄 Slots30 overrides sync: ${Object.keys(fbOverrides).length}`);
+            render(); // actualizar indicadores visuales de 30 min
+          }, e=>console.warn('onSnapshot slots30:', e.message));
+      }catch(e){ console.warn('subscribeSlots30:', e.message); }
+
+      // 4. Overrides de duración de citas MediCloud
+      try{
+        _db.collection('duracion_overrides')
+          .onSnapshot(snap=>{
+            const map={};
+            snap.forEach(d=>{ map[d.id]=d.data().durMin; });
+            durOverrides = map;
+            try{ localStorage.setItem('dur_ovr', JSON.stringify(durOverrides)); }catch(_){}
+            console.log(`🔄 Duración overrides sync: ${Object.keys(map).length}`);
+          }, e=>console.warn('onSnapshot durOverrides:', e.message));
+      }catch(e){ console.warn('subscribeDurOverrides:', e.message); }
+
+      // 5. Controles tentativos
+      try{
+        _db.collection('controles_tentativos')
+          .onSnapshot(snap=>{
+            controles = snap.docs.map(d=>({...d.data(),id:d.id}));
+            console.log(`🔄 Controles sync: ${controles.length}`);
+            refreshControlBar();
+          }, e=>console.warn('onSnapshot controles:', e.message));
+      }catch(e){ console.warn('subscribeControles:', e.message); }
+    }
   }catch(e){
     console.warn('Init data error:', e);
     setSyncBadge('err','Local');
