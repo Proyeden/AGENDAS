@@ -3896,20 +3896,24 @@ async function publicarSlotsDisponibles(){
           console.log(`📅 Jornadas especiales pre-publicación: ${jornadasEspeciales.length}`);
       }catch(e){ console.warn('publicar: load jornadas', e.message); }
 
-      // Cargar overrides de 30 min desde Firebase y actualizar localStorage
+      // Cargar overrides de 30 min desde Firebase y actualizar localStorage.
+      // CRÍTICO: si esta carga falla, ABORTAMOS la publicación — publicar sin
+      // los overrides sobreescribiría los slots de 30 min con 45 min.
       try{
         const hoyStr = todayKey();
         const s30snap = await _db.collection('slots30_overrides')
           .where('fecha','>=',hoyStr).get();
         const fbOverrides = {};
         s30snap.forEach(d => { fbOverrides[d.id] = d.data(); });
-        // Merge con localStorage (Firebase manda)
-        const localOverrides = JSON.parse(localStorage.getItem('slots30_overrides')||'{}');
-        const merged = {...localOverrides, ...fbOverrides};
-        localStorage.setItem('slots30_overrides', JSON.stringify(merged));
+        // Firebase es la fuente de verdad para los overrides
+        localStorage.setItem('slots30_overrides', JSON.stringify(fbOverrides));
         if(Object.keys(fbOverrides).length)
           console.log(`⏱ Overrides de 30 min cargados: ${Object.keys(fbOverrides).length}`);
-      }catch(e){ console.warn('publicar: load slots30', e.message); }
+      }catch(e){
+        console.warn('publicar ABORTADO: no se pudieron cargar overrides de 30 min —', e.message);
+        _publicando = false;
+        return;
+      }
     }
 
     const hoy = todayKey();
@@ -4008,7 +4012,9 @@ function calcularHashHuecos(){
     const huecos = calcularHuecos('denis', fecha, 'clinic1');
     huecos.forEach(h => partes.push(`${fecha}|${h.ini}|${h.durMin}`));
   }
-  // Hash simple: longitud + suma de chars
+  // Incluir los overrides de 30 min en el hash: si cambian (se crea o
+  // borra una franja de 30 min), el hash cambia y se dispara la republicación.
+  try{ partes.push(localStorage.getItem('slots30_overrides')||''); }catch(_){}
   const str = partes.join(',');
   let h = 0;
   for(let i=0; i<str.length; i++) h = ((h<<5)-h) + str.charCodeAt(i);
@@ -4585,7 +4591,10 @@ async function reducirSlots30(){
   if(_db){
     try{
       await _db.collection('slots30_overrides').doc(overrideKey).set(overrideData);
-    }catch(e){ console.warn('slots30 firebase save:', e.message); }
+    }catch(e){
+      console.warn('slots30 firebase save:', e.message);
+      alert('⚠️ La franja de 30 min se aplicó en este dispositivo pero NO se pudo guardar en la nube.\n\nRevisá las reglas de Firestore para la colección slots30_overrides, o el cambio se perderá cuando otro dispositivo publique.');
+    }
   }
 
   await publicarSlotsDisponibles30(doctorId, fechaStr, desdeMin, hastaMin);
