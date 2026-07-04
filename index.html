@@ -2418,11 +2418,13 @@ async function loadIcalFeedsWithDupCheck(){
   // Empujar duraciones reales de MediCloud al sistema de citas (no bloqueante)
   syncMedicloudDurationsToCitas().catch(e=>console.warn('sync MC duraciones:', e.message));
   // Publicar slots solo si los huecos realmente cambiaron desde la última publicación.
-  // Evita sobreescribir overrides de 30 min en cada sync de MediCloud (cada 5 min).
+  // El hash se marca DESPUÉS de publicar con éxito — si la publicación falla o
+  // aborta, se reintenta en el próximo sync automáticamente.
   const huecosHash = calcularHashHuecos();
   if(huecosHash !== window._ultimoHuecosHash){
-    window._ultimoHuecosHash = huecosHash;
-    publicarSlotsDisponibles().catch(e=>console.warn('publicarSlots:', e.message));
+    publicarSlotsDisponibles()
+      .then(ok => { if(ok) window._ultimoHuecosHash = huecosHash; })
+      .catch(e=>console.warn('publicarSlots:', e.message));
   }
 }
 
@@ -3870,7 +3872,7 @@ function generarFechasRecurrentes(fechaBase, tipo, veces){
 let _publicando = false;
 
 async function publicarSlotsDisponibles(){
-  if(!_citasDb || _publicando) return;
+  if(!_citasDb || _publicando) return false;
   // Esperar a que las jornadas especiales estén cargadas (máx 3 seg)
   // Esto evita que se publiquen slots con horario normal cuando hay jornada especial
   if(!_jornadasListas){
@@ -3912,7 +3914,7 @@ async function publicarSlotsDisponibles(){
       }catch(e){
         console.warn('publicar ABORTADO: no se pudieron cargar overrides de 30 min —', e.message);
         _publicando = false;
-        return;
+        return false;
       }
     }
 
@@ -3990,8 +3992,10 @@ async function publicarSlotsDisponibles(){
       }
     }
     console.log(`✅ Slots publicados para ${fechas.size} días`);
+    return true;
   } catch(e){
     console.warn('publicarSlotsDisponibles error:', e.message);
+    return false;
   } finally {
     _publicando = false;
   }
@@ -4323,7 +4327,7 @@ async function discardControl(id){
   openControlsPanel(); refreshControlBar();
 }
 
-async function deleteEvent(){ if(!editingId) return; const ev=events.find(e=>e.id===editingId); if(ev && ev.type==='blocked'){ await removeBloqueoFromCitas(ev); } await DB.remove(editingId); closeModal(); render(); }
+async function deleteEvent(){ if(!editingId) return; const ev=events.find(e=>e.id===editingId); if(ev && ev.type==='blocked'){ await removeBloqueoFromCitas(ev); } await DB.remove(editingId); closeModal(); render(); publicarSlotsDisponibles().catch(()=>{}); }
 
 // ═══ PENDING MODAL ══════════════════════════════════════════════════════════
 function openPendingModal(){
