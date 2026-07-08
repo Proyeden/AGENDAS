@@ -2134,6 +2134,51 @@ async function fetchFeed(feed){
 }
 
 // ── SYNC FROM APP DE CITAS (citas-mixco Firebase) ─────────────────────────
+// ── LIMPIEZA AUTOMÁTICA DE CITAS VIEJAS ────────────────────────────────────
+// Por privacidad: las citas del sistema de citas son solo un "buzón" temporal.
+// Una vez que pasó la hora de la cita (+1 hora de gracia), los datos personales
+// del paciente ya se trasladaron a MediCloud y deben borrarse de Firebase.
+// Borra completamente: nombre, teléfono, todo.
+let _ultimaLimpieza = 0;
+async function limpiarCitasViejas(){
+  if(!_citasDb) return;
+  // No correr más de una vez cada 10 minutos
+  const ahora = Date.now();
+  if(ahora - _ultimaLimpieza < 10*60*1000) return;
+  _ultimaLimpieza = ahora;
+
+  try {
+    const hoy = new Date();
+    const hoyStr = dateKey(hoy);
+    // Traer citas de hoy y días anteriores (las futuras nunca se tocan)
+    const desde = new Date(hoy); desde.setDate(hoy.getDate()-30);
+    const snap = await _citasDb.collection('citas')
+      .where('fecha','>=', dateKey(desde))
+      .where('fecha','<=', hoyStr)
+      .get();
+
+    const GRACIA_MS = 60 * 60 * 1000; // 1 hora después de la cita
+    let borradas = 0;
+
+    for(const d of snap.docs){
+      const c = d.data();
+      if(!c.fecha || !c.hora) continue;
+      // Construir el timestamp de la cita
+      const [Y,Mo,Da] = c.fecha.split('-').map(Number);
+      const [H,Mi] = (c.hora||'0:0').split(':').map(Number);
+      const citaTime = new Date(Y, Mo-1, Da, H, Mi).getTime();
+      // Si pasó más de 1 hora desde la cita → borrar completamente
+      if(ahora - citaTime > GRACIA_MS){
+        await _citasDb.collection('citas').doc(d.id).delete();
+        borradas++;
+      }
+    }
+    if(borradas > 0) console.log(`🗑️ Limpieza de privacidad: ${borradas} cita(s) vieja(s) borrada(s)`);
+  } catch(e){
+    console.warn('limpiarCitasViejas error:', e.message);
+  }
+}
+
 async function loadCitasOnline(){
   if (!_citasDb) { console.warn('citas-mixco not available'); return []; }
   try {
@@ -2300,6 +2345,8 @@ async function loadIcalFeedsWithDupCheck(){
   // sincronicen. Si la carga falla, conservamos los eventos online que ya teníamos.
   let citasOnline = [], bloqueosOnline = [];
   let cargaOnlineOk = false;
+  // Limpieza de privacidad: borrar citas viejas antes de cargar (no bloqueante)
+  limpiarCitasViejas().catch(e=>console.warn('limpieza:', e.message));
   try { citasOnline = await loadCitasOnline(); cargaOnlineOk = true; }
   catch(e){ console.warn('loadCitasOnline falló:', e.message); }
   try { bloqueosOnline = await loadBloqueosOnline(); }
@@ -3410,7 +3457,64 @@ function buildGrid(grid,days,doctor){
   });
 }
 
+// Unifica una cita web con su equivalente de MediCloud: borra la web de
+// Firebase (nombre, teléfono, todo) ya que MediCloud es el registro real.
+async function unificarCitaWebConMedicloud(ev){
+  await borrarCitaWebFirebase(ev, '✅ Citas unificadas. La cita web se borró; queda la de MediCloud.');
+}
+
+// Borra completamente una cita web de Firebase (colección citas del sistema de citas)
+async function borrarCitaWebFirebase(ev, mensajeExito){
+  if(!_citasDb){ alert('Sin conexión con el sistema de citas'); return; }
+  // El id en la agenda es 'online_XXXX' — el id real en Firebase es XXXX
+  const firebaseId = ev.id.startsWith('online_') ? ev.id.slice(7) : ev.id;
+  try {
+    await _citasDb.collection('citas').doc(firebaseId).delete();
+    // Quitar de la vista local
+    events = events.filter(e => e.id !== ev.id);
+    render();
+    publicarSlotsDisponibles().catch(()=>{});
+    alert(mensajeExito || '🗑️ Cita web eliminada de la base de datos.');
+  } catch(e){
+    console.warn('borrarCitaWebFirebase error:', e.message);
+    alert('No se pudo borrar la cita web: ' + e.message);
+  }
+}
+
 function handleClick(ev){
+  // Cita web (del sistema de citas) — si hay una de MediCloud cerca en el mismo
+  // horario, ofrecer unificar (borrar la web ya que MediCloud es la real)
+  if(ev.source==='online'){
+    // Buscar cita de MediCloud en el mismo día y horario cercano (±30 min)
+    const mcCercana = events.find(e =>
+      e.source==='medicloud' &&
+      e.doctor===ev.doctor &&
+      e.date===ev.date &&
+      Math.abs(toMin(e.time) - toMin(ev.time)) <= 30
+    );
+    const d=CONFIG.DOCTORS[ev.doctor]||{};
+    const ph = ev.phone ? `\n📞 ${ev.phone}` : '';
+    const info = `🌐 Cita web\n${ev.name}${ph}\n${d.name} · ${ev.date} · ${ev.time}`;
+
+    if(mcCercana){
+      const r = confirm(
+        `${info}\n\n` +
+        `Hay una cita de MediCloud a las ${mcCercana.time}:\n"${mcCercana.name}"\n\n` +
+        `¿Es la MISMA paciente?\n\n` +
+        `• Aceptar → Sí, unificar (borra la cita web de la base de datos)\n` +
+        `• Cancelar → No, son diferentes (dejar ambas)`
+      );
+      if(r){
+        unificarCitaWebConMedicloud(ev);
+      }
+    } else {
+      // No hay MediCloud cerca — solo mostrar info y opción de borrar
+      const r = confirm(`${info}\n\n• Aceptar → Eliminar esta cita web\n• Cancelar → Cerrar`);
+      if(r){ borrarCitaWebFirebase(ev); }
+    }
+    return;
+  }
+
   // Reserva pendiente — ofrecer confirmar o eliminar
   if(ev.status==='reserva' || ev.esReserva){
     const d=CONFIG.DOCTORS[ev.doctor]||{};
@@ -4836,7 +4940,8 @@ Object.assign(window, {
   onStartTimeChange, setFullDayBlock, onBlockDateChange,
   openJornadaEspecial, jdSetDoc, jdSetCli, jdToggleRango, jdGuardar, jdEliminar,
   finalizarJornada, publicarSlotsDisponibles, confirmarReserva, deleteEventById,
-  actualizarContadoresHome, abrirListaEsperaHome, reducirSlots30, toggleAmbosDoc
+  actualizarContadoresHome, abrirListaEsperaHome, reducirSlots30, toggleAmbosDoc,
+  unificarCitaWebConMedicloud, borrarCitaWebFirebase
 });
 
 // ── BOOTSTRAP ──────────────────────────────────────────────────────────────
