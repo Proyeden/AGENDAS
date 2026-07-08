@@ -899,8 +899,35 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 </style>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 </head>
 <body>
+
+<!-- LOGIN OVERLAY — cubre todo hasta autenticarse -->
+<div id="auth-overlay" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(160deg,#1E3A8A,#2563EB);display:flex;align-items:center;justify-content:center;padding:24px">
+  <div style="background:#fff;border-radius:20px;padding:32px 26px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="text-align:center;margin-bottom:22px">
+      <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#2563EB,#F97316);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:26px;font-weight:800;color:#fff">A</div>
+      <h1 style="font-size:19px;font-weight:700;color:#111;margin:0 0 4px">Agenda Médica</h1>
+      <p style="font-size:13px;color:#666;margin:0">Ingresá para continuar</p>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Correo</label>
+      <input type="email" id="auth-email" autocomplete="username" placeholder="correo@clinica"
+        style="width:100%;padding:12px 14px;border:1.5px solid #E2E8F0;border-radius:10px;font-size:15px;box-sizing:border-box;outline:none"
+        onkeydown="if(event.key==='Enter')document.getElementById('auth-pass').focus()">
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:11px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Contraseña</label>
+      <input type="password" id="auth-pass" autocomplete="current-password" placeholder="••••••••"
+        style="width:100%;padding:12px 14px;border:1.5px solid #E2E8F0;border-radius:10px;font-size:15px;box-sizing:border-box;outline:none"
+        onkeydown="if(event.key==='Enter')hacerLogin()">
+    </div>
+    <div id="auth-error" style="display:none;font-size:13px;color:#DC2626;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:8px 12px;margin-bottom:12px"></div>
+    <button id="auth-btn" onclick="hacerLogin()"
+      style="width:100%;padding:13px;background:#2563EB;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">Ingresar</button>
+  </div>
+</div>
 
 <!-- HEADER -->
 <header class="hdr">
@@ -1002,6 +1029,14 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       </div>
       <span class="pick-arrow">↗</span>
     </a>
+    <div class="pick-item" onclick="cerrarSesion()" style="cursor:pointer">
+      <div class="pick-av" style="background:#FEF2F2;color:#DC2626;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🚪</div>
+      <div class="pick-info">
+        <div class="pick-name">Cerrar sesión</div>
+        <div class="pick-sub">Salir de la agenda en este dispositivo</div>
+      </div>
+      <span class="pick-arrow">›</span>
+    </div>
   </div>
 </div>
 
@@ -1743,15 +1778,15 @@ function setSyncBadge(state, txt){
 // ═══ FIREBASE ═════════════════════════════════════════════════════════════
 // Resilient init: if the Firebase SDK fails to load (e.g. blocked network),
 // the app still runs in local/offline mode instead of crashing entirely.
-let _db = null, _citasDb = null;
+let _db = null, _citasDb = null, _auth = null;
 const _fbReady = (typeof firebase !== 'undefined');
 if (_fbReady) {
   try {
     firebase.initializeApp(CONFIG.firebase);
     _db = firebase.firestore();
-    // Detectar automáticamente si WebSockets están bloqueados y usar HTTP long-polling
-    // Esto soluciona el problema en carriers que bloquean WebSockets (Tigo, Claro, etc.)
     _db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+    // Firebase Authentication — protege el acceso a los datos
+    try { _auth = firebase.auth(); } catch(e){ console.warn('Auth init error:', e); }
   } catch(e){ console.warn('Firebase agenda init error:', e); }
   try {
     const citasApp = firebase.initializeApp(CONFIG.CITAS_FIREBASE, 'citasApp');
@@ -4947,15 +4982,81 @@ Object.assign(window, {
 // ── BOOTSTRAP ──────────────────────────────────────────────────────────────
 // Wire up the UI FIRST and independently, so buttons always work even if data
 // loading later fails. Each step is isolated so one failure can't stop the rest.
+let _bootstrapDone = false;
 function bootstrap(){
+  if(_bootstrapDone) return; // no correr dos veces
+  _bootstrapDone = true;
   try{ wireUp(); }catch(e){ console.error('wireUp failed', e); }
   try{ goScreen('s-home'); }catch(e){ console.error('goScreen failed', e); }
   try{ updateHome(); }catch(e){}
-  // Now load data — if this throws, the UI is already interactive.
   try{ init(); }catch(e){ console.error('init failed', e); }
 }
-if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootstrap);
-else bootstrap();
+
+// ── AUTENTICACIÓN ──────────────────────────────────────────────────────────
+function hacerLogin(){
+  const email = (document.getElementById('auth-email').value||'').trim();
+  const pass = document.getElementById('auth-pass').value||'';
+  const err = document.getElementById('auth-error');
+  const btn = document.getElementById('auth-btn');
+  if(!email || !pass){
+    err.textContent = 'Ingresá correo y contraseña';
+    err.style.display = 'block';
+    return;
+  }
+  if(!_auth){
+    err.textContent = 'Sistema de acceso no disponible. Revisá tu conexión.';
+    err.style.display = 'block';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Ingresando…';
+  err.style.display = 'none';
+  _auth.signInWithEmailAndPassword(email, pass)
+    .then(() => {
+      // El observer onAuthStateChanged se encarga de ocultar el overlay
+    })
+    .catch(e => {
+      btn.disabled = false; btn.textContent = 'Ingresar';
+      let msg = 'Correo o contraseña incorrectos';
+      if(e.code==='auth/invalid-email') msg = 'Correo inválido';
+      else if(e.code==='auth/user-disabled') msg = 'Esta cuenta está desactivada';
+      else if(e.code==='auth/too-many-requests') msg = 'Demasiados intentos. Esperá unos minutos.';
+      else if(e.code==='auth/network-request-failed') msg = 'Sin conexión. Revisá tu internet.';
+      err.textContent = msg;
+      err.style.display = 'block';
+    });
+}
+window.hacerLogin = hacerLogin;
+
+function cerrarSesion(){
+  if(!_auth) return;
+  if(confirm('¿Cerrar sesión en este dispositivo?')){
+    _auth.signOut().then(()=>{ location.reload(); });
+  }
+}
+window.cerrarSesion = cerrarSesion;
+
+// Observador de sesión: decide si mostrar login o la agenda
+if(_auth){
+  _auth.onAuthStateChanged(user => {
+    const overlay = document.getElementById('auth-overlay');
+    if(user){
+      // Autenticado → ocultar login, arrancar la agenda
+      if(overlay) overlay.style.display = 'none';
+      bootstrap();
+    } else {
+      // Sin sesión → mostrar login, no cargar datos
+      if(overlay) overlay.style.display = 'flex';
+      const btn = document.getElementById('auth-btn');
+      if(btn){ btn.disabled = false; btn.textContent = 'Ingresar'; }
+    }
+  });
+} else {
+  // Sin Auth disponible (modo local/sin Firebase) → arrancar directo
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootstrap);
+  else bootstrap();
+  const overlay = document.getElementById('auth-overlay');
+  if(overlay) overlay.style.display = 'none';
+}
 </script>
 </body>
 </html>
