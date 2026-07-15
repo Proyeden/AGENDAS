@@ -1238,11 +1238,13 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       </div>
     </div>
     <div class="view-toggle">
-      <button class="vt-btn" id="vt-day" onclick="setCalMode('day')">Día</button>
+      <button class="vt-btn on" id="vt-day" onclick="setCalMode('day')">Día</button>
       <button class="vt-btn" id="vt-week" onclick="setCalMode('week')">Semana</button>
-      <button class="vt-btn on" id="vt-month" onclick="setCalMode('month')">Mes</button>
+      <button class="vt-btn" id="vt-month" onclick="setCalMode('month')">Mes</button>
     </div>
   </div>
+
+  <div id="rec-aviso-agenda" style="display:none;margin:0 12px 10px;padding:10px 14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;color:#92400E;font-size:13px;font-weight:600"></div>
 
   <div class="week-bar">
     <div class="wb-nav">
@@ -1252,7 +1254,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </div>
     <span id="week-label"></span>
     <button class="wb-sync" id="btn-sync" onclick="syncNow()" title="Sincronizar MediCloud y citas">↻ <span class="wb-sync-txt">Sincronizar</span></button>
-    <button class="wb-sync" id="btn-publish" onclick="Promise.all([publicarSlotsDisponibles(),publicarSlotsSanCristobal()]).then(()=>diagnosticarPublicacion())" title="Publicar slots disponibles al sistema de citas" style="background:var(--denis-bg);border-color:var(--denis);color:var(--denis)">⬆ <span class="wb-sync-txt">Publicar</span></button>
+    <button class="wb-sync" id="btn-publish" onclick="publicarAhora(this)" title="Publicar slots disponibles al sistema de citas" style="background:var(--denis-bg);border-color:var(--denis);color:var(--denis)">⬆ <span class="wb-sync-txt">Publicar</span></button>
     <button class="wb-fin" id="btn-fin-jornada" onclick="finalizarJornada()" style="display:none" title="Cerrar la franja activa y bloquear el resto">⏹ <span class="wb-sync-txt">Finalizar</span></button>
     <button class="wb-fin" id="btn-reducir-slots" onclick="reducirSlots30()" style="display:none;border-color:#7C3AED;color:#7C3AED;background:#F5F3FF" title="Reducir slots a 30 min a partir de ahora">⏱ <span class="wb-sync-txt">30 min</span></button>
   </div>
@@ -1565,6 +1567,19 @@ let dupCandidate = null, dupExisting = null, dupSelectedId = null, dupOnResolve 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 const dateKey = dt => dt.toISOString().split('T')[0];
 const todayKey = () => new Date().toISOString().split('T')[0];
+
+// Formato de fecha VISIBLE para la persona: "lun 14/07/26".
+// Corto (con números), pero conserva el día de la semana para leerlo de un
+// vistazo. Acepta un Date o un string 'YYYY-MM-DD'. Un solo lugar para el
+// formato: si algún día se quiere cambiar, se cambia aquí.
+function fmtFecha(d, conAnio = true){
+  const dt = (d instanceof Date) ? d : new Date(d + 'T12:00:00');
+  const dia = ['dom','lun','mar','mié','jue','vie','sáb'][dt.getDay()];
+  const DD = String(dt.getDate()).padStart(2,'0');
+  const MM = String(dt.getMonth()+1).padStart(2,'0');
+  const AA = String(dt.getFullYear()).slice(-2);
+  return conAnio ? `${dia} ${DD}/${MM}/${AA}` : `${dia} ${DD}/${MM}`;
+}
 const DAYS   = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
 const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const HOURS  = Array.from({length:16},(_,i)=>`${String(i+6).padStart(2,'0')}:00`);
@@ -2450,6 +2465,9 @@ async function syncNow(){
   } finally {
     _syncing = false;
     if(btn){ btn.classList.remove('syncing'); btn.innerHTML=oldHtml||'↻ <span class="wb-sync-txt">Sincronizar</span>'; }
+    // Los datos recién llegaron: refrescar el aviso de recordatorios si la
+    // agenda está abierta.
+    try { if(document.getElementById('s-agenda')?.classList.contains('on')) avisarRecordatorios(); } catch(_){}
   }
 }
 
@@ -2797,7 +2815,11 @@ function enterAgenda(view){
   goScreen('s-agenda');
   currentClinicFilter=(view==='clinic1'||view==='clinic2')?view:null;
   setView(view==='clinic1'||view==='clinic2'?'compare':view);
-  render();
+  // Al abrir la agenda, mostrar SIEMPRE el día de hoy (no el mes). Es lo que
+  // la asistente necesita ver primero: la jornada de hoy.
+  currentDayOffset = 0;
+  setCalMode('day');   // setCalMode ya llama a render()
+  avisarRecordatorios();
 }
 
 function openModalFromHome(doctor){
@@ -3032,6 +3054,40 @@ function openRecordatorios(){
   document.querySelectorAll('.rec-doc-btn').forEach(b=>b.classList.toggle('on', b.dataset.doc==='denis'));
   cargarRecordatorios();
 }
+
+// Cuenta cuántas citas próximas están pendientes de recordatorio (misma
+// ventana y mismos criterios que la pantalla de Recordatorios, pero para
+// AMBOS médicos). Devuelve el número de pendientes.
+function contarRecordatoriosPendientes(){
+  const hoy=new Date(); hoy.setHours(0,0,0,0);
+  const min=CONFIG.RECORDATORIO_DIAS_MIN, max=CONFIG.RECORDATORIO_DIAS_MAX;
+  const candidatas = events.filter(e=>{
+    if(e.type==='blocked' || e.status==='cancelled') return false;
+    if(!e.date || !e.name) return false;
+    if(e.source!=='medicloud' && e.source!=='online') return false;
+    if(e.source==='medicloud' && !e.esPendiente) return false;
+    const f=new Date(e.date+'T12:00:00'); f.setHours(0,0,0,0);
+    const dias=Math.round((f-hoy)/86400000);
+    return dias>=min && dias<=max;
+  });
+  return candidatas.filter(e=>!_recordatorioEnviado(e.id)).length;
+}
+
+// Al abrir la agenda: si hay recordatorios pendientes, mostrar un aviso
+// discreto (no un pop-up que interrumpa) con un botón para ir a enviarlos.
+function avisarRecordatorios(){
+  const box = document.getElementById('rec-aviso-agenda');
+  if(!box) return;
+  const n = contarRecordatoriosPendientes();
+  if(n <= 0){ box.style.display='none'; return; }
+  box.innerHTML =
+    `🔔 Tenés <strong>${n}</strong> recordatorio${n>1?'s':''} de cita por enviar ` +
+    `<button onclick="openRecordatorios()" ` +
+    `style="margin-left:8px;background:#D97706;color:#fff;border:none;border-radius:7px;` +
+    `padding:5px 12px;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">Ver</button>`;
+  box.style.display='block';
+}
+window.avisarRecordatorios = avisarRecordatorios;
 
 function cargarRecordatorios(){
   const status=document.getElementById('rec-status');
@@ -4091,6 +4147,40 @@ function generarFechasRecurrentes(fechaBase, tipo, veces){
 // Muestra, día por día, qué está calculando la agenda: la jornada que aplica,
 // qué la ocupa y cuántos horarios quedan libres. Sirve para ver de un vistazo
 // por qué un día se está publicando vacío.
+// Publica y NO molesta si todo salió bien: solo un ✓ breve en el botón.
+// Únicamente interrumpe cuando una sede quedó SIN horarios, porque en ese caso
+// los pacientes no pueden agendar y eso no debe pasar en silencio.
+async function publicarAhora(btn){
+  const original = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.innerHTML = '⬆ <span class="wb-sync-txt">Publicando…</span>'; }
+  window._pubMixco = null; window._pubSC = null;
+  try {
+    await Promise.all([ publicarSlotsDisponibles(), publicarSlotsSanCristobal() ]);
+  } catch(e){ console.warn('publicarAhora:', e); }
+
+  const m  = window._pubMixco || {horarios:0};
+  const sc = window._pubSC    || {horarios:0};
+  const problema = (m.horarios === 0) || (sc.horarios === 0);
+
+  if(btn){
+    btn.disabled = false;
+    btn.innerHTML = problema ? '⚠ <span class="wb-sync-txt">Revisar</span>'
+                             : '✓ <span class="wb-sync-txt">Publicado</span>';
+    setTimeout(()=>{ btn.innerHTML = original; }, 2500);
+  }
+
+  if(problema){
+    const faltan = [];
+    if(m.horarios === 0)  faltan.push('MIXCO');
+    if(sc.horarios === 0) faltan.push('SAN CRISTÓBAL');
+    alert(`⚠️ ${faltan.join(' y ')} quedó sin horarios publicados.\n\n` +
+          `Los pacientes no van a poder agendar ahí.\n\n` +
+          `Te muestro qué está calculando la agenda para encontrar la causa.`);
+    try { diagnosticarPublicacion(); } catch(_){}
+  }
+}
+window.publicarAhora = publicarAhora;
+
 function diagnosticarPublicacion(){
   const N = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   let txt = '🔍 QUÉ ESTÁ CALCULANDO LA AGENDA\n(próximos 7 días · Dr. Denis)\n\n';
@@ -4146,6 +4236,7 @@ async function publicarSlotsSanCristobal(){
     }
 
     const hoy = todayKey();
+    let _slotsSC = 0;
     // doctorId en la agenda → medicoId en el sistema de citas de San Cristóbal
     const DOCTORES_SC = { denis:'denis', majo:'nochez' };
 
@@ -4182,6 +4273,7 @@ async function publicarSlotsSanCristobal(){
             const rest = fin - cur;
             const dur = rest >= 45 ? 45 : rest;
             if(dur >= 30){
+              _slotsSC++;
               await _citasDb.collection('slots_disponibles').add({
                 fecha,
                 hora: tFmt(cur),
@@ -4197,7 +4289,8 @@ async function publicarSlotsSanCristobal(){
         }
       }
     }
-    console.log('✅ Slots de San Cristóbal publicados');
+    window._pubSC = { horarios: _slotsSC };
+    console.log(`✅ San Cristóbal: ${_slotsSC} horarios`);
     return true;
   } catch(e){
     console.warn('publicarSlotsSanCristobal error:', e.message);
@@ -4350,14 +4443,12 @@ async function publicarSlotsDisponibles(){
         }
       }
     }
-    console.log(`✅ Slots publicados para ${fechas.size} días (${_slotsEscritos} horarios)`);
+    window._pubMixco = { dias: fechas.size, horarios: _slotsEscritos };
+    console.log(`✅ Mixco: ${_slotsEscritos} horarios en ${fechas.size} días`);
     // Alarma visible: si no se escribió NI UN horario, la clínica se queda sin
     // poder agendar. Eso nunca debe pasar en silencio.
-    if(_slotsEscritos === 0){
-      alert('⚠️ ATENCIÓN: la agenda no publicó NINGÚN horario.\n\n' +
-            'Los pacientes no van a poder agendar. Te muestro qué está calculando.');
-      try { diagnosticarPublicacion(); } catch(_){}
-    }
+    // El aviso al usuario lo da publicarAhora(), para no duplicar alertas
+    // cuando la publicación se dispara sola (al guardar, borrar o sincronizar).
     // Publicar también San Cristóbal
     publicarSlotsSanCristobal().catch(e=>console.warn('SC slots:', e.message));
     return true;
@@ -4618,7 +4709,7 @@ function showControlPreview(){
   const box=document.getElementById('control-target-preview');
   if(!t){ box.style.display='none'; return; }
   const remind=new Date(t); remind.setDate(remind.getDate()-14);
-  const fmt=d=>d.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const fmt=d=>fmtFecha(d);
   box.innerHTML=`📅 Control tentativo: <strong>${fmt(t)}</strong><br>🔔 Aviso al paciente: <strong>${fmt(remind)}</strong>`;
   box.style.display='block';
 }
@@ -4669,7 +4760,7 @@ function openControlsPanel(){
   else active.forEach(c=>{
     const t=new Date(c.fechaTentativa+'T12:00:00');
     const r=new Date(c.fechaRecordatorio+'T12:00:00');
-    const fmt=d=>d.toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'});
+    const fmt=d=>fmtFecha(d);
     const doc2=CONFIG.DOCTORS[c.doctor]?.name||c.doctor;
     const notif=c.notificado?'<span style="color:var(--mixco);font-weight:600">✓ avisado</span>':'';
     const item=document.createElement('div'); item.className='pitem'; item.style.background='var(--mixco-bg)'; item.style.borderColor='#BBF7D0';
@@ -4966,8 +5057,7 @@ async function reducirSlots30(){
     alert('Rango de horas inválido'); return;
   }
 
-  const fechaFmt = new Date(fechaStr+'T12:00:00')
-    .toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+  const fechaFmt = fmtFecha(fechaStr);
 
   const ok = confirm(
     `⏱ Confirmar reducción de slots\n\n` +
