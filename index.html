@@ -1433,6 +1433,12 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       🗓️ Todo el día (usar jornada completa de este médico)
     </button>
 
+    <!-- Bloquear solo una sede (para pasar la jornada a la otra sin borrarla) -->
+    <label id="block-sede-wrap" style="display:none;align-items:center;gap:8px;margin-bottom:11px;padding:10px;border:1px solid #FDE68A;border-radius:8px;background:#FFFBEB;font-size:12px;font-weight:600;color:#92400E;cursor:pointer">
+      <input type="checkbox" id="block-sede-on" style="width:16px;height:16px">
+      🏥 Bloquear solo <span id="block-sede-nombre">esta sede</span> (dejar libre la otra)
+    </label>
+
     <!-- Mensaje para pacientes ese día (aparece al tocar el día en el sistema de citas) -->
     <div id="msg-dia-wrap" style="display:none;margin-bottom:11px;padding:12px;border:1px solid #DBEAFE;border-radius:10px;background:#F8FBFF">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#1D4ED8;cursor:pointer">
@@ -1853,23 +1859,36 @@ function calcularHuecosFranja(doctorId, dateStr){
     .map(e => {
       const s = tMin(e.time);
       const dur = e.durMin || ((e.duration||1)*(e.source==='medicloud'?30:60));
-      return { s, e: s+dur };
+      // Un bloqueo puede ser específico de una clínica (e.blockClinica). Si lo
+      // es, solo ocupa las franjas de ESA clínica: así se puede cerrar Mixco un
+      // día sin borrar San Cristóbal a la misma hora. Las citas reales ocupan
+      // siempre (una cita en una sede te impide estar en la otra). Un bloqueo
+      // sin clínica ocupa todo (ausencia general: enfermedad, etc.).
+      const soloClinica = (e.type==='blocked' && e.blockClinica) ? e.blockClinica : null;
+      return { s, e: s+dur, soloClinica };
     })
     .sort((a,b)=>a.s-b.s);
 
-  // Fusionar ocupaciones solapadas
+  // Fusionar ocupaciones solapadas, PERO sin mezclar las que son específicas de
+  // una clínica con las generales (para poder filtrarlas por franja después).
   const merged = [];
   for(const o of ocup){
     const last = merged[merged.length-1];
-    if(last && o.s <= last.e) last.e = Math.max(last.e, o.e);
-    else merged.push({...o});
+    if(last && o.s <= last.e && last.soloClinica === o.soloClinica){
+      last.e = Math.max(last.e, o.e);
+    } else {
+      merged.push({...o});
+    }
   }
 
-  // Por cada franja, los espacios que no toca ninguna ocupación
+  // Por cada franja, los espacios que no toca ninguna ocupación aplicable.
   const huecos = [];
   for(const f of franjas){
+    // Ocupaciones que aplican a ESTA franja: las generales siempre, y las
+    // específicas solo si son de la clínica de la franja.
+    const aplican = merged.filter(m => !m.soloClinica || m.soloClinica === f.clinica);
     let cur = f.ini;
-    for(const m of merged){
+    for(const m of aplican){
       if(m.e <= cur) continue;
       if(m.s >= f.fin) break;
       if(m.s > cur){
@@ -3993,6 +4012,13 @@ function setClinic(c){ currentClinic=c;
     const btnDest = document.getElementById('msg-dia-btn-dest');
     if(btnDest) btnDest.style.display = 'none';
   }
+  // Reset del bloqueo por sede
+  const bsw = document.getElementById('block-sede-wrap');
+  if(bsw){
+    bsw.style.display = 'none';
+    const bso = document.getElementById('block-sede-on');
+    if(bso) bso.checked = false;
+  }
 }
 
 function toggleAmbosDoc(btn){
@@ -4021,6 +4047,13 @@ function setFullDayBlock(){
   // Al marcar "todo el día" ofrecemos poner un mensaje para los pacientes.
   const wrap = document.getElementById('msg-dia-wrap');
   if(wrap) wrap.style.display = 'block';
+  // Y ofrecemos bloquear solo esta sede (para pasar la jornada a la otra).
+  const bsw = document.getElementById('block-sede-wrap');
+  const bsn = document.getElementById('block-sede-nombre');
+  if(bsw){
+    bsw.style.display = 'flex';
+    if(bsn) bsn.textContent = (currentClinic==='clinic1') ? 'Mixco' : 'San Cristóbal';
+  }
 }
 
 // Textos sugeridos según el tipo de mensaje.
@@ -4192,6 +4225,12 @@ async function saveEvent(){
     status: isReserva ? 'reserva' : 'confirmed',
     esReserva: isReserva,
   };
+  // Bloqueo específico de una sede: solo ocupa esa clínica, deja libre la otra.
+  // Sirve para pasar la jornada a la otra sede sin borrarla (currentClinic:
+  // clinic1=Mixco, clinic2=San Cristóbal).
+  if(isBlock && document.getElementById('block-sede-on')?.checked){
+    ev.blockClinica = currentClinic;
+  }
   // Si es un bloqueo con mensaje para pacientes, guardarlo ANTES de cerrar el
   // modal (cerrarlo limpia el formulario).
   if(isBlock){ await guardarMensajeDia(date); }
