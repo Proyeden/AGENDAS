@@ -1713,22 +1713,62 @@ function durLabel(d){ return DURS[d] || `${d} min`; }
 // Es la fuente de verdad para: huecos libres, bloqueos de traslado, y
 // el botón "Finalizar jornada".
 // dow: 0=dom, 1=lun, 2=mar, 3=mié, 4=jue, 5=vie, 6=sáb
+// ── JORNADA DE DENIS: San Cristóbal se calcula desde Mixco ──────────────────
+// Jornada total de trabajo (todo el tiempo disponible en el día):
+//   Lun–Vie 09:00–18:30, Sábado 08:00–14:00
+// Mixco (franjas fijas dentro de esa jornada):
+//   Lun–Jue 13:00–17:00 · Vie 09:00–15:00 · Sáb 08:00–14:00
+// San Cristóbal = jornada total − Mixco − traslados. Traslados asimétricos:
+//   SC→Mixco 60 min (salir 1 h antes) · Mixco→SC 45 min (llegar 45 min después)
+const TRASLADO_SC_A_MIXCO = 60;
+const TRASLADO_MIXCO_A_SC = 45;
+const JORNADA_TOTAL_DENIS = {
+  1:[9*60, 18*60+30], 2:[9*60, 18*60+30], 3:[9*60, 18*60+30],
+  4:[9*60, 18*60+30], 5:[9*60, 18*60+30], 6:[8*60, 14*60],
+};
+const MIXCO_DENIS = {
+  1:[[13*60,17*60]], 2:[[13*60,17*60]], 3:[[13*60,17*60]], 4:[[13*60,17*60]],
+  5:[[9*60,15*60]], 6:[[8*60,14*60]],
+};
+function construirFranjasDenis(dow, mixcoOverride){
+  const jt = JORNADA_TOTAL_DENIS[dow];
+  if(!jt && !mixcoOverride) return [];
+  let [ini, fin] = jt || [9*60, 18*60+30];
+  // mixcoOverride = [ini,fin] cuando se corre la jornada de Mixco ese día.
+  const mixco = mixcoOverride
+    ? [mixcoOverride]
+    : (MIXCO_DENIS[dow] || []).slice().sort((a,b)=>a[0]-b[0]);
+  // Si el horario corrido se sale de la jornada normal, la jornada se estira:
+  // manda lo que el médico definió, no el molde.
+  if(mixcoOverride){
+    ini = Math.min(ini, mixcoOverride[0]);
+    fin = Math.max(fin, mixcoOverride[1]);
+  }
+  const franjas = [];
+  let cur = ini;
+  for(const [ms, me] of mixco){
+    // Antes de Mixco: San Cristóbal hasta 1 h antes de que empiece Mixco
+    // (hay que salir de SC con esa anticipación para llegar a tiempo).
+    const finSC = ms - TRASLADO_SC_A_MIXCO;
+    if(finSC - cur >= 20) franjas.push({ clinica:'clinic2', ini:cur, fin:finSC });
+    // La franja de Mixco tal cual
+    franjas.push({ clinica:'clinic1', ini:ms, fin:me });
+    // Después de Mixco: San Cristóbal recién 45 min después (traslado de vuelta)
+    cur = me + TRASLADO_MIXCO_A_SC;
+  }
+  // Cola del día: lo que quede después del último Mixco es San Cristóbal
+  if(fin - cur >= 20) franjas.push({ clinica:'clinic2', ini:cur, fin:fin });
+  franjas.sort((a,b)=>a.ini-b.ini);
+  return franjas;
+}
+
 const FRANJAS = {
-  denis: dow => {
-    if(dow>=1&&dow<=4) return [
-      { clinica:'clinic2', ini:9*60,      fin:12*60     }, // SC   09:00-12:00
-      { clinica:'clinic1', ini:13*60,     fin:17*60     }, // Mixco 13:00-17:00
-      { clinica:'clinic2', ini:17*60+30,  fin:19*60     }, // SC   17:30-19:00
-    ];
-    if(dow===5) return [
-      { clinica:'clinic1', ini:9*60,      fin:15*60     }, // Mixco 09:00-15:00
-      { clinica:'clinic2', ini:15*60+30,  fin:18*60     }, // SC   15:30-18:00
-    ];
-    if(dow===6) return [
-      { clinica:'clinic1', ini:8*60,      fin:14*60     }, // Mixco 08:00-14:00
-    ];
-    return [];
-  },
+  // Denis: su jornada de San Cristóbal se CALCULA sola. Se define la jornada
+  // total de trabajo y las franjas fijas de Mixco; San Cristóbal ocupa todo el
+  // tiempo restante, descontando los traslados (asimétricos):
+  //   • San Cristóbal → Mixco: 60 min (hay que salir 1 h antes de SC)
+  //   • Mixco → San Cristóbal: 45 min (se llega 45 min después de cerrar Mixco)
+  denis: dow => construirFranjasDenis(dow),
   // Dra. Nóchez: su clínica de agenda es SAN CRISTÓBAL.
   // En Mixco NO se agenda por agenda (todo va a lista de espera), por eso
   // no tiene franja de clinic1: no debe publicar slots de Mixco.
@@ -1842,9 +1882,18 @@ function calcularHuecosFranja(doctorId, dateStr){
   // Jornada especial: reemplaza la franja de ESA clínica ese día.
   const je = jornadasEspeciales.find(j => j.doctor===doctorId && j.fecha===dateStr);
   if(je){
-    franjas = franjas.filter(f => f.clinica !== je.clinica);
-    franjas.push({ clinica: je.clinica, ini: tMin(je.ini), fin: tMin(je.fin) });
-    franjas.sort((a,b)=>a.ini-b.ini);
+    if(doctorId==='denis' && je.clinica==='clinic1'){
+      // Denis corrió su horario de MIXCO (p. ej. 12:00–18:00 por alta demanda).
+      // San Cristóbal se deriva de Mixco, así que hay que RECALCULAR todo el
+      // día con el horario nuevo. Si solo reemplazáramos la franja de Mixco,
+      // quedarían franjas viejas de San Cristóbal encimadas con la jornada
+      // extendida, y el sistema ofrecería SC mientras está en Mixco.
+      franjas = construirFranjasDenis(dow, [tMin(je.ini), tMin(je.fin)]).map(f=>({...f}));
+    } else {
+      franjas = franjas.filter(f => f.clinica !== je.clinica);
+      franjas.push({ clinica: je.clinica, ini: tMin(je.ini), fin: tMin(je.fin) });
+      franjas.sort((a,b)=>a.ini-b.ini);
+    }
   }
 
   // Ocupación real de la persona: sus citas (en CUALQUIER sede) y los bloqueos.
@@ -2452,7 +2501,10 @@ async function loadCitasOnline(){
     const MEDICO_MAP = {
       'denis':  'denis',
       'nochez': 'majo',   // Dra. Nóchez → majo in agenda
-      'pamela': 'majo',   // Pamela → shown under majo for now (can extend)
+      // Lic. Pamela (psicología) NO figura en la agenda: solo Cotzojay y
+      // Nóchez. Sus citas se descartan al importar (ver filtro abajo).
+      // OJO: no volver a mapearla a 'majo' — hacerlo provocaba que sus
+      // sesiones ocuparan el tiempo de la Dra. Nóchez y le borraran espacios.
     };
     // Map del campo 'clinica' que escribe cada sistema de citas → tipo de la agenda.
     // San Cristóbal guarda clinica:'sancristobal'. Mixco NO escribe el campo
@@ -2469,6 +2521,8 @@ async function loadCitasOnline(){
     snap.forEach(d => {
       const c = d.data();
       if (c.estado === 'cancelada') return;
+      // Pamela no figura en la agenda: su cita no se importa.
+      if (c.medicoId === 'pamela') return;
       const doctorId = MEDICO_MAP[c.medicoId] || 'denis';
       const clinicId = (c.clinica && CLINIC_MAP[c.clinica]) ? CLINIC_MAP[c.clinica] : 'clinic1';
       const durCita = duracionCitaOnline(doctorId, c.fecha, c.hora || '08:00', 'online_'+d.id);
