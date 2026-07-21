@@ -1791,7 +1791,10 @@ const JORNADA = {
     return f ? {ini:f.ini, fin:f.fin} : null;
   },
   majo: dow => {
-    const f = FRANJAS.majo(dow).find(x=>x.clinica==='clinic1');
+    // Su sede es SAN CRISTÓBAL (clinic2). Antes se buscaba su franja de Mixco
+    // (clinic1), que ya no existe, y por eso la agenda decía siempre
+    // "no atiende este día".
+    const f = FRANJAS.majo(dow).find(x=>x.clinica==='clinic2');
     return f ? {ini:f.ini, fin:f.fin} : null;
   },
 };
@@ -4046,10 +4049,12 @@ function setClinic(c){ currentClinic=c;
   // Mostrar opción "Ambos médicos" solo en bloqueos
   const ad=document.getElementById('field-ambos-doc');
   if(ad) ad.style.display = isBlock ? 'block' : 'none';
-  if(!isBlock){
-    const cb=document.getElementById('cb-ambos-doc');
-    if(cb){ cb.dataset.active='0'; cb.className='seg-btn'; }
-  }
+  // Resetear SIEMPRE la opción "Ambos médicos". Antes solo se reseteaba cuando
+  // NO era bloqueo, así que al abrir un bloqueo conservaba el estado anterior:
+  // si alguna vez se usó, TODOS los bloqueos siguientes se copiaban al otro
+  // médico sin que se notara.
+  const cb=document.getElementById('cb-ambos-doc');
+  if(cb){ cb.dataset.active='0'; cb.className='seg-btn'; }
   // Sección de mensaje al paciente: solo para bloqueos, y siempre reseteada
   // al abrir (no arrastra estado de un bloqueo anterior).
   const mw = document.getElementById('msg-dia-wrap');
