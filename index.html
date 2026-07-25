@@ -3465,6 +3465,9 @@ function addQuick(){
 function render(){
   // Actualizar contadores del home en cada render (sin importar la pantalla activa)
   try { actualizarContadoresHome(); } catch(_){}
+  // Refrescar el aviso de recordatorios si la agenda está abierta (así aparece
+  // aunque los datos hayan llegado después de entrar).
+  try { if(document.getElementById('s-agenda')?.classList.contains('on')) avisarRecordatorios(); } catch(_){}
   // Stats reflect OCCUPATION of the visible week: every reserved/recorded slot
   // counts as occupied time, regardless of source (virtual reservation or expediente).
   const weekDays=getWeekDays(currentWeekOffset);
