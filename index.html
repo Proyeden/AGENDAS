@@ -5331,8 +5331,34 @@ function openPendingModal(){
 }
 function closePendingModal(){ document.getElementById('poverlay').classList.remove('on'); }
 function closePendingIfOutside(e){ if(e.target===document.getElementById('poverlay')) closePendingModal(); }
-async function qConfirm(id){ const ev=events.find(e=>e.id===id); if(ev){ev.status='confirmed'; await DB.save(ev); render(); openPendingModal();} }
-async function qReject(id){ const ev=events.find(e=>e.id===id); if(ev){ev.status='cancelled'; await DB.save(ev); render(); openPendingModal();} }
+async function qConfirm(id){
+  const ev=events.find(e=>e.id===id);
+  if(!ev) return;
+  ev.status='confirmed';
+  await DB.save(ev);
+  // Las citas ONLINE viven en la base de CITAS (id 'online_XXXX'). Hay que
+  // actualizar su estado allí también; si no, en la próxima sincronización se
+  // vuelven a importar como pendientes y "reaparecen".
+  await actualizarEstadoCita(ev, 'confirmada');
+  render(); openPendingModal();
+}
+async function qReject(id){
+  const ev=events.find(e=>e.id===id);
+  if(!ev) return;
+  ev.status='cancelled';
+  await DB.save(ev);
+  await actualizarEstadoCita(ev, 'cancelada');
+  render(); openPendingModal();
+}
+// Propaga el estado a la colección 'citas' del Firebase de citas (para reservas
+// online). El id en la agenda es 'online_<docId>'; en citas es '<docId>'.
+async function actualizarEstadoCita(ev, nuevoEstado){
+  if(ev.source!=='online' || !_citasDb) return;
+  const citaId = String(ev.id).replace(/^online_/, '');
+  try {
+    await _citasDb.collection('citas').doc(citaId).update({ estado: nuevoEstado });
+  } catch(e){ console.warn('No se pudo actualizar estado en citas:', e.message); }
+}
 
 // ═══ QUICK ENTRY ═══════════════════════════════════════════════════════════
 function basicParse(text){
