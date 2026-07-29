@@ -1208,6 +1208,34 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:14px;cursor:pointer">
         <input type="checkbox" id="jd-rango" onchange="jdToggleRango()"> Aplicar a varios días seguidos
       </label>
+
+      <!-- Qué pasa con la OTRA sede ese día -->
+      <div id="jd-otra-wrap" style="margin-bottom:16px;padding:14px;border:1px solid #DBEAFE;border-radius:12px;background:#F8FBFF">
+        <label style="display:block;font-size:13px;font-weight:700;color:#1D4ED8;margin-bottom:4px">¿Y <span id="jd-otra-nombre">la otra sede</span> ese día?</label>
+        <p style="font-size:12px;color:var(--muted);margin:0 0 10px">Elegí qué pasa con el otro centro cuando atendés aquí.</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label class="jd-otra-opt" style="display:flex;align-items:center;gap:10px;padding:10px;border:1.5px solid var(--line,#E5E7EB);border-radius:9px;cursor:pointer;font-size:13px">
+            <input type="radio" name="jd-otra" value="cerrar" onchange="jdOtraChange()" style="width:16px;height:16px">
+            <span><strong>Cerrar</strong> — ese día solo atiendo aquí</span>
+          </label>
+          <label class="jd-otra-opt" style="display:flex;align-items:center;gap:10px;padding:10px;border:1.5px solid var(--line,#E5E7EB);border-radius:9px;cursor:pointer;font-size:13px">
+            <input type="radio" name="jd-otra" value="normal" onchange="jdOtraChange()" style="width:16px;height:16px">
+            <span><strong>Horario normal</strong> — sigue como siempre</span>
+          </label>
+          <label class="jd-otra-opt" style="display:flex;align-items:center;gap:10px;padding:10px;border:1.5px solid var(--line,#E5E7EB);border-radius:9px;cursor:pointer;font-size:13px">
+            <input type="radio" name="jd-otra" value="especial" onchange="jdOtraChange()" style="width:16px;height:16px">
+            <span><strong>Otra jornada especial</strong> — defino horario aparte</span>
+          </label>
+        </div>
+        <!-- Sub-horario para "otra jornada especial" en la otra sede -->
+        <div id="jd-otra-horario" style="display:none;margin-top:10px;gap:10px">
+          <div style="display:flex;gap:10px">
+            <div class="fld" style="flex:1"><label>Inicio (otra sede)</label><select id="jd-otra-ini"></select></div>
+            <div class="fld" style="flex:1"><label>Fin (otra sede)</label><select id="jd-otra-fin"></select></div>
+          </div>
+        </div>
+      </div>
+
       <button onclick="jdGuardar()" style="width:100%;padding:12px;border:none;border-radius:10px;background:var(--sanc);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">
         Guardar jornada especial
       </button>
@@ -3046,11 +3074,45 @@ function jdSetDoc(doc){
   jdDoc = doc;
   document.getElementById('jd-doc-denis').className='seg-btn'+(doc==='denis'?' on-denis':'');
   document.getElementById('jd-doc-majo').className='seg-btn'+(doc==='majo'?' on-majo':'');
+  // La Dra. Nóchez atiende casi siempre en San Cristóbal (aunque a veces hace
+  // jornada especial en Mixco). Al elegirla, dejamos San Cristóbal como sede
+  // POR DEFECTO —que es lo más común— pero sin bloquear Mixco: sigue pudiendo
+  // elegirlo. Así se evita el error de dejar Mixco por descuido, sin quitar
+  // flexibilidad.
+  if(doc==='majo' && jdCli==='clinic1'){
+    jdSetCli('clinic2');
+  }
 }
 function jdSetCli(cli){
   jdCli = cli;
   document.getElementById('jd-cli-mixco').className='seg-btn'+(cli==='clinic1'?' on-mixco':'');
   document.getElementById('jd-cli-sanc').className='seg-btn'+(cli==='clinic2'?' on-sanc':'');
+  // Nombre de la OTRA sede en la pregunta
+  const otra = document.getElementById('jd-otra-nombre');
+  if(otra) otra.textContent = (cli==='clinic1') ? 'San Cristóbal' : 'Mixco';
+}
+
+// Muestra el sub-horario solo cuando se elige "otra jornada especial".
+function jdOtraChange(){
+  const val = (document.querySelector('input[name="jd-otra"]:checked')||{}).value;
+  const box = document.getElementById('jd-otra-horario');
+  if(box) box.style.display = (val==='especial') ? 'block' : 'none';
+  if(val==='especial'){
+    // Poblar selects de hora si están vacíos
+    const ini = document.getElementById('jd-otra-ini');
+    const fin = document.getElementById('jd-otra-fin');
+    if(ini && !ini.options.length) jdLlenarHoras(ini, '08:00');
+    if(fin && !fin.options.length) jdLlenarHoras(fin, '13:00');
+  }
+}
+// Rellena un select con horas de 06:00 a 20:00 cada 15 min.
+function jdLlenarHoras(sel, def){
+  sel.innerHTML='';
+  for(let m=6*60; m<=20*60; m+=15){
+    const v=tFmt(m); const o=document.createElement('option');
+    o.value=v; o.textContent=v; if(v===def) o.selected=true;
+    sel.appendChild(o);
+  }
 }
 function jdToggleRango(){
   const on = document.getElementById('jd-rango').checked;
@@ -3089,6 +3151,18 @@ async function jdGuardar(){
   if(!fecha){ alert('Elegí una fecha'); return; }
   if(tMin(fin) <= tMin(ini)){ alert('La hora de fin debe ser posterior al inicio'); return; }
 
+  // Decisión sobre la OTRA sede (obligatoria: no viene nada marcado)
+  const otraSel = document.querySelector('input[name="jd-otra"]:checked');
+  if(!otraSel){ alert('Elegí qué pasa con la otra sede ese día.'); return; }
+  const otraAccion = otraSel.value; // 'cerrar' | 'normal' | 'especial'
+  const otraCli = (jdCli==='clinic1') ? 'clinic2' : 'clinic1';
+  let otraIni='', otraFin='';
+  if(otraAccion==='especial'){
+    otraIni = document.getElementById('jd-otra-ini').value;
+    otraFin = document.getElementById('jd-otra-fin').value;
+    if(tMin(otraFin) <= tMin(otraIni)){ alert('En la otra sede, la hora de fin debe ser posterior al inicio.'); return; }
+  }
+
   const fechas = jdFechasEntre(fecha, fecha2||fecha);
   for(const f of fechas){
     const id = `je_${jdDoc}_${jdCli}_${f}`;
@@ -3100,6 +3174,54 @@ async function jdGuardar(){
     jornadasEspeciales = jornadasEspeciales.filter(j=>j.id!==id);
     jornadasEspeciales.push(jornada);
     if(_db) try{ await _db.collection('jornadas_especiales').doc(id).set(jornada); }catch(e){ console.warn('jd save',e); }
+
+    // ── La OTRA sede ──────────────────────────────────────────────────────
+    const otraId = `je_${jdDoc}_${otraCli}_${f}`;
+    if(otraAccion==='cerrar'){
+      // Bloquear la otra sede ese día: un bloqueo específico de esa clínica
+      // (blockClinica) para no borrar la sede de la jornada especial.
+      const [Y,Mo,D] = f.split('-').map(Number);
+      const dow = new Date(Y, Mo-1, D).getDay();
+      const franjaOtra = (FRANJAS[jdDoc] ? FRANJAS[jdDoc](dow) : []).find(x=>x.clinica===otraCli);
+      if(franjaOtra){
+        const bloqueoId = `jeblock_${jdDoc}_${otraCli}_${f}`;
+        const bloqueo = {
+          id: bloqueoId, doctor: jdDoc, type: 'blocked',
+          name: 'Cerrado (jornada especial en otra sede)',
+          date: f, time: tFmt(franjaOtra.ini),
+          durMin: franjaOtra.fin - franjaOtra.ini,
+          endTime: tFmt(franjaOtra.fin),
+          blockClinica: otraCli, source:'manual', status:'confirmed',
+        };
+        events = events.filter(e=>e.id!==bloqueoId);
+        events.push(bloqueo);
+        await DB.save(bloqueo);
+      }
+      // Quitar cualquier jornada especial previa en la otra sede ese día
+      jornadasEspeciales = jornadasEspeciales.filter(j=>j.id!==otraId);
+      if(_db) try{ await _db.collection('jornadas_especiales').doc(otraId).delete(); }catch(_){}
+    } else if(otraAccion==='especial'){
+      // Segunda jornada especial en la otra sede
+      const jornada2 = {
+        id: otraId, doctor:jdDoc, clinica:otraCli, fecha:f,
+        ini:otraIni, fin:otraFin, motivo,
+        creadoEn: new Date().toISOString(),
+      };
+      jornadasEspeciales = jornadasEspeciales.filter(j=>j.id!==otraId);
+      jornadasEspeciales.push(jornada2);
+      if(_db) try{ await _db.collection('jornadas_especiales').doc(otraId).set(jornada2); }catch(e){ console.warn('jd2 save',e); }
+      if(otraCli==='clinic1') await jdSyncCitas(jornada2);
+    } else {
+      // 'normal': no se toca la otra sede. Pero si había un bloqueo o jornada
+      // especial de un guardado anterior ese día, se limpian para que quede
+      // realmente en horario normal.
+      const bloqueoId = `jeblock_${jdDoc}_${otraCli}_${f}`;
+      events = events.filter(e=>e.id!==bloqueoId);
+      try{ await DB.delete?.(bloqueoId); }catch(_){}
+      jornadasEspeciales = jornadasEspeciales.filter(j=>j.id!==otraId);
+      if(_db) try{ await _db.collection('jornadas_especiales').doc(otraId).delete(); }catch(_){}
+    }
+
     // Backup en localStorage para que sobreviva si Firebase tarda en responder
     try{ localStorage.setItem('jornadas_especiales', JSON.stringify(jornadasEspeciales)); }catch(_){}
     // Sincronizar con sistema de citas si es Mixco
@@ -3107,6 +3229,9 @@ async function jdGuardar(){
   }
   document.getElementById('jd-fecha').value='';
   document.getElementById('jd-motivo').value='';
+  // Resetear la elección de la otra sede
+  document.querySelectorAll('input[name="jd-otra"]').forEach(r=>r.checked=false);
+  const oh=document.getElementById('jd-otra-horario'); if(oh) oh.style.display='none';
   renderJornadaEspecial();
   alert(`✅ Jornada especial guardada para ${fechas.length} día${fechas.length>1?'s':''}.`);
 }
@@ -3184,6 +3309,9 @@ async function jdEliminar(id){
 async function renderJornadaEspecial(){
   // Inicializar selector de tiempos si no está listo
   if(!document.getElementById('jd-ini').options.length) jdBuildTimes();
+  // Inicializar el nombre de la "otra sede" según la sede actual
+  const otraNom = document.getElementById('jd-otra-nombre');
+  if(otraNom) otraNom.textContent = (jdCli==='clinic1') ? 'San Cristóbal' : 'Mixco';
   // Default fecha = mañana
   if(!document.getElementById('jd-fecha').value){
     const m = new Date(); m.setDate(m.getDate()+1);
@@ -5537,6 +5665,68 @@ async function finalizarJornada(){
   await pushBloqueoToCitas(bloqueoEv);
   render();
   alert(`✅ Jornada finalizada. ${clinicaNombre} bloqueada de ${horaActual} a ${horaFin}.`);
+
+  // ¿Aprovechar el tiempo libre para abrir la OTRA sede?
+  await ofrecerAbrirOtraSede(doctorId, franjaActiva.clinica, nowMin, dateStr, dow);
+}
+
+// Tras terminar antes en una sede, pregunta si querés abrir la otra con el
+// tiempo que te quedó libre. La hora sugerida = ahora + traslado, pero se
+// puede cambiar. Si no querés, no pasa nada (a veces solo te vas a casa).
+async function ofrecerAbrirOtraSede(doctorId, clinicaCerrada, nowMin, dateStr, dow){
+  const otraCli = clinicaCerrada==='clinic1' ? 'clinic2' : 'clinic1';
+  const otraNombre = CONFIG.CLINICS[otraCli]?.name || otraCli;
+  // Traslado según el sentido del viaje
+  const traslado = (clinicaCerrada==='clinic1') ? TRASLADO_MIXCO_A_SC : TRASLADO_SC_A_MIXCO;
+  const sugerido = nowMin + traslado;
+  // Fin sugerido: hasta donde llegaba la jornada total de ese día en la otra
+  // sede, o 18:30 por defecto.
+  const franjasHoy = FRANJAS[doctorId] ? FRANJAS[doctorId](dow) : [];
+  const franjaOtra = franjasHoy.find(f => f.clinica===otraCli);
+  const finSugerido = franjaOtra ? Math.max(franjaOtra.fin, sugerido+60) : (18*60+30);
+
+  const quiere = confirm(
+    `¿Abrir ${otraNombre} con el tiempo libre?\n\n` +
+    `Terminaste antes. Si querés, podés ofrecer ese tiempo en ${otraNombre}.\n\n` +
+    `Aceptar = abrir ${otraNombre}\nCancelar = solo terminar (te vas)`
+  );
+  if(!quiere) return;
+
+  // Pedir hora de apertura (sugerida, editable)
+  const horaStr = prompt(
+    `¿Desde qué hora abrís ${otraNombre}?\n\n` +
+    `Sugerido: ${tFmt(sugerido)} (tu hora actual + ${traslado} min de traslado).\n` +
+    `Podés cambiarla. Formato HH:MM (24 h).`,
+    tFmt(sugerido)
+  );
+  if(horaStr===null) return; // canceló
+
+  // Validar formato HH:MM
+  const m = /^(\d{1,2}):(\d{2})$/.exec(horaStr.trim());
+  if(!m){ alert('Hora inválida. Usá el formato HH:MM, por ejemplo 15:30.'); return; }
+  const iniOtra = parseInt(m[1],10)*60 + parseInt(m[2],10);
+  if(iniOtra < 0 || iniOtra >= 24*60){ alert('Hora fuera de rango.'); return; }
+  if(iniOtra >= finSugerido){ alert(`Esa hora es muy tarde: la jornada de ${otraNombre} llega hasta ${tFmt(finSugerido)}.`); return; }
+  if(iniOtra < sugerido){
+    const igual = confirm(`⚠️ ${tFmt(iniOtra)} es antes del traslado sugerido (${tFmt(sugerido)}). ¿Seguro que llegás a tiempo?`);
+    if(!igual) return;
+  }
+
+  // Crear jornada especial en la otra sede: de la hora elegida al fin sugerido
+  const id = `je_${doctorId}_${otraCli}_${dateStr}`;
+  const jornada = {
+    id, doctor:doctorId, clinica:otraCli, fecha:dateStr,
+    ini:tFmt(iniOtra), fin:tFmt(finSugerido),
+    motivo:'Apertura por fin anticipado en la otra sede',
+    creadoEn:new Date().toISOString(),
+  };
+  jornadasEspeciales = jornadasEspeciales.filter(j=>j.id!==id);
+  jornadasEspeciales.push(jornada);
+  if(_db) try{ await _db.collection('jornadas_especiales').doc(id).set(jornada); }catch(e){ console.warn('jd abrir otra:', e.message); }
+  try{ localStorage.setItem('jornadas_especiales', JSON.stringify(jornadasEspeciales)); }catch(_){}
+  if(otraCli==='clinic1') await jdSyncCitas(jornada);
+  render();
+  alert(`✅ ${otraNombre} abierta de ${tFmt(iniOtra)} a ${tFmt(finSugerido)}.\n\nTocá Actualizar para publicar los horarios.`);
 }
 
 // ── REDUCIR SLOTS A 30 MIN ────────────────────────────────────────────────
@@ -5853,7 +6043,7 @@ Object.assign(window, {
   dupKeepBoth, dupKeepSelected, navStep, goToday, handleClick, addQuick,
   abrirEleccionAgendar, cerrarEleccionAgendar, elegirAgendaInterna, elegirMediCloud,
   onStartTimeChange, setFullDayBlock, onBlockDateChange,
-  openJornadaEspecial, jdSetDoc, jdSetCli, jdToggleRango, jdGuardar, jdEliminar,
+  openJornadaEspecial, jdSetDoc, jdSetCli, jdOtraChange, jdToggleRango, jdGuardar, jdEliminar,
   finalizarJornada, publicarSlotsDisponibles, publicarSlotsSanCristobal, calcularHuecosFranja, confirmarReserva, deleteEventById,
   actualizarContadoresHome, abrirListaEsperaHome, reducirSlots30, toggleAmbosDoc,
   unificarCitaWebConMedicloud, borrarCitaWebFirebase
