@@ -3485,10 +3485,35 @@ function cargarRecordatorios(){
   list.innerHTML = html;
 }
 
-// Memoria de enviados (por dispositivo), para no duplicar
+// Memoria de enviados. Se guarda en localStorage (rápido) Y en Firebase
+// (colección rec_enviados_citas, por id de cita) para que el estado sobreviva
+// a una actualización de la app y se comparta entre dispositivos. Antes vivía
+// solo en localStorage: al subir una versión nueva se perdía y los ya enviados
+// volvían a aparecer como pendientes.
 let recordatoriosEnviados = (()=>{ try{ return JSON.parse(localStorage.getItem('rec_enviados')||'{}'); }catch(_){ return {}; } })();
 function _recordatorioEnviado(id){ return !!recordatoriosEnviados[id]; }
-function _marcarRecordatorioEnviado(id){ recordatoriosEnviados[id]=new Date().toISOString(); try{ localStorage.setItem('rec_enviados',JSON.stringify(recordatoriosEnviados)); }catch(_){} }
+function _marcarRecordatorioEnviado(id){
+  recordatoriosEnviados[id]=new Date().toISOString();
+  try{ localStorage.setItem('rec_enviados',JSON.stringify(recordatoriosEnviados)); }catch(_){}
+  // Persistir en Firebase por id de cita (idempotente).
+  if(_db){ try{ _db.collection('rec_enviados_citas').doc(String(id)).set({
+    enviadoEn: recordatoriosEnviados[id],
+  }); }catch(_){} }
+}
+
+// Al arrancar, traer de Firebase los recordatorios ya enviados y fusionarlos
+// con lo local. Así, aunque se actualice la app, los enviados siguen marcados.
+async function cargarRecordatoriosEnviados(){
+  if(!_db) return;
+  try{
+    const snap = await _db.collection('rec_enviados_citas').get();
+    snap.forEach(d => {
+      const v = d.data();
+      recordatoriosEnviados[d.id] = v.enviadoEn || true;
+    });
+    try{ localStorage.setItem('rec_enviados',JSON.stringify(recordatoriosEnviados)); }catch(_){}
+  }catch(e){ console.warn('cargarRecordatoriosEnviados:', e.message); }
+}
 
 async function enviarRecordatorio(id){
   const ev=events.find(e=>e.id===id);
@@ -5922,6 +5947,9 @@ async function init(){
       }catch(e){ console.warn('jornadasEspeciales load:', e.message); }
     }
     _jornadasListas = true; // ← las jornadas están listas, ahora sí se puede publicar
+    // Recuperar de Firebase qué recordatorios ya se enviaron (sobrevive a
+    // actualizaciones de la app y se comparte entre dispositivos).
+    await cargarRecordatoriosEnviados();
     setSyncBadge('ok','Firebase ✓');
 
     // ── Listeners en tiempo real para todas las colecciones críticas ──────────
