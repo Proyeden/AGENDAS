@@ -2138,6 +2138,7 @@ const DB = {
     let lastUpdate = Date.now();
     let usingPolling = false;
     let unsubscribe = null;
+    let _ultimaHuellaCitas = null; // huella de las citas para detectar cambios reales
 
     const aplicarDocs = (docs) => {
       const medicloud = events.filter(e => e.source==='medicloud');
@@ -2164,6 +2165,35 @@ const DB = {
       const sinFirebase = [...medicloud, ...online];
       cb([...sinFirebase, ...docs]);
       lastUpdate = Date.now();
+      // Tras un CAMBIO REAL en las citas (p. ej. un paciente reprogramó su
+      // hora), los huecos cambian: el slot que dejó libre debe reaparecer en la
+      // app. Solo republicamos si la "huella" de las citas cambió respecto a la
+      // última vez — no en cada lectura de onSnapshot/polling.
+      const huella = docs
+        .filter(d => d.estado !== 'cancelada')
+        .map(d => `${d.id}:${d.fecha}:${d.hora}`)
+        .sort().join('|');
+      if(huella !== _ultimaHuellaCitas){
+        const eraPrimera = _ultimaHuellaCitas === null;
+        _ultimaHuellaCitas = huella;
+        // En la primera carga no republicamos (la publicación normal ya corre);
+        // solo ante cambios posteriores.
+        if(!eraPrimera) republicarTrasCambio();
+      }
+    };
+
+    // Republicación silenciosa con debounce, para reflejar en las apps de citas
+    // los slots liberados por cambios de cita sin que nadie toque "Actualizar".
+    let _repubTimer = null;
+    const republicarTrasCambio = () => {
+      if(_repubTimer) clearTimeout(_repubTimer);
+      _repubTimer = setTimeout(async () => {
+        try {
+          if(typeof publicarSlotsDisponibles === 'function') await publicarSlotsDisponibles();
+          if(typeof publicarSlotsSanCristobal === 'function') await publicarSlotsSanCristobal();
+          console.log('🔄 Slots republicados tras cambio de cita');
+        } catch(e){ console.warn('republicarTrasCambio:', e.message); }
+      }, 2500);
     };
 
     // Polling silencioso — consulta Firebase cada 30 segundos
