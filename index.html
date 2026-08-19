@@ -1729,7 +1729,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 18;
+const APP_VERSION = 20;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -2916,13 +2916,29 @@ async function loadIcalFeedsWithDupCheck(){
   // Publicar slots solo si los huecos realmente cambiaron desde la última publicación.
   // El hash se marca DESPUÉS de publicar con éxito — si la publicación falla o
   // aborta, se reintenta en el próximo sync automáticamente.
-  const huecosHash = calcularHashHuecos();
-  if(huecosHash !== window._ultimoHuecosHash){
+  // Red de seguridad: aunque la firma no cambie, republicamos si hace más de
+  // PUBLICAR_CADA_MIN que no se publica. Así, si algo falla en silencio (una
+  // firma mal calculada, una escritura perdida, la app dormida en el bolsillo),
+  // los sistemas de citas se refrescan solos igual.
+  let huecosHash;
+  try { huecosHash = calcularHashHuecos(); }
+  catch(e){ console.warn('calcularHashHuecos falló:', e.message); huecosHash = 'err_'+Date.now(); }
+
+  const ahora = Date.now();
+  const venciod = !window._ultimaPublicacionOk ||
+                  (ahora - window._ultimaPublicacionOk) > PUBLICAR_CADA_MIN*60000;
+
+  if(huecosHash !== window._ultimoHuecosHash || venciod){
     publicarSlotsDisponibles()
-      .then(ok => { if(ok) window._ultimoHuecosHash = huecosHash; })
+      .then(ok => {
+        if(ok){ window._ultimoHuecosHash = huecosHash; window._ultimaPublicacionOk = Date.now(); }
+      })
       .catch(e=>console.warn('publicarSlots:', e.message));
   }
 }
+
+// Cada cuánto se republica sí o sí, aunque nada parezca haber cambiado.
+const PUBLICAR_CADA_MIN = 15;
 
 // Make the sync badge tappable to force a MediCloud re-sync
 function makeBadgeRetryable(){
@@ -2933,9 +2949,70 @@ function makeBadgeRetryable(){
   b.onclick = () => { setSyncBadge('loading','Reintentando…'); loadIcalFeedsWithDupCheck(); };
 }
 
+// ── DESPERTAR: volver a la app dispara sincronización ──────────────────────
+// En celular y tablet el navegador CONGELA setInterval cuando la pantalla se
+// apaga o la agenda queda en segundo plano. Al volver, el temporizador de 5 min
+// puede tardar otros 5 min en despertar, y mientras tanto los sistemas de citas
+// siguen con horarios viejos. Por eso, al volver al frente (o al recuperar
+// internet), sincronizamos de inmediato si pasó más de 1 minuto.
+let _ultimoSyncTs = 0;
+function syncSiHaceRato(minutos = 1){
+  if(Date.now() - _ultimoSyncTs < minutos*60000) return;
+  _ultimoSyncTs = Date.now();
+  loadIcalFeedsWithDupCheck().catch(e=>console.warn('sync al volver:', e.message));
+}
+
 let _icalRetryDone = false;
 function startIcalRefresh(){
-  if(CONFIG.ICAL_REFRESH_MINUTES) setInterval(loadIcalFeedsWithDupCheck, CONFIG.ICAL_REFRESH_MINUTES*60000);
+  if(CONFIG.ICAL_REFRESH_MINUTES){
+    setInterval(() => { _ultimoSyncTs = Date.now(); loadIcalFeedsWithDupCheck(); },
+                CONFIG.ICAL_REFRESH_MINUTES*60000);
+  }
+  _ultimoSyncTs = Date.now();
+
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') syncSiHaceRato(1);
+  });
+  window.addEventListener('focus',  () => syncSiHaceRato(1));
+  window.addEventListener('online', () => syncSiHaceRato(0));
+
+  // ── Citas de pacientes en tiempo real ────────────────────────────────────
+  // Cuando alguien reserva o cancela desde cualquiera de las dos páginas de
+  // citas, la agenda se entera al instante y republica los horarios. Antes
+  // había que esperar al ciclo de 5 min (o tocar "Actualizar").
+  if(_citasDb){
+    let _tCitas = null;
+    const rePublicar = () => {
+      if(_tCitas) clearTimeout(_tCitas);
+      _tCitas = setTimeout(() => {
+        loadCitasOnline()
+          .then(citas => {
+            events = events.filter(e => e.source !== 'online');
+            citas.forEach(ev => {
+              try { if(!findDuplicate(ev)) events.push(ev); }
+              catch(_){ events.push(ev); }
+            });
+            render();
+            return publicarSlotsDisponibles();
+          })
+          .then(ok => { if(ok) window._ultimaPublicacionOk = Date.now(); })
+          .catch(e => console.warn('republicar por cita nueva:', e.message));
+      }, 4000); // agrupa varias reservas seguidas en una sola republicación
+    };
+    try {
+      // Solo el rango que la agenda muestra, para no leer el histórico entero.
+      const desde = new Date(); desde.setDate(desde.getDate() - 1);
+      const hasta = new Date(); hasta.setDate(hasta.getDate() + 60);
+      let primera = true;
+      _citasDb.collection('citas')
+        .where('fecha', '>=', dateKey(desde))
+        .where('fecha', '<=', dateKey(hasta))
+        .onSnapshot(
+          () => { if(primera){ primera = false; return; } rePublicar(); },
+          err => console.warn('onSnapshot citas:', err.message)
+        );
+    } catch(e){ console.warn('listener citas no disponible:', e.message); }
+  }
   // One automatic retry shortly after first load, in case proxies were cold
   if (!_icalRetryDone) {
     _icalRetryDone = true;
@@ -4596,8 +4673,13 @@ async function saveEvent(){
   // Ojo: en un bloqueo, currentClinic vale 'blocked' — condicionar la
   // republicación a clinic1/clinic2 hacía que los bloqueos nunca se
   // reflejaran en los sistemas de citas.
-  publicarSlotsDisponibles().catch(e=>console.warn('auto-publish slots:', e.message));
-  publicarSlotsSanCristobal().catch(e=>console.warn('auto-publish SC:', e.message));
+  // Primero SOLO el día que se tocó: es una escritura corta y el sistema de
+  // citas lo refleja en un par de segundos. Después, en segundo plano, la
+  // publicación completa de los 30 días (que sí tarda más).
+  publicarSlotsDisponibles({ fechas:[date] })
+    .then(() => publicarSlotsSanCristobal({ fechas:[date] }))
+    .then(() => publicarSlotsDisponibles())   // repaso completo, sin prisa
+    .catch(e=>console.warn('auto-publish slots:', e.message));
   if(isRealAppt && isMixco) openControlModal(ev);
 }
 
@@ -4995,13 +5077,13 @@ window.diagnosticarPublicacion = diagnosticarPublicacion;
 // Pamela no se publica: siempre va a lista de espera.
 let _publicandoSC = false;
 
-async function publicarSlotsSanCristobal(){
+async function publicarSlotsSanCristobal(opciones){
   if(!_citasDb || _publicandoSC) return false;
-  if(!_jornadasListas){
-    let i=0; while(!_jornadasListas && i<30){ await new Promise(r=>setTimeout(r,100)); i++; }
-  }
   _publicandoSC = true;
   try {
+    if(!_jornadasListas){
+      let i=0; while(!_jornadasListas && i<30){ await new Promise(r=>setTimeout(r,100)); i++; }
+    }
     // Refrescar jornadas especiales antes de calcular
     if(_db){
       try{
@@ -5016,28 +5098,35 @@ async function publicarSlotsSanCristobal(){
     // doctorId en la agenda → medicoId en el sistema de citas de San Cristóbal
     const DOCTORES_SC = { denis:'denis', majo:'nochez' };
 
+    // Modo dirigido: solo los días pedidos (para reflejar al instante un cambio).
+    const soloFechasSC = opciones && opciones.fechas && opciones.fechas.length
+      ? opciones.fechas.filter(f => f >= hoy) : null;
+    const diasSC = soloFechasSC || Array.from({length:31}, (_,i)=>{
+      const d = new Date(); d.setDate(d.getDate()+i); return dateKey(d);
+    });
+
+    // Una sola lectura y un solo lote para toda la publicación.
+    let yaPublicadosSC;
+    try { yaPublicadosSC = await _slotsPublicados(soloFechasSC || hoy); }
+    catch(e){ console.warn('SC leer slots:', e.message); yaPublicadosSC = new Map(); }
+    const loteSC = _lote();
+
     for(const [doctorId, medicoSC] of Object.entries(DOCTORES_SC)){
-      // Días a publicar: los próximos 30
-      for(let i=0; i<=30; i++){
-        const d = new Date(); d.setDate(d.getDate()+i);
-        const fecha = dateKey(d);
+      for(const fecha of diasSC){
         if(fecha < hoy) continue;
 
         // Huecos de ESTE médico que caen en franjas de San Cristóbal
         const huecosSC = calcularHuecosFranja(doctorId, fecha)
           .filter(h => h.clinica === 'clinic2');
 
-        // Borrar lo publicado antes para ese día+médico (idempotente)
-        try{
-          // Borramos SOLO los slots de San Cristóbal de ese día (los de Mixco
-          // viven en la misma colección y no se deben tocar).
-          const viejos = await _citasDb.collection('slots_disponibles')
-            .where('fecha','==',fecha)
-            .where('medicoId','==',medicoSC).get();
-          for(const doc of viejos.docs){
-            if(doc.data().clinica === 'sancristobal') await doc.ref.delete();
+        // Borrar lo publicado antes para ese día+médico (idempotente).
+        // Solo los slots de San Cristóbal: los de Mixco viven en la misma
+        // colección y no se deben tocar.
+        for(const x of (yaPublicadosSC.get(fecha) || [])){
+          if(x.data.medicoId === medicoSC && x.data.clinica === 'sancristobal'){
+            loteSC.borrar(x.ref);
           }
-        }catch(e){ console.warn('SC borrar slots:', e.message); }
+        }
 
         if(!huecosSC.length) continue;
 
@@ -5050,7 +5139,7 @@ async function publicarSlotsSanCristobal(){
             const dur = rest >= 45 ? 45 : rest;
             if(dur >= 30){
               _slotsSC++;
-              await _citasDb.collection('slots_disponibles').add({
+              loteSC.crear('slots_disponibles', {
                 fecha,
                 hora: tFmt(cur),
                 durMin: dur,
@@ -5064,6 +5153,13 @@ async function publicarSlotsSanCristobal(){
           }
         }
       }
+    }
+
+    await loteSC.cerrar();
+
+    if(soloFechasSC){
+      console.log(`⚡ San Cristóbal (${soloFechasSC.join(', ')}): ${_slotsSC} horarios`);
+      return true;
     }
     window._pubSC = { horarios: _slotsSC };
     console.log(`✅ San Cristóbal: ${_slotsSC} horarios`);
@@ -5090,20 +5186,71 @@ async function publicarSlotsSanCristobal(){
 
 let _publicando = false;
 
-async function publicarSlotsDisponibles(){
-  if(!_citasDb || _publicando) return false;
-  // Esperar a que las jornadas especiales estén cargadas (máx 3 seg)
-  // Esto evita que se publiquen slots con horario normal cuando hay jornada especial
-  if(!_jornadasListas){
-    let intentos = 0;
-    while(!_jornadasListas && intentos < 30){
-      await new Promise(r => setTimeout(r, 100));
-      intentos++;
-    }
-    if(!_jornadasListas) console.warn('publicarSlots: jornadas no cargadas aún, usando lo disponible');
+// ── ESCRITURA POR LOTES ────────────────────────────────────────────────────
+// Antes, publicar escribía cada horario con un `add()` esperado uno por uno:
+// 30 días × ~8 horarios × 2 sedes = más de 400 viajes de ida y vuelta a
+// Firebase, uno detrás de otro. Por eso un bloqueo tardaba tanto en verse en
+// el sistema de citas. Un lote manda hasta 450 operaciones en un solo viaje.
+function _lote(){
+  let batch = _citasDb.batch(), n = 0;
+  const enVuelo = [];
+  const rotarSiToca = () => {
+    if(++n >= 450){ enVuelo.push(batch.commit()); batch = _citasDb.batch(); n = 0; }
+  };
+  return {
+    borrar(ref){ batch.delete(ref); rotarSiToca(); },
+    crear(col, data){ batch.set(_citasDb.collection(col).doc(), data); rotarSiToca(); },
+    async cerrar(){
+      if(n) enVuelo.push(batch.commit());
+      await Promise.all(enVuelo);
+    },
+  };
+}
+
+// Trae de una sola vez los horarios ya publicados desde hoy en adelante.
+// Un solo filtro (fecha) — una consulta con dos campos exigiría un índice
+// compuesto en Firestore y, si no existe, falla en silencio.
+// Acepta una fecha ('desde ahí en adelante') o una lista de fechas exactas.
+async function _slotsPublicados(desdeOFechas){
+  const porFecha = new Map();
+  const guardar = snap => snap.forEach(d => {
+    const f = d.data().fecha;
+    if(!porFecha.has(f)) porFecha.set(f, []);
+    porFecha.get(f).push({ ref: d.ref, data: d.data() });
+  });
+  const col = _citasDb.collection('slots_disponibles');
+  if(Array.isArray(desdeOFechas)){
+    // Modo dirigido: una consulta por día, en paralelo. Trae solo lo justo.
+    const snaps = await Promise.all(
+      desdeOFechas.map(f => col.where('fecha','==',f).get())
+    );
+    snaps.forEach(guardar);
+  } else {
+    guardar(await col.where('fecha','>=',desdeOFechas).get());
   }
+  return porFecha;
+}
+
+// opciones.fechas → publicar SOLO esos días (modo rápido, para reflejar al
+// instante un bloqueo o una cita recién guardada). Sin opciones, publica los
+// 30 días completos.
+async function publicarSlotsDisponibles(opciones){
+  if(!_citasDb || _publicando) return false;
+  // El candado se cierra ANTES de esperar. Si se cerraba después, dos llamadas
+  // seguidas (guardar una cita + el ciclo automático) pasaban juntas por la
+  // espera y escribían los mismos horarios dos veces.
   _publicando = true;
   try {
+    // Esperar a que las jornadas especiales estén cargadas (máx 3 seg)
+    // Esto evita que se publiquen slots con horario normal cuando hay jornada especial
+    if(!_jornadasListas){
+      let intentos = 0;
+      while(!_jornadasListas && intentos < 30){
+        await new Promise(r => setTimeout(r, 100));
+        intentos++;
+      }
+      if(!_jornadasListas) console.warn('publicarSlots: jornadas no cargadas aún, usando lo disponible');
+    }
     // CRÍTICO: recargar jornadas especiales de Firebase antes de calcular huecos.
     // Si el usuario salió y volvió a la app, el array en memoria puede estar vacío
     // aunque Firebase tenga jornadas guardadas. Sin esto, se publicarían los slots
@@ -5150,18 +5297,32 @@ async function publicarSlotsDisponibles(){
     const limite = new Date(); limite.setDate(limite.getDate() + 30);
     const limiteStr = dateKey(limite);
 
-    // Incluir fechas con citas existentes
-    events.filter(e => e.date >= hoy && e.date <= limiteStr && e.doctor === medicoId)
-      .forEach(e => fechas.add(e.date));
+    // Modo dirigido: solo los días que se piden (publicación instantánea).
+    const soloFechas = opciones && opciones.fechas && opciones.fechas.length
+      ? opciones.fechas.filter(f => f >= hoy) : null;
 
-    // Incluir también los días laborables aunque estén vacíos (para mostrar disponibilidad)
-    for(let i=0; i<=30; i++){
-      const d = new Date(); d.setDate(d.getDate()+i);
-      const dow = d.getDay();
-      if(dow===0) continue; // domingo
-      const franjas = FRANJAS[medicoId] ? FRANJAS[medicoId](dow) : [];
-      if(franjas.some(f=>f.clinica==='clinic1')) fechas.add(dateKey(d));
+    if(soloFechas){
+      soloFechas.forEach(f => fechas.add(f));
+    } else {
+      // Incluir fechas con citas existentes
+      events.filter(e => e.date >= hoy && e.date <= limiteStr && e.doctor === medicoId)
+        .forEach(e => fechas.add(e.date));
+
+      // Incluir también los días laborables aunque estén vacíos (para mostrar disponibilidad)
+      for(let i=0; i<=30; i++){
+        const d = new Date(); d.setDate(d.getDate()+i);
+        const dow = d.getDay();
+        if(dow===0) continue; // domingo
+        const franjas = FRANJAS[medicoId] ? FRANJAS[medicoId](dow) : [];
+        if(franjas.some(f=>f.clinica==='clinic1')) fechas.add(dateKey(d));
+      }
     }
+
+    // Una sola lectura para TODOS los días, y un solo lote de escritura.
+    let yaPublicados;
+    try { yaPublicados = await _slotsPublicados(soloFechas || hoy); }
+    catch(e){ console.warn('leer slots publicados:', e.message); yaPublicados = new Map(); }
+    const lote = _lote();
 
     for(const fecha of [...fechas].sort()){
       if(fecha < hoy) continue;
@@ -5169,16 +5330,13 @@ async function publicarSlotsDisponibles(){
       // Calcular huecos libres reales para ese día
       const huecos = calcularHuecos(medicoId, fecha, 'clinic1');
 
-      // Borrar slots anteriores de este día (idempotente)
-      try {
-        const viejos = await _citasDb.collection('slots_disponibles')
-          .where('fecha','==',fecha)
-          .where('medicoId','==',MEDICO_CITAS_ID).get();
-        // No tocar los slots de San Cristóbal: comparten la colección.
-        for(const d of viejos.docs){
-          if(d.data().clinica !== 'sancristobal') await d.ref.delete();
+      // Borrar slots anteriores de este día (idempotente).
+      // No tocar los de San Cristóbal: comparten la colección.
+      for(const x of (yaPublicados.get(fecha) || [])){
+        if(x.data.medicoId === MEDICO_CITAS_ID && x.data.clinica !== 'sancristobal'){
+          lote.borrar(x.ref);
         }
-      } catch(e){ console.warn('slots borrar:', e.message); }
+      }
 
       // Verificar si este día tiene configuración de 30 min activa
       let slots30 = null;
@@ -5203,7 +5361,7 @@ async function publicarSlotsDisponibles(){
           const durSlot = en30 ? (rest >= 30 ? 30 : rest) : (rest >= 45 ? 45 : rest);
           if(durSlot >= 20){
             _slotsEscritos++;
-            await _citasDb.collection('slots_disponibles').add({
+            lote.crear('slots_disponibles', {
               fecha,
               hora: tFmt(cur),
               durMin: durSlot,
@@ -5218,6 +5376,16 @@ async function publicarSlotsDisponibles(){
           cur += Math.max(durSlot, 1);
         }
       }
+    }
+
+    // Un solo viaje: borrados y altas se aplican juntos.
+    await lote.cerrar();
+
+    if(soloFechas){
+      // Publicación dirigida: no toca los contadores del panel ni arrastra a
+      // San Cristóbal. La publicación completa viene detrás.
+      console.log(`⚡ Mixco (${soloFechas.join(', ')}): ${_slotsEscritos} horarios`);
+      return true;
     }
     window._pubMixco = { dias: fechas.size, horarios: _slotsEscritos };
     console.log(`✅ Mixco: ${_slotsEscritos} horarios en ${fechas.size} días`);
@@ -5241,12 +5409,18 @@ async function publicarSlotsDisponibles(){
 // Calcula una firma (hash) de los huecos libres actuales de Mixco.
 // Si la firma cambia entre sincronizaciones, significa que un slot se ocupó
 // o se liberó — y hay que republicar. Si no cambia, no publicamos nada.
+// VENTANA: debe ser LA MISMA que la de publicarSlotsDisponibles (30 días).
+// Antes miraba solo 7 días: cualquier cambio del día 8 en adelante (que es
+// donde vive la mayoría de las citas) no alteraba la firma, la republicación
+// automática nunca se disparaba y había que tocar "Actualizar" a mano.
+const DIAS_PUBLICACION = 30;
+
 function calcularHashHuecos(){
   const hoy = todayKey();
-  const limite = new Date(); limite.setDate(limite.getDate()+7);
+  const limite = new Date(); limite.setDate(limite.getDate()+DIAS_PUBLICACION);
   const limStr = dateKey(limite);
   const partes = [];
-  for(let i=0; i<=7; i++){
+  for(let i=0; i<=DIAS_PUBLICACION; i++){
     const d = new Date(); d.setDate(d.getDate()+i);
     const fecha = dateKey(d);
     if(fecha > limStr) break;
@@ -5379,6 +5553,7 @@ async function pushBloqueoToCitas(ev){
   // Idempotente: retirar primero los slots viejos de ESTE evento, para que
   // editar la hora o duración no deje duplicados en el sistema de citas.
   await removeBloqueoFromCitas(ev);
+  const lote = _lote();
   try {
     const startM = tm(ev.time||'08:00');
     const totalMin = ev.durMin || ((ev.duration||1)*60);
@@ -5399,7 +5574,7 @@ async function pushBloqueoToCitas(ev){
         dur = (rest - 45 >= 30) ? 45 : 30;
       }
       const hora = fmt(cur);
-      await _citasDb.collection('bloqueos').add({
+      lote.crear('bloqueos', {
         fecha: ev.date,
         hora,
         slotMin: dur,
@@ -5413,6 +5588,7 @@ async function pushBloqueoToCitas(ev){
       });
       cur += dur; n++;
     }
+    await lote.cerrar();
     console.log(`🔒 Franja sincronizada al sistema de citas (${n} slot/s, ${totalMin} min)`);
   } catch(e){ console.warn('Error sincronizando bloqueo:', e.message); }
 }
@@ -5423,8 +5599,12 @@ async function removeBloqueoFromCitas(ev){
   try {
     const snap = await _citasDb.collection('bloqueos')
       .where('agendaEventId','==',ev.id).get();
-    for(const d of snap.docs){ await d.ref.delete(); }
-    if(snap.size) console.log(`🔓 Bloqueo retirado del sistema de citas (${snap.size})`);
+    if(snap.size){
+      const lote = _lote();
+      snap.docs.forEach(d => lote.borrar(d.ref));
+      await lote.cerrar();
+      console.log(`🔓 Bloqueo retirado del sistema de citas (${snap.size})`);
+    }
   } catch(e){ console.warn('Error retirando bloqueo:', e.message); }
 }
 
