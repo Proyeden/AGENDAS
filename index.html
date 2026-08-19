@@ -188,6 +188,35 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .home-btn-purple .home-btn-arr { color:#A78BFA; }
 .home-sync-bar { font-size:11px; color:var(--muted); text-align:center; }
 
+/* ── GESTIÓN: seis botones iguales en fila se leían como una lista sin
+   jerarquía. Agrupados por para-qué-sirve, se encuentra la cosa sin leer
+   los seis subtítulos. ── */
+.pick-list.gestion { padding-bottom:26px; }
+.pick-list.gestion .pick-item { cursor:pointer; text-decoration:none; }
+.g-titulo {
+  font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted); margin:22px 4px 8px; padding-top:2px;
+}
+.g-titulo:first-child { margin-top:6px; }
+.g-av {
+  width:42px; height:42px; border-radius:50%; display:flex;
+  align-items:center; justify-content:center; font-size:18px; flex-shrink:0;
+}
+.g-azul   { background:#DBEAFE; color:#1D4ED8; }
+.g-morado { background:#EDE9FE; color:#6D28D9; }
+.g-rosa   { background:#FCE7F3; color:#BE185D; }
+.g-verde  { background:#DCFCE7; color:#15803D; }
+.g-gris   { background:#F1F5F9; color:#475569; }
+/* Cerrar sesión no compite con el resto: sin ícono, en gris, al final. */
+.g-salir {
+  margin-top:26px; background:transparent; border:none; box-shadow:none;
+  justify-content:center; padding:12px;
+}
+.g-salir .pick-name {
+  font-size:13px; font-weight:600; color:var(--muted); text-align:center;
+}
+.g-salir:hover .pick-name { color:#DC2626; }
+
 /* ── Contadores de pendientes en home ── */
 .home-pending {
   display:none; /* oculto por defecto — solo aparece si hay pendientes */
@@ -1018,54 +1047,57 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       <h1 class="pick-title">¿Qué necesitás?<span class="pt-sub">Administrá recordatorios, jornadas y el sistema de citas.</span></h1>
     </div>
   </div>
-  <div class="pick-list">
-    <div class="pick-item" onclick="openRecordatorios()" style="cursor:pointer">
-      <div class="pick-av" style="background:#EDE9FE;color:#6D28D9;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔔</div>
-      <div class="pick-info">
-        <div class="pick-name">Recordatorios</div>
-        <div class="pick-sub">Avisar pacientes con cita en ~2 semanas</div>
-      </div>
-      <span class="pick-arrow">›</span>
-    </div>
-    <div class="pick-item" onclick="openAnuncios()" style="cursor:pointer">
-      <div class="pick-av" style="background:#DBEAFE;color:#1D4ED8;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📢</div>
+  <div class="pick-list gestion">
+
+    <div class="g-titulo">Lo que ven los pacientes</div>
+    <div class="pick-item" onclick="openAnuncios()">
+      <div class="pick-av g-av g-azul">📢</div>
       <div class="pick-info">
         <div class="pick-name">Anuncios</div>
-        <div class="pick-sub">Flyer que ven los pacientes al abrir la app</div>
+        <div class="pick-sub">Flyer al abrir la app de citas</div>
       </div>
       <span class="pick-arrow">›</span>
     </div>
-    <div class="pick-item" onclick="publicarVersion()" style="cursor:pointer">
-      <div class="pick-av" style="background:#DCFCE7;color:#15803D;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔄</div>
+    <div class="pick-item" onclick="openRecordatorios()">
+      <div class="pick-av g-av g-morado">🔔</div>
       <div class="pick-info">
-        <div class="pick-name">Publicar versión</div>
-        <div class="pick-sub">Forzar que todas las agendas se actualicen (v<span id="app-ver-lbl"></span>)</div>
+        <div class="pick-name">Recordatorios</div>
+        <div class="pick-sub">Avisar a quienes tienen cita en ~2 semanas</div>
       </div>
       <span class="pick-arrow">›</span>
     </div>
-    <div class="pick-item" onclick="openJornadaEspecial()" style="cursor:pointer">
-      <div class="pick-av" style="background:#EDE9FE;color:#6D28D9;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⏰</div>
+
+    <div class="g-titulo">Horarios</div>
+    <div class="pick-item" onclick="openJornadaEspecial()">
+      <div class="pick-av g-av g-rosa">⏰</div>
       <div class="pick-info">
         <div class="pick-name">Jornada especial</div>
-        <div class="pick-sub">Ajustar horario de un día específico</div>
+        <div class="pick-sub">Cambiar el horario de un día puntual</div>
       </div>
       <span class="pick-arrow">›</span>
     </div>
-    <a class="pick-item" href="https://proyeden.github.io/Citas-Mixco/" target="_blank" rel="noopener" style="text-decoration:none">
-      <div class="pick-av" style="background:#EDE9FE;color:#6D28D9;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⚙️</div>
+    <a class="pick-item" href="https://proyeden.github.io/Citas-Mixco/" target="_blank" rel="noopener">
+      <div class="pick-av g-av g-gris">⚙️</div>
       <div class="pick-info">
-        <div class="pick-name">Panel admin</div>
-        <div class="pick-sub">Sistema de citas · requiere PIN</div>
+        <div class="pick-name">Panel del sistema de citas</div>
+        <div class="pick-sub">Se abre aparte · pide correo y contraseña</div>
       </div>
       <span class="pick-arrow">↗</span>
     </a>
-    <div class="pick-item" onclick="cerrarSesion()" style="cursor:pointer">
-      <div class="pick-av" style="background:#FEF2F2;color:#DC2626;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🚪</div>
+
+    <div class="g-titulo">Esta app</div>
+    <div class="pick-item" onclick="publicarVersion()">
+      <div class="pick-av g-av g-verde">🔄</div>
       <div class="pick-info">
-        <div class="pick-name">Cerrar sesión</div>
-        <div class="pick-sub">Salir de la agenda en este dispositivo</div>
+        <div class="pick-name">Publicar versión</div>
+        <div class="pick-sub">Actualizar las demás agendas · ahora en la v<span id="app-ver-lbl"></span></div>
       </div>
       <span class="pick-arrow">›</span>
+    </div>
+    <div class="pick-item g-salir" onclick="cerrarSesion()">
+      <div class="pick-info">
+        <div class="pick-name">Cerrar sesión en este dispositivo</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1246,6 +1278,39 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
           <div style="display:flex;gap:10px">
             <div class="fld" style="flex:1"><label>Inicio (otra sede)</label><select id="jd-otra-ini"></select></div>
             <div class="fld" style="flex:1"><label>Fin (otra sede)</label><select id="jd-otra-fin"></select></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aviso al paciente: mismo concepto que en un bloqueo, disponible
+           también aquí, que es donde se arman los días partidos entre sedes. -->
+      <div style="margin-bottom:16px;padding:14px;border:1px solid #DBEAFE;border-radius:12px;background:#F8FBFF">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#1D4ED8;cursor:pointer">
+          <input type="checkbox" id="jd-msg-on" onchange="jdMsgToggle()" style="width:16px;height:16px">
+          💬 Mostrar un aviso a los pacientes ese día
+        </label>
+        <p style="font-size:11px;color:var(--muted);margin:5px 0 0 24px;line-height:1.45">
+          Útil cuando el día cambia de forma: explicá el motivo y el paciente ve
+          abajo el próximo día con espacio.
+        </p>
+        <div id="jd-msg-body" style="display:none;margin-top:10px">
+          <label style="display:block;font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:5px">¿En qué página se ve?</label>
+          <select id="jd-msg-sede" style="width:100%;padding:9px;border-radius:8px;border:1px solid #ddd;font-family:var(--font);font-size:13px;margin-bottom:10px">
+            <option value="mixco">Solo en la página de Mixco</option>
+            <option value="sancristobal">Solo en la página de San Cristóbal</option>
+            <option value="ambas">En las dos páginas</option>
+          </select>
+          <textarea id="jd-msg-texto" rows="3" placeholder="Ej: Ese día atendemos en Mixco por la mañana y en San Cristóbal por la tarde." style="width:100%;padding:9px;border-radius:8px;border:1px solid #ddd;font-family:var(--font);font-size:13px;resize:vertical;box-sizing:border-box"></textarea>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #CBD5E1">
+            <label style="display:block;font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:6px">
+              🖼️ Imagen del aviso <span style="font-weight:400;color:var(--muted)">(opcional)</span>
+            </label>
+            <input type="file" id="jd-msg-img-file" accept="image/*" style="width:100%;font-size:12px;font-family:var(--font)">
+            <div id="jd-msg-img-msg" style="font-size:11px;color:var(--muted);margin-top:5px"></div>
+            <div id="jd-msg-img-prev" style="display:none;margin-top:8px;position:relative">
+              <img id="jd-msg-img-tag" alt="" style="width:100%;border-radius:9px;display:block">
+              <button type="button" onclick="jdMsgQuitarImagen()" style="position:absolute;top:6px;right:6px;border:none;border-radius:7px;background:rgba(0,0,0,.62);color:#fff;font-family:var(--font);font-size:11px;font-weight:700;padding:5px 9px;cursor:pointer">Quitar</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1485,13 +1550,26 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <div id="msg-dia-wrap" style="display:none;margin-bottom:11px;padding:12px;border:1px solid #DBEAFE;border-radius:10px;background:#F8FBFF">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#1D4ED8;cursor:pointer">
         <input type="checkbox" id="msg-dia-on" onchange="onMsgDiaToggle()" style="width:16px;height:16px">
-        💬 Mostrar un mensaje a los pacientes ese día
+        💬 Mostrar un aviso a los pacientes ese día
       </label>
+      <p style="font-size:11px;color:var(--muted);margin:5px 0 0 24px;line-height:1.45">
+        Es lo que ve el paciente al tocar ese día en la página de citas. No mueve
+        horarios: eso ya lo definiste arriba.
+      </p>
       <div id="msg-dia-body" style="display:none;margin-top:10px">
+        <label style="display:block;font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:5px">¿En qué página se ve este aviso?</label>
+        <select id="msg-dia-sede" style="width:100%;padding:9px;border-radius:8px;border:1px solid #ddd;font-family:var(--font);font-size:13px;margin-bottom:10px">
+          <option value="mixco">Solo en la página de Mixco</option>
+          <option value="sancristobal">Solo en la página de San Cristóbal</option>
+          <option value="ambas">En las dos páginas</option>
+        </select>
+        <label style="display:block;font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:5px">Texto sugerido</label>
         <select id="msg-dia-tipo" onchange="onMsgDiaTipo()" style="width:100%;padding:9px;border-radius:8px;border:1px solid #ddd;font-family:var(--font);font-size:13px;margin-bottom:8px">
           <option value="sede">Cambio de sede</option>
+          <option value="capacitacion">Capacitación</option>
+          <option value="asueto">Asueto / feriado</option>
           <option value="cerrado">Cerrado ese día</option>
-          <option value="custom">Mensaje personalizado</option>
+          <option value="custom">Otro motivo</option>
         </select>
         <textarea id="msg-dia-texto" rows="3" placeholder="Escribí el mensaje…" style="width:100%;padding:9px;border-radius:8px;border:1px solid #ddd;font-family:var(--font);font-size:13px;resize:vertical;box-sizing:border-box"></textarea>
         <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);margin-top:8px;cursor:pointer">
@@ -1502,6 +1580,21 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
           <option value="sancristobal">👉 Ir a San Cristóbal</option>
           <option value="mixco">👉 Ir a Mixco</option>
         </select>
+        <!-- Imagen opcional: en vez de un texto gris de "no hay horarios", el
+             paciente ve el flyer del motivo (capacitación, asueto, etc.). -->
+        <div style="margin-top:11px;padding-top:11px;border-top:1px dashed #CBD5E1">
+          <label style="display:block;font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:6px">
+            🖼️ Imagen del aviso <span style="font-weight:400;color:var(--muted)">(opcional)</span>
+          </label>
+          <input type="file" id="msg-dia-img-file" accept="image/*"
+                 style="width:100%;font-size:12px;font-family:var(--font)">
+          <div id="msg-dia-img-msg" style="font-size:11px;color:var(--muted);margin-top:5px"></div>
+          <div id="msg-dia-img-prev" style="display:none;margin-top:8px;position:relative">
+            <img id="msg-dia-img-tag" alt="" style="width:100%;border-radius:9px;display:block">
+            <button type="button" onclick="msgDiaQuitarImagen()"
+              style="position:absolute;top:6px;right:6px;border:none;border-radius:7px;background:rgba(0,0,0,.62);color:#fff;font-family:var(--font);font-size:11px;font-weight:700;padding:5px 9px;cursor:pointer">Quitar</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="fld" id="field-duration"><label>Duración</label>
@@ -1729,7 +1822,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 21;
+const APP_VERSION = 23;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3448,12 +3541,27 @@ async function jdGuardar(){
     try{ localStorage.setItem('jornadas_especiales', JSON.stringify(jornadasEspeciales)); }catch(_){}
     // Sincronizar con sistema de citas si es Mixco
     if(jdCli==='clinic1') await jdSyncCitas(jornada);
+
+    // Aviso al paciente para ese día, si se pidió.
+    const jdMsgOn = document.getElementById('jd-msg-on');
+    if(jdMsgOn && jdMsgOn.checked){
+      const txt = (document.getElementById('jd-msg-texto').value||'').trim();
+      const sedeSel = document.getElementById('jd-msg-sede').value;
+      if(txt || _jdMsgImagen){
+        await guardarAvisoDia(f, jdDoc, {
+          activo: true, texto: txt, tipo: 'custom',
+          imagen: _jdMsgImagen || null,
+          sedes: sedeSel==='ambas' ? ['mixco','sancristobal'] : [sedeSel],
+        });
+      }
+    }
   }
   document.getElementById('jd-fecha').value='';
   document.getElementById('jd-motivo').value='';
   // Resetear la elección de la otra sede
   document.querySelectorAll('input[name="jd-otra"]').forEach(r=>r.checked=false);
   const oh=document.getElementById('jd-otra-horario'); if(oh) oh.style.display='none';
+  jdMsgReset();
   renderJornadaEspecial();
   alert(`✅ Jornada especial guardada para ${fechas.length} día${fechas.length>1?'s':''}.`);
 }
@@ -4452,6 +4560,11 @@ function setClinic(c){ currentClinic=c;
     if(btnOn) btnOn.checked = false;
     const btnDest = document.getElementById('msg-dia-btn-dest');
     if(btnDest) btnDest.style.display = 'none';
+    msgDiaQuitarImagen();
+    // Sugerencia: el aviso se ve donde el paciente NO va a encontrar consulta,
+    // o sea la sede que se está bloqueando.
+    const sedeSel = document.getElementById('msg-dia-sede');
+    if(sedeSel) sedeSel.value = (currentClinic==='clinic2') ? 'sancristobal' : 'mixco';
   }
   // Reset del bloqueo por sede
   const bsw = document.getElementById('block-sede-wrap');
@@ -4501,8 +4614,10 @@ function setFullDayBlock(){
 function _msgDiaSugerido(tipo){
   const fechaStr = document.getElementById('f-date').value;
   const f = fechaStr ? fmtFecha(fechaStr) : 'ese día';
-  if(tipo==='sede')    return `El ${f} atendemos en nuestra otra sede por una actividad especial. Podés agendar allí; te esperamos.`;
-  if(tipo==='cerrado') return `El ${f} no tendremos atención. Disculpá las molestias. Podés agendar para otro día disponible.`;
+  if(tipo==='sede')         return `El ${f} atendemos en nuestra otra sede por una actividad especial. Podés agendar allí; te esperamos.`;
+  if(tipo==='capacitacion') return `El ${f} no tendremos consulta: el equipo está en capacitación. Abajo podés ver el día disponible más cercano.`;
+  if(tipo==='asueto')       return `El ${f} permanecemos cerrados por asueto. Abajo podés ver el día disponible más cercano.`;
+  if(tipo==='cerrado')      return `El ${f} no tendremos atención. Disculpá las molestias. Podés agendar para otro día disponible.`;
   return '';
 }
 function onMsgDiaToggle(){
@@ -4515,7 +4630,7 @@ function onMsgDiaTipo(){
   const ta = document.getElementById('msg-dia-texto');
   // Solo autocompletar si está vacío o si el usuario no lo tocó
   if(tipo!=='custom'){ ta.value = _msgDiaSugerido(tipo); }
-  else if(ta.value === _msgDiaSugerido('sede') || ta.value === _msgDiaSugerido('cerrado')){ ta.value=''; }
+  else if(['sede','capacitacion','asueto','cerrado'].some(t => ta.value === _msgDiaSugerido(t))){ ta.value=''; }
   // El botón a otra sede tiene sentido sobre todo en "cambio de sede"
   const btnOn = document.getElementById('msg-dia-btn-on');
   if(tipo==='sede' && !btnOn.checked){ btnOn.checked = true; onMsgDiaBtnToggle(); }
@@ -4529,44 +4644,167 @@ function onMsgDiaBtnToggle(){
     dest.value = (currentClinic==='clinic1') ? 'sancristobal' : 'mixco';
   }
 }
+// ── Imagen del aviso del día ─────────────────────────────────────────────
+// Se guarda dentro del mismo documento del mensaje, comprimida. Un documento
+// de Firestore admite hasta 1 MB, así que avisamos si la foto viene pesada.
+let _msgDiaImagen = null;
+
+function msgDiaQuitarImagen(){
+  _msgDiaImagen = null;
+  const f = document.getElementById('msg-dia-img-file');
+  if(f) f.value = '';
+  const p = document.getElementById('msg-dia-img-prev');
+  if(p) p.style.display = 'none';
+  const m = document.getElementById('msg-dia-img-msg');
+  if(m){ m.textContent = ''; m.style.color = 'var(--muted)'; }
+}
+window.msgDiaQuitarImagen = msgDiaQuitarImagen;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('msg-dia-img-file');
+  if(!inp) return;
+  inp.addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    const msg = document.getElementById('msg-dia-img-msg');
+    if(!file) return;
+    msg.style.color = 'var(--muted)';
+    msg.textContent = 'Procesando la imagen…';
+    try {
+      _msgDiaImagen = await anComprimir(file);
+      const kb = Math.round(_msgDiaImagen.length*0.75/1024);
+      document.getElementById('msg-dia-img-tag').src = _msgDiaImagen;
+      document.getElementById('msg-dia-img-prev').style.display = 'block';
+      if(kb > 700){
+        msg.style.color = '#B45309';
+        msg.textContent = `Pesa ${kb} KB y puede fallar al guardar. Probá una más liviana.`;
+      } else {
+        msg.textContent = `Lista (${kb} KB). Se muestra el día del bloqueo.`;
+      }
+    } catch(err){
+      _msgDiaImagen = null;
+      msg.style.color = '#DC2626';
+      msg.textContent = 'No se pudo procesar la imagen.';
+    }
+  });
+});
+
+// ── Aviso dentro de Jornada especial ────────────────────────────────────
+let _jdMsgImagen = null;
+
+function jdMsgToggle(){
+  const on = document.getElementById('jd-msg-on').checked;
+  document.getElementById('jd-msg-body').style.display = on ? 'block' : 'none';
+  if(on){
+    // Sugerir la sede donde el paciente NO va a encontrar su horario habitual.
+    const sel = document.getElementById('jd-msg-sede');
+    if(sel) sel.value = (jdCli==='clinic1') ? 'sancristobal' : 'mixco';
+  }
+}
+function jdMsgQuitarImagen(){
+  _jdMsgImagen = null;
+  const f = document.getElementById('jd-msg-img-file'); if(f) f.value='';
+  const p = document.getElementById('jd-msg-img-prev'); if(p) p.style.display='none';
+  const m = document.getElementById('jd-msg-img-msg'); if(m){ m.textContent=''; m.style.color='var(--muted)'; }
+}
+function jdMsgReset(){
+  const on = document.getElementById('jd-msg-on');
+  if(on) on.checked = false;
+  const body = document.getElementById('jd-msg-body');
+  if(body) body.style.display = 'none';
+  const ta = document.getElementById('jd-msg-texto');
+  if(ta) ta.value = '';
+  jdMsgQuitarImagen();
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('jd-msg-img-file');
+  if(!inp) return;
+  inp.addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    const msg = document.getElementById('jd-msg-img-msg');
+    if(!file) return;
+    msg.style.color='var(--muted)'; msg.textContent='Procesando la imagen…';
+    try {
+      _jdMsgImagen = await anComprimir(file);
+      const kb = Math.round(_jdMsgImagen.length*0.75/1024);
+      document.getElementById('jd-msg-img-tag').src = _jdMsgImagen;
+      document.getElementById('jd-msg-img-prev').style.display='block';
+      if(kb > 700){ msg.style.color='#B45309'; msg.textContent=`Pesa ${kb} KB y puede fallar. Probá una más liviana.`; }
+      else { msg.textContent = `Lista (${kb} KB).`; }
+    } catch(err){
+      _jdMsgImagen = null;
+      msg.style.color='#DC2626'; msg.textContent='No se pudo procesar la imagen.';
+    }
+  });
+});
+window.jdMsgToggle = jdMsgToggle;
+window.jdMsgQuitarImagen = jdMsgQuitarImagen;
+
 window.onMsgDiaToggle = onMsgDiaToggle;
 window.onMsgDiaTipo = onMsgDiaTipo;
 window.onMsgDiaBtnToggle = onMsgDiaBtnToggle;
 
 // Guarda (o borra) el mensaje del día en config_app. Un doc por fecha+clínica.
+// Guarda (o apaga) el aviso que ven los pacientes un día concreto.
+//
+// IMPORTANTE — el documento es POR MÉDICO **Y POR SEDE**. Antes el id era
+// `mensaje_FECHA_medico` y las dos páginas de citas leían el mismo: un aviso
+// de "ese día atendemos en la otra sede", escrito al cerrar San Cristóbal,
+// también le aparecía al paciente de Mixco, justo el día que sí había consulta
+// ahí. Ahora cada página lee lo suyo.
+function _msgDocId(fecha, medicoCitas, sede){
+  return `mensaje_${fecha}_${medicoCitas}_${sede}`;
+}
+
+// aviso = { activo, texto, tipo, botonSede, imagen, sedes:['mixco',...] }
+async function guardarAvisoDia(dateStr, docAgenda, aviso){
+  if(!_citasDb) return;
+  const medicoCitas = (docAgenda==='majo') ? 'nochez' : 'denis';
+  const TODAS = ['mixco','sancristobal'];
+  const destino = (aviso && aviso.sedes && aviso.sedes.length) ? aviso.sedes : TODAS;
+  for(const sede of TODAS){
+    const docId = _msgDocId(dateStr, medicoCitas, sede);
+    try {
+      if(aviso && aviso.activo && destino.includes(sede) && (aviso.texto || aviso.imagen)){
+        await _citasDb.collection('config_app').doc(docId).set({
+          activo: true,
+          fecha: dateStr,
+          medicoId: medicoCitas,
+          clinica: sede,
+          texto: aviso.texto || '',
+          tipo: aviso.tipo || 'custom',
+          botonSede: aviso.botonSede || null,
+          imagen: aviso.imagen || null,
+          actualizado: new Date().toISOString(),
+        });
+      } else {
+        // Apagar el de esta sede si existía (p. ej. se cambió el destinatario)
+        await _citasDb.collection('config_app').doc(docId).set({ activo:false }, { merge:true });
+      }
+    } catch(e){ console.warn('guardarAvisoDia', sede, e.message); }
+  }
+}
+
+// Lee el formulario del modal de bloqueo y lo guarda.
 async function guardarMensajeDia(dateStr, docOverride){
   if(!_citasDb) return;
   const wrap = document.getElementById('msg-dia-wrap');
   const on = document.getElementById('msg-dia-on');
-  // El mensaje es POR MÉDICO, no por clínica: uno puede cambiar de sede mientras
-  // el otro atiende normal. medicoId en el sistema de citas: denis→denis,
-  // majo→nochez. docOverride permite guardarlo también para el otro médico
-  // cuando el bloqueo es "Ambos".
   const docAgenda = docOverride || currentDoc;
-  const medicoCitas = (docAgenda==='majo') ? 'nochez' : 'denis';
-  const appSede = (currentClinic==='clinic1') ? 'mixco' : 'sancristobal';
-  const docId = `mensaje_${dateStr}_${medicoCitas}`;
-  try {
-    if(wrap && wrap.style.display!=='none' && on && on.checked){
-      const texto = (document.getElementById('msg-dia-texto').value||'').trim();
-      if(!texto){ return; }
-      const btnOn = document.getElementById('msg-dia-btn-on').checked;
-      const btnDest = document.getElementById('msg-dia-btn-dest').value;
-      await _citasDb.collection('config_app').doc(docId).set({
-        activo: true,
-        fecha: dateStr,
-        medicoId: medicoCitas,
-        clinica: appSede,
-        texto,
-        tipo: document.getElementById('msg-dia-tipo').value,
-        botonSede: btnOn ? btnDest : null,
-        actualizado: new Date().toISOString(),
-      });
-    } else {
-      // Sin mensaje: desactivar si existía
-      await _citasDb.collection('config_app').doc(docId).set({ activo:false }, { merge:true });
-    }
-  } catch(e){ console.warn('guardarMensajeDia:', e.message); }
+  const visible = wrap && wrap.style.display !== 'none' && on && on.checked;
+  if(!visible){ await guardarAvisoDia(dateStr, docAgenda, null); return; }
+
+  const texto = (document.getElementById('msg-dia-texto').value||'').trim();
+  if(!texto && !_msgDiaImagen) return;   // nada que guardar
+  const btnOn = document.getElementById('msg-dia-btn-on').checked;
+  const sedeSel = document.getElementById('msg-dia-sede').value;
+  await guardarAvisoDia(dateStr, docAgenda, {
+    activo: true,
+    texto,
+    tipo: document.getElementById('msg-dia-tipo').value,
+    botonSede: btnOn ? document.getElementById('msg-dia-btn-dest').value : null,
+    imagen: _msgDiaImagen || null,
+    sedes: sedeSel==='ambas' ? ['mixco','sancristobal'] : [sedeSel],
+  });
 }
 
 // Si cambia la fecha mientras se arma un bloqueo, recalculamos por si el
