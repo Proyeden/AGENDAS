@@ -1729,7 +1729,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 20;
+const APP_VERSION = 21;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -2142,7 +2142,7 @@ function setSyncBadge(state, txt){
 // ═══ FIREBASE ═════════════════════════════════════════════════════════════
 // Resilient init: if the Firebase SDK fails to load (e.g. blocked network),
 // the app still runs in local/offline mode instead of crashing entirely.
-let _db = null, _citasDb = null, _auth = null;
+let _db = null, _citasDb = null, _auth = null, _citasAuth = null;
 const _fbReady = (typeof firebase !== 'undefined');
 if (_fbReady) {
   try {
@@ -2156,10 +2156,30 @@ if (_fbReady) {
     const citasApp = firebase.initializeApp(CONFIG.CITAS_FIREBASE, 'citasApp');
     _citasDb = citasApp.firestore();
     _citasDb.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+    // La agenda también inicia sesión en el proyecto de citas. Sin esto, las
+    // reglas de seguridad la tratarían como un visitante cualquiera y no
+    // podría leer los datos de contacto de los pacientes ni publicar horarios.
+    // La contraseña NO está en el código: se usa la misma que la persona
+    // escribe al entrar a la agenda (ver hacerLogin).
+    try { _citasAuth = citasApp.auth(); } catch(e){ console.warn('citas auth init:', e); }
   } catch(e){ console.warn('citas-mixco init error:', e); }
 } else {
   console.warn('Firebase SDK no disponible — modo local');
 }
+
+// ¿La agenda tiene sesión válida en el proyecto de citas?
+function _citasAutenticada(){
+  return !!(_citasAuth && _citasAuth.currentUser);
+}
+
+// Al recargar la página, Firebase tarda un instante en restaurar la sesión
+// guardada. Esta promesa se resuelve cuando ya se sabe si hay sesión o no,
+// para no lanzar consultas que las reglas rechazarían por llegar temprano.
+const _citasListo = new Promise(resolve => {
+  if(!_citasAuth){ resolve(false); return; }
+  const off = _citasAuth.onAuthStateChanged(u => { off(); resolve(!!u); });
+  setTimeout(() => resolve(_citasAutenticada()), 5000); // por si nunca responde
+});
 const _col = () => _db.collection(CONFIG.COLLECTIONS.events);
 
 const DB = {
@@ -2608,6 +2628,10 @@ async function limpiarCitasViejas(){
       const citaTimeUTC = Date.UTC(Y, Mo-1, Da, H, Mi) + GT_OFFSET_MS;
       if(ahora - citaTimeUTC > GRACIA_MS){
         await _citasDb.collection('citas').doc(d.id).delete();
+        // Los datos de contacto viven en un documento aparte con el mismo id:
+        // si no se borra también, el nombre y el teléfono quedarían huérfanos
+        // en la base para siempre.
+        try { await _citasDb.collection('citas_datos').doc(d.id).delete(); } catch(_){}
         borradas++;
       }
     }
@@ -2632,6 +2656,17 @@ async function loadCitasOnline(){
       .where('fecha', '<=', toStr)
       .get();
 
+    // Los datos de contacto viven aparte, en `citas_datos`, con el mismo
+    // identificador del documento. La página del paciente puede crearlos pero
+    // no leerlos; la agenda sí, porque entra con correo y contraseña.
+    const datos = {};
+    await Promise.all(snap.docs.map(async d => {
+      try {
+        const s = await _citasDb.collection('citas_datos').doc(d.id).get();
+        if(s.exists) datos[d.id] = s.data();
+      } catch(_){}
+    }));
+
     // Map medicoId from citas app → agenda doctor ids
     const MEDICO_MAP = {
       'denis':  'denis',
@@ -2654,7 +2689,7 @@ async function loadCitasOnline(){
 
     const evs = [];
     snap.forEach(d => {
-      const c = d.data();
+      const c = { ...d.data(), ...(datos[d.id] || {}) };
       if (c.estado === 'cancelada') return;
       // Pamela no figura en la agenda: su cita no se importa.
       if (c.medicoId === 'pamela') return;
@@ -4174,6 +4209,7 @@ async function borrarCitaWebFirebase(ev, mensajeExito){
   const firebaseId = ev.id.startsWith('online_') ? ev.id.slice(7) : ev.id;
   try {
     await _citasDb.collection('citas').doc(firebaseId).delete();
+    try { await _citasDb.collection('citas_datos').doc(firebaseId).delete(); } catch(_){}
     // Quitar de la vista local
     events = events.filter(e => e.id !== ev.id);
     render();
@@ -6228,6 +6264,18 @@ function wireUp(){
 
 async function init(){
   setSyncBadge('loading');
+  // Esperar a que se restaure (o no) la sesión del proyecto de citas.
+  const hayCitas = await _citasListo;
+  if(_citasAuth && !hayCitas){
+    console.warn('Sin sesión en citas-mixco: las citas de pacientes y la publicación de horarios no van a funcionar.');
+    setTimeout(() => {
+      if(!_citasAutenticada()) alert(
+        '⚠️ La agenda no tiene sesión en el sistema de citas.\n\n' +
+        'Cerrá sesión y volvé a entrar. Si el aviso sigue, hay que crear un usuario ' +
+        'con tu mismo correo y contraseña en el proyecto citas-mixco.'
+      );
+    }, 4000);
+  }
   try{
     events = await DB.load();
     controles = await DB.loadControls();
@@ -6417,7 +6465,23 @@ function hacerLogin(){
   btn.disabled = true; btn.textContent = 'Ingresando…';
   err.style.display = 'none';
   _auth.signInWithEmailAndPassword(email, pass)
-    .then(() => {
+    .then(async () => {
+      // Con las mismas credenciales, entrar también al proyecto de citas.
+      // Requiere que exista un usuario con este mismo correo y contraseña en
+      // citas-mixco (Firebase Console → Authentication → Agregar usuario).
+      if(_citasAuth){
+        try {
+          await _citasAuth.signInWithEmailAndPassword(email, pass);
+        } catch(e){
+          console.warn('citas-mixco login:', e.code);
+          setTimeout(() => alert(
+            '⚠️ Entraste a la agenda, pero no al sistema de citas.\n\n' +
+            'Las citas de pacientes y la publicación de horarios no van a funcionar ' +
+            'hasta que exista un usuario con ESTE MISMO correo y contraseña en el ' +
+            'proyecto citas-mixco (Firebase Console → Authentication → Agregar usuario).'
+          ), 600);
+        }
+      }
       // El observer onAuthStateChanged se encarga de ocultar el overlay
     })
     .catch(e => {
@@ -6436,7 +6500,8 @@ window.hacerLogin = hacerLogin;
 function cerrarSesion(){
   if(!_auth) return;
   if(confirm('¿Cerrar sesión en este dispositivo?')){
-    _auth.signOut().then(()=>{ location.reload(); });
+    const salirCitas = _citasAuth ? _citasAuth.signOut().catch(()=>{}) : Promise.resolve();
+    salirCitas.then(()=> _auth.signOut()).then(()=>{ location.reload(); });
   }
 }
 window.cerrarSesion = cerrarSesion;
