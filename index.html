@@ -191,6 +191,105 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 /* ── GESTIÓN: seis botones iguales en fila se leían como una lista sin
    jerarquía. Agrupados por para-qué-sirve, se encuentra la cosa sin leer
    los seis subtítulos. ── */
+/* ── HASTA QUÉ HORA ── */
+.hqh-intro { font-size:12.5px; color:var(--muted); line-height:1.55; margin:0 0 13px; }
+.hqh-op {
+  width:100%; text-align:left; border:1.5px solid var(--line); background:#fff;
+  border-radius:12px; padding:12px 13px; margin-bottom:9px; cursor:pointer;
+  font-family:var(--font); transition:border-color .14s, background .14s;
+}
+.hqh-op:hover { border-color:var(--denis); background:#FAFBFF; }
+.hqh-op-h { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.hqh-op-t { font-size:15px; font-weight:800; color:var(--text); }
+.hqh-op-tot { font-size:11.5px; font-weight:700; color:var(--muted); }
+.hqh-op-d { font-size:12px; color:#15803D; line-height:1.6; margin-top:5px; }
+.hqh-op-d.nada { color:var(--muted); font-style:italic; }
+.hqh-op-cit { font-size:11.5px; color:#B45309; font-weight:700; margin-top:4px; }
+.hqh-op-dem { font-size:11.5px; color:var(--muted); margin-top:3px; }
+.hqh-dem { padding:11px 12px; border-radius:11px; background:#FFFBEB; border:1px solid #FDE68A; margin-bottom:12px; font-size:12px; color:#92400E; line-height:1.65; }
+.hqh-dem b { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+.hqh-dem span { display:block; }
+.hqh-dem.vacio { background:#F8FAFC; border-color:var(--line); color:var(--muted); }
+.hqh-otra { display:flex; align-items:center; gap:8px; margin-top:13px; padding-top:13px; border-top:1px dashed #CBD5E1; }
+.hqh-otra label { font-size:12px; font-weight:700; color:var(--muted); flex-shrink:0; }
+.hqh-otra input { flex:1; padding:9px; border:1px solid #CBD5E1; border-radius:9px; font-family:var(--font); font-size:13px; }
+.hqh-otra button { border:none; background:var(--denis); color:#fff; border-radius:9px; padding:9px 15px; font-family:var(--font); font-size:12.5px; font-weight:700; cursor:pointer; }
+.hqh-estado { font-size:12px; margin-top:11px; text-align:center; color:var(--muted); min-height:16px; }
+
+/* ── PROFESIONALES ── */
+.pf-tab {
+  flex:1; padding:9px 6px; border:none; background:transparent; cursor:pointer;
+  font-family:var(--font); font-size:12px; font-weight:700; color:var(--muted);
+  border-radius:8px;
+}
+.pf-tab.on { background:#fff; color:var(--denis); box-shadow:0 1px 3px rgba(0,0,0,.09); }
+.pf-bloque { padding:13px 14px; border-radius:12px; background:#fff; border:1px solid var(--line); margin-bottom:14px; }
+.pf-bloque-t { font-size:12px; font-weight:800; color:var(--text); margin-bottom:5px; }
+.pf-bloque-p { font-size:11.5px; color:var(--muted); line-height:1.55; margin:0 0 9px; }
+.pf-sel { width:100%; padding:9px; border:1px solid #CBD5E1; border-radius:8px; font-family:var(--font); font-size:12.5px; background:#fff; }
+.pf-info { padding:12px 14px; border-radius:12px; background:#F8FAFC; border:1px solid var(--line); margin-bottom:14px; font-size:12.5px; color:var(--muted); line-height:1.6; }
+.pf-reparto { background:#fff; border:1px solid var(--line); border-radius:13px; padding:13px; margin-bottom:14px; }
+.pf-reparto-t { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:8px; }
+.pf-reparto-sel { width:100%; padding:10px 8px; border:1px solid #CBD5E1; border-radius:9px; font-family:var(--font); font-size:12.5px; background:#fff; }
+.pf-balance { margin-top:12px; }
+.pf-bal-fila { display:flex; align-items:center; gap:9px; margin-bottom:6px; }
+.pf-bal-n { font-size:12px; font-weight:700; color:var(--text); flex:0 0 96px; }
+.pf-bal-barra { flex:1; height:8px; border-radius:5px; background:#F1F5F9; overflow:hidden; }
+.pf-bal-barra i { display:block; height:100%; background:var(--denis); border-radius:5px; }
+.pf-bal-h { font-size:12px; font-weight:800; color:var(--text); flex:0 0 74px; text-align:right; }
+.pf-bal-h small { display:block; font-size:10px; font-weight:600; color:var(--muted); }
+.pf-bal-pie { font-size:11px; color:var(--muted); margin-top:2px; }
+.pf-dia { background:#fff; border:1px solid var(--line); border-radius:13px; padding:12px 13px; margin-bottom:10px; }
+.pf-dia-h { display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+.pf-dia-n { font-size:13.5px; font-weight:800; color:var(--text); text-transform:capitalize; }
+.pf-add { border:none; background:#EEF2FF; color:#4338CA; border-radius:7px; padding:5px 10px; font-family:var(--font); font-size:11.5px; font-weight:700; cursor:pointer; }
+.pf-fila { display:flex; align-items:center; gap:6px; margin-bottom:7px; }
+.pf-fila select, .pf-fila input {
+  padding:7px 6px; border:1px solid #CBD5E1; border-radius:7px;
+  font-family:var(--font); font-size:12.5px; background:#fff; min-width:0;
+}
+.pf-fila .pf-sede { flex:1.4; }
+.pf-fila .pf-h { flex:1; }
+.pf-x { border:none; background:#FEF2F2; color:#DC2626; border-radius:7px; padding:7px 9px; cursor:pointer; font-weight:700; font-size:12px; flex-shrink:0; }
+.pf-vacio { font-size:12px; color:var(--muted); font-style:italic; }
+.pf-prev { margin-top:9px; padding:9px 10px; border-radius:9px; background:#F0FDF4; border:1px solid #BBF7D0; font-size:12px; color:#14532D; line-height:1.65; }
+.pf-prev b { color:#15803D; }
+.pf-prev.nada { background:#F8FAFC; border-color:var(--line); color:var(--muted); }
+.pf-choque { margin-top:7px; padding:9px 10px; border-radius:9px; background:#FEF2F2; border:1px solid #FECACA; font-size:12px; color:#B91C1C; font-weight:600; line-height:1.6; }
+.pf-guardar { position:sticky; bottom:14px; width:100%; padding:14px; border:none; border-radius:12px; background:var(--denis); color:#fff; font-family:var(--font); font-size:14.5px; font-weight:800; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.16); margin-top:6px; }
+.pf-guardar:disabled { opacity:.5; cursor:default; }
+
+/* ── LISTA DE ESPERA ── */
+.esp-f-btn {
+  flex:1; padding:9px 6px; border:none; background:transparent; cursor:pointer;
+  font-family:var(--font); font-size:12px; font-weight:700; color:var(--muted);
+  border-radius:8px; transition:background .15s,color .15s;
+}
+.esp-f-btn.on { background:#fff; color:var(--sanc); box-shadow:0 1px 3px rgba(0,0,0,.09); }
+.esp-card {
+  background:#fff; border:1px solid var(--line); border-radius:14px;
+  padding:14px; margin-bottom:11px;
+}
+.esp-card.listo { border-color:#86EFAC; background:#F7FEF9; }
+.esp-top { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.esp-nom { font-size:15px; font-weight:800; color:var(--text); }
+.esp-meta { font-size:12px; color:var(--muted); margin-top:3px; line-height:1.5; }
+.esp-espera { font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; background:#F1F5F9; color:#475569; }
+.esp-espera.viejo { background:#FEF2F2; color:#DC2626; }
+.esp-huecos { margin-top:11px; padding:10px; border-radius:10px; background:#F0FDF4; border:1px solid #BBF7D0; }
+.esp-huecos-t { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#15803D; margin-bottom:6px; }
+.esp-hueco { font-size:13px; color:#14532D; font-weight:600; line-height:1.7; }
+.esp-sinhueco { margin-top:11px; padding:10px; border-radius:10px; background:#FFFBEB; border:1px solid #FDE68A; font-size:12px; color:#92400E; }
+.esp-acciones { display:flex; gap:8px; margin-top:11px; }
+.esp-btn {
+  flex:1; padding:10px; border:none; border-radius:9px; cursor:pointer;
+  font-family:var(--font); font-size:12.5px; font-weight:700; text-align:center;
+  text-decoration:none; display:block;
+}
+.esp-wa { background:#25D366; color:#fff; }
+.esp-ok { background:#F1F5F9; color:#475569; }
+.esp-del { background:#FEF2F2; color:#DC2626; flex:0 0 auto; padding:10px 13px; }
+
 .pick-list.gestion { padding-bottom:26px; }
 .pick-list.gestion .pick-item { cursor:pointer; text-decoration:none; }
 .g-titulo {
@@ -207,6 +306,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .g-rosa   { background:#FCE7F3; color:#BE185D; }
 .g-verde  { background:#DCFCE7; color:#15803D; }
 .g-gris   { background:#F1F5F9; color:#475569; }
+.g-ambar  { background:#FEF3C7; color:#B45309; }
 /* Cerrar sesión no compite con el resto: sin ícono, en gris, al final. */
 .g-salir {
   margin-top:26px; background:transparent; border:none; box-shadow:none;
@@ -1024,7 +1124,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </button>
 
     <!-- Botón 2: Gestión — morado -->
-    <button class="home-btn home-btn-purple" onclick="goScreen('s-gestion')">
+    <button class="home-btn home-btn-purple" onclick="goScreen('s-gestion'); espActualizarBadge()">
       <div class="home-btn-icon-wrap home-btn-icon-purple">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </div>
@@ -1058,6 +1158,15 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       </div>
       <span class="pick-arrow">›</span>
     </div>
+    <div class="pick-item" onclick="openEspera()">
+      <div class="pick-av g-av g-ambar">⏳</div>
+      <div class="pick-info">
+        <div class="pick-name">Lista de espera</div>
+        <div class="pick-sub">Quiénes esperan cupo y qué huecos hay para ofrecerles</div>
+      </div>
+      <span class="pick-badge" id="esp-badge" style="display:none"></span>
+      <span class="pick-arrow">›</span>
+    </div>
     <div class="pick-item" onclick="openRecordatorios()">
       <div class="pick-av g-av g-morado">🔔</div>
       <div class="pick-info">
@@ -1068,6 +1177,14 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </div>
 
     <div class="g-titulo">Horarios</div>
+    <div class="pick-item" onclick="openProfesionales()">
+      <div class="pick-av g-av g-morado">🗓️</div>
+      <div class="pick-info">
+        <div class="pick-name">Profesionales y horarios</div>
+        <div class="pick-sub">El tiempo de cada quien en cada sede</div>
+      </div>
+      <span class="pick-arrow">›</span>
+    </div>
     <div class="pick-item" onclick="openJornadaEspecial()">
       <div class="pick-av g-av g-rosa">⏰</div>
       <div class="pick-info">
@@ -1390,6 +1507,63 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   </div>
 </div>
 
+<!-- HASTA QUÉ HORA (ajuste rápido del día) -->
+<div id="hqh-overlay" class="veil" onclick="if(event.target===this) cerrarHastaQueHora()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div>
+        <h2>¿Hasta qué hora?</h2>
+        <div id="hqh-fecha" style="font-size:12px;color:var(--muted);margin-top:3px"></div>
+      </div>
+      <button onclick="cerrarHastaQueHora()" style="border:none;background:transparent;font-size:17px;cursor:pointer;color:var(--muted)">✕</button>
+    </div>
+    <div>
+      <p class="hqh-intro">El día se recorta a esa hora en las dos sedes. Debajo de cada opción, lo que queda.</p>
+      <div id="hqh-demanda"></div>
+      <div id="hqh-opciones"></div>
+      <div class="hqh-otra">
+        <label>Otra hora</label>
+        <input type="time" id="hqh-custom" step="900" onchange="hqhPrevisualizar()">
+        <button onclick="hqhAplicar(null)">Aplicar</button>
+      </div>
+      <div id="hqh-estado" class="hqh-estado"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PROFESIONALES Y HORARIOS -->
+<div id="s-profs" class="screen">
+  <div class="pick-hero" style="--accent:var(--denis)">
+    <div class="pick-hero-inner">
+      <div class="pick-eyebrow">PROFESIONALES</div>
+      <h1 class="pick-title">Horarios<span class="pt-sub">El tiempo de cada quien en cada sede. Lo que cambies acá cambia lo que ven los pacientes.</span></h1>
+    </div>
+  </div>
+  <div style="padding:0 20px 40px;max-width:620px;margin:0 auto">
+    <div class="rec-doc-seg" id="pf-tabs"></div>
+    <div id="pf-cuerpo"></div>
+  </div>
+</div>
+
+<!-- LISTA DE ESPERA -->
+<div id="s-espera" class="screen">
+  <div class="pick-hero" style="--accent:var(--sanc)">
+    <div class="pick-hero-inner">
+      <div class="pick-eyebrow">LISTA DE ESPERA</div>
+      <h1 class="pick-title">Gente esperando<span class="pt-sub">Dejaron su teléfono porque no encontraron cupo. Acá se cruzan con los huecos que hay libres ahora.</span></h1>
+    </div>
+  </div>
+  <div style="padding:0 20px 40px;max-width:620px;margin:0 auto">
+    <div class="rec-doc-seg">
+      <button class="esp-f-btn on" data-f="pendiente" onclick="espSetFiltro('pendiente')">Sin contactar</button>
+      <button class="esp-f-btn"    data-f="contactado" onclick="espSetFiltro('contactado')">Ya contactados</button>
+      <button class="esp-f-btn"    data-f="todas" onclick="espSetFiltro('todas')">Todos</button>
+    </div>
+    <div id="esp-status" class="rec-status">Cargando…</div>
+    <div id="esp-list"></div>
+  </div>
+</div>
+
 <!-- AGENDA -->
 <div id="s-agenda" class="screen">
   <div class="ag-toolbar">
@@ -1430,6 +1604,11 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <div style="max-width:340px;width:100%;background:#fff;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
       <h3 style="margin:0 0 4px;font-size:18px;color:var(--text)">Jornada de hoy</h3>
       <p style="margin:0 0 16px;font-size:13px;color:var(--muted)" id="jornadaPanelSub">Ajustá el día del médico seleccionado</p>
+      <button class="jp-opt" onclick="jpHastaQueHora()">
+        <span class="jp-ic" style="background:#DBEAFE;color:#1D4ED8">🕒</span>
+        <span class="jp-tx"><strong>¿Hasta qué hora?</strong><small>Recortar el día en las dos sedes de una vez</small></span>
+        <span class="jp-ar">›</span>
+      </button>
       <button class="jp-opt" onclick="jpCambiarHorario()">
         <span class="jp-ic" style="background:#EDE9FE;color:#6D28D9">⏰</span>
         <span class="jp-tx"><strong>Cambiar el horario de hoy</strong><small>Alargar, acortar o mover la jornada</small></span>
@@ -1539,10 +1718,11 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <button type="button" id="btn-fullday" onclick="setFullDayBlock()" style="display:none;width:100%;margin-bottom:11px;padding:9px;border:1.5px dashed var(--block);border-radius:8px;background:var(--block-bg);color:var(--block);font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">
       🗓️ Todo el día (usar jornada completa de este médico)
     </button>
+    <div id="fullday-info" style="display:none;margin:-6px 0 11px;padding:8px 10px;border-radius:8px;background:#F0FDF4;color:#15803D;font-size:12px;font-weight:700"></div>
 
     <!-- Bloquear solo una sede (para pasar la jornada a la otra sin borrarla) -->
     <label id="block-sede-wrap" style="display:none;align-items:center;gap:8px;margin-bottom:11px;padding:10px;border:1px solid #FDE68A;border-radius:8px;background:#FFFBEB;font-size:12px;font-weight:600;color:#92400E;cursor:pointer">
-      <input type="checkbox" id="block-sede-on" style="width:16px;height:16px">
+      <input type="checkbox" id="block-sede-on" onchange="onBlockSedeChange()" style="width:16px;height:16px">
       🏥 Bloquear solo <span id="block-sede-nombre">esta sede</span> (dejar libre la otra)
     </label>
 
@@ -1822,7 +2002,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 23;
+const APP_VERSION = 32;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -1904,84 +2084,316 @@ function durLabel(d){ return DURS[d] || `${d} min`; }
 //   Lun–Jue 13:00–17:00 · Vie 09:00–15:00 · Sáb 08:00–14:00
 // San Cristóbal = jornada total − Mixco − traslados. Traslados asimétricos:
 //   SC→Mixco 60 min (salir 1 h antes) · Mixco→SC 45 min (llegar 45 min después)
-const TRASLADO_SC_A_MIXCO = 60;
-const TRASLADO_MIXCO_A_SC = 45;
-const JORNADA_TOTAL_DENIS = {
-  1:[9*60, 18*60+30], 2:[9*60, 18*60+30], 3:[9*60, 18*60+30],
-  4:[9*60, 18*60+30], 5:[9*60, 18*60+30], 6:[8*60, 14*60],
+// ═══ MODELO: PROFESIONALES Y SEDES ════════════════════════════════════════
+//
+// Antes esto era código: existía JORNADA_TOTAL_DENIS, MIXCO_DENIS y una
+// función construirFranjasDenis() escrita para una sola persona. El horario de
+// un profesional era un algoritmo con su nombre; el de otra, una tabla suelta.
+// No había forma de dar de alta a un tercero sin escribirle su propia función,
+// y en 76 lugares el sistema asumía que lo que no supiera de quién era, era de
+// Denis.
+//
+// Ahora los profesionales y las sedes son DATOS. Todo lo demás se deriva de
+// esta tabla: las franjas, las jornadas, la especialidad → profesional, los
+// identificadores del sistema de citas y qué se publica.
+//
+// Para dar de alta a alguien, se agrega una entrada acá. Nada más.
+
+const SEDES = {
+  mixco: {
+    nombre: 'Mixco',
+    clave: 'clinic1',                 // como se llama internamente en la agenda
+    idCitas: 'mixco',                 // como se llama en el sistema de citas
+    url: 'https://proyeden.github.io/Citas-Mixco/',
+  },
+  sancristobal: {
+    nombre: 'San Cristóbal',
+    clave: 'clinic2',
+    idCitas: 'sancristobal',
+    url: 'https://proyeden.github.io/Citas-Pinares/',
+  },
 };
-const MIXCO_DENIS = {
-  1:[[13*60,17*60]], 2:[[13*60,17*60]], 3:[[13*60,17*60]], 4:[[13*60,17*60]],
-  5:[[9*60,15*60]], 6:[[8*60,14*60]],
+
+// Traslados entre sedes: cuánto hay que reservar para moverse. Asimétricos.
+const TRASLADOS = {
+  'sancristobal>mixco': 60,   // hay que salir de SC 1 h antes
+  'mixco>sancristobal': 45,   // se llega a SC 45 min después de cerrar Mixco
 };
-function construirFranjasDenis(dow, mixcoOverride){
-  const jt = JORNADA_TOTAL_DENIS[dow];
-  if(!jt && !mixcoOverride) return [];
-  let [ini, fin] = jt || [9*60, 18*60+30];
-  // mixcoOverride = [ini,fin] cuando se corre la jornada de Mixco ese día.
-  const mixco = mixcoOverride
-    ? [mixcoOverride]
-    : (MIXCO_DENIS[dow] || []).slice().sort((a,b)=>a[0]-b[0]);
-  // Si el horario corrido se sale de la jornada normal, la jornada se estira:
-  // manda lo que el médico definió, no el molde.
-  if(mixcoOverride){
-    ini = Math.min(ini, mixcoOverride[0]);
-    fin = Math.max(fin, mixcoOverride[1]);
-  }
-  const franjas = [];
-  let cur = ini;
-  for(const [ms, me] of mixco){
-    // Antes de Mixco: San Cristóbal hasta 1 h antes de que empiece Mixco
-    // (hay que salir de SC con esa anticipación para llegar a tiempo).
-    const finSC = ms - TRASLADO_SC_A_MIXCO;
-    if(finSC - cur >= 20) franjas.push({ clinica:'clinic2', ini:cur, fin:finSC });
-    // La franja de Mixco tal cual
-    franjas.push({ clinica:'clinic1', ini:ms, fin:me });
-    // Después de Mixco: San Cristóbal recién 45 min después (traslado de vuelta)
-    cur = me + TRASLADO_MIXCO_A_SC;
-  }
-  // Cola del día: lo que quede después del último Mixco es San Cristóbal
-  if(fin - cur >= 20) franjas.push({ clinica:'clinic2', ini:cur, fin:fin });
-  franjas.sort((a,b)=>a.ini-b.ini);
-  return franjas;
+const TRASLADO_SC_A_MIXCO = TRASLADOS['sancristobal>mixco'];
+const TRASLADO_MIXCO_A_SC = TRASLADOS['mixco>sancristobal'];
+
+// Cada profesional se describe con:
+//   bloques    · franjas fijas por día de semana: { dow: [[ini, fin]] } en minutos
+//   jornada    · tramo total de trabajo del día, si tiene uno definido
+//   sedeResto  · sede que absorbe el tiempo de la jornada que no está en
+//                `bloques`, descontando traslados. Es lo que hacía a mano
+//                construirFranjasDenis, ahora expresado como dato.
+//   publica    · false = no se publican horarios; todo va a lista de espera
+const PROFESIONALES = {
+  denis: {
+    nombre: 'Denis Cotzojay',
+    corto: 'Dr. Denis',
+    trato: 'Dr.',
+    iniciales: 'DC',
+    idCitas: 'denis',
+    especialidades: ['Medicina interna', 'Diabetes'],
+    publica: true,
+    jornada:  { 1:[540,1110], 2:[540,1110], 3:[540,1110], 4:[540,1110], 5:[540,1110], 6:[480,840] },
+    bloques:  { mixco: { 1:[[780,1020]], 2:[[780,1020]], 3:[[780,1020]],
+                         4:[[780,1020]], 5:[[540,900]],  6:[[480,840]] } },
+    sedeResto: 'sancristobal',
+  },
+  majo: {
+    nombre: 'María José Nóchez',
+    corto: 'Dra. María José',
+    trato: 'Dra.',
+    iniciales: 'MJ',
+    idCitas: 'nochez',
+    especialidades: ['Pediatría', 'Neonatología'],
+    publica: true,
+    // Sin jornada ni sedeResto: sus franjas son exactamente estas.
+    // En Mixco no se agenda por agenda, así que no tiene bloques ahí.
+    bloques: { sancristobal: { 1:[[960,1095]], 2:[[960,1095]], 3:[[960,1095]],
+                               4:[[960,1095]], 5:[[960,1095]], 6:[[540,810]] } },
+  },
+  pamela: {
+    nombre: 'Pamela',
+    corto: 'Psic. Pamela',
+    trato: 'Psic.',
+    iniciales: 'PA',
+    idCitas: 'pamela',
+    especialidades: ['Psicología'],
+    // Sin horario fijo: cada cita se coordina con ella. Por eso no se publican
+    // horarios suyos y toda solicitud entra por lista de espera.
+    publica: false,
+    bloques: {},
+  },
+};
+
+// ── Derivados de la tabla ───────────────────────────────────────────────
+// Nada de esto se escribe a mano: si mañana entra un cuarto profesional, sale
+// solo. Antes eran mapas fijos y una cadena de `if` con nombres adentro.
+
+let SEDE_POR_CLAVE = {};
+
+// Especialidad → profesional. Hay uno solo por especialidad.
+let ESPECIALIDAD_A_PROF = {};
+
+// Todo lo derivado se recalcula acá. Se llama al arrancar y cada vez que el
+// modelo cambia (por ejemplo, al editar horarios desde Gestión), para que no
+// queden mapas viejos apuntando a una tabla que ya cambió.
+function reconstruirDerivados(){
+  SEDE_POR_CLAVE = Object.fromEntries(
+    Object.entries(SEDES).map(([id, x]) => [x.clave, { id, ...x }]));
+  ESPECIALIDAD_A_PROF = {};
+  for(const [id, p] of Object.entries(PROFESIONALES))
+    for(const e of (p.especialidades || []))
+      ESPECIALIDAD_A_PROF[e.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')] = id;
+  MEDICO_TO_CITAS = Object.fromEntries(
+    Object.entries(PROFESIONALES).map(([id, p]) => [id, p.idCitas || id]));
+  CITAS_TO_MEDICO = Object.fromEntries(
+    Object.entries(PROFESIONALES).map(([id, p]) => [p.idCitas || id, id]));
 }
 
-const FRANJAS = {
-  // Denis: su jornada de San Cristóbal se CALCULA sola. Se define la jornada
-  // total de trabajo y las franjas fijas de Mixco; San Cristóbal ocupa todo el
-  // tiempo restante, descontando los traslados (asimétricos):
-  //   • San Cristóbal → Mixco: 60 min (hay que salir 1 h antes de SC)
-  //   • Mixco → San Cristóbal: 45 min (se llega 45 min después de cerrar Mixco)
-  denis: dow => construirFranjasDenis(dow),
-  // Dra. Nóchez: su clínica de agenda es SAN CRISTÓBAL.
-  // En Mixco NO se agenda por agenda (todo va a lista de espera), por eso
-  // no tiene franja de clinic1: no debe publicar slots de Mixco.
-  majo: dow => {
-    if(dow>=1&&dow<=5) return [
-      { clinica:'clinic2', ini:16*60,     fin:18*60+15 }, // SC 16:00-18:15 (16:00, 16:45, 17:30)
-    ];
-    if(dow===6) return [
-      { clinica:'clinic2', ini:9*60,      fin:13*60+30 }, // SC 09:00-13:30 (09:00 … 12:45)
-    ];
-    return [];
-  },
-};
+function profDeEspecialidad(esp){
+  if(!esp) return null;
+  const k = (esp+'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  if(ESPECIALIDAD_A_PROF[k]) return ESPECIALIDAD_A_PROF[k];
+  // Coincidencia parcial: "Consulta de pediatría" → pediatría
+  for(const [nombre, id] of Object.entries(ESPECIALIDAD_A_PROF))
+    if(k.includes(nombre) || nombre.includes(k)) return id;
+  return null;   // desconocida: NO se asume que sea de nadie
+}
 
-// JORNADA sigue siendo la función que usa calcularHuecos para Mixco
-// (la franja principal de Mixco ese día, o la jornada especial si existe)
-const JORNADA = {
-  denis: dow => {
-    const f = FRANJAS.denis(dow).find(x=>x.clinica==='clinic1');
-    return f ? {ini:f.ini, fin:f.fin} : null;
-  },
-  majo: dow => {
-    // Su sede es SAN CRISTÓBAL (clinic2). Antes se buscaba su franja de Mixco
-    // (clinic1), que ya no existe, y por eso la agenda decía siempre
-    // "no atiende este día".
-    const f = FRANJAS.majo(dow).find(x=>x.clinica==='clinic2');
-    return f ? {ini:f.ini, fin:f.fin} : null;
-  },
-};
+let MEDICO_TO_CITAS = {}, CITAS_TO_MEDICO = {};
+
+const nombreProf = (id, campo='corto') =>
+  (PROFESIONALES[id] && PROFESIONALES[id][campo]) || id;
+
+// ── Cálculo de franjas, igual para todos ────────────────────────────────
+// Construye las franjas de un profesional en un día. Si tiene `sedeResto`,
+// el tiempo de la jornada que no está tomado por sus bloques fijos se le
+// asigna a esa sede, descontando el traslado en cada borde.
+function franjasDe(profId, dow, override){
+  const P = PROFESIONALES[profId];
+  if(!P) return [];
+
+  // Bloques fijos del día, con su sede
+  let fijos = [];
+  for(const [sedeId, porDia] of Object.entries(P.bloques || {})){
+    for(const [ini, fin] of (porDia[dow] || []))
+      fijos.push({ sede: sedeId, ini, fin });
+  }
+
+  // override = { sede, ini, fin }: se corrió esa franja ese día (jornada especial)
+  if(override){
+    fijos = fijos.filter(f => f.sede !== override.sede);
+    fijos.push({ sede: override.sede, ini: override.ini, fin: override.fin });
+  }
+  fijos.sort((a,b) => a.ini - b.ini);
+
+  // Si el profesional DECLARA franjas en la sede que normalmente absorbe el
+  // resto, mandan esas. Es la diferencia entre un servicio con horario propio
+  // (CEDIMI atiende de 9 a 11:15) y uno que solo recoge el tiempo sobrante.
+  // Heredar el resto hace que el horario derive: basta mover la otra sede para
+  // que este cambie solo, sin que nadie lo haya decidido.
+  const declaraResto = P.sedeResto && fijos.some(f => f.sede === P.sedeResto);
+
+  const jt = P.jornada && P.jornada[dow];
+  if(!P.sedeResto || declaraResto || (!jt && !override)){
+    return fijos.map(f => ({ clinica: SEDES[f.sede].clave, ini: f.ini, fin: f.fin }));
+  }
+
+  let [ini, fin] = jt || [540, 1110];
+  // Si lo definido se sale de la jornada normal, manda lo definido.
+  for(const f of fijos){ ini = Math.min(ini, f.ini); fin = Math.max(fin, f.fin); }
+
+  const resto = P.sedeResto;
+  // Los traslados pueden ser propios de cada profesional: no todos manejan
+  // igual ni salen del mismo lugar. Si no los define, valen los generales.
+  const TR = { ...TRASLADOS, ...(P.traslados || {}) };
+  const out = [];
+  let cur = ini;
+  for(const f of fijos){
+    const tIda = TR[`${resto}>${f.sede}`] || 0;
+    const finResto = f.ini - tIda;
+    if(finResto - cur >= 20) out.push({ clinica: SEDES[resto].clave, ini: cur, fin: finResto });
+    out.push({ clinica: SEDES[f.sede].clave, ini: f.ini, fin: f.fin });
+    cur = f.fin + (TR[`${f.sede}>${resto}`] || 0);
+  }
+  if(fin - cur >= 20) out.push({ clinica: SEDES[resto].clave, ini: cur, fin });
+  out.sort((a,b) => a.ini - b.ini);
+  return out;
+}
+
+// Detecta si un profesional quedó agendado en dos sedes a la vez. Puede pasar
+// al declarar el horario de un servicio si choca con el de la otra sede: nadie
+// puede estar en Mixco y en San Cristóbal el mismo viernes a las 9. Se avisa en
+// vez de elegir una en silencio, porque cuál es la buena solo lo sabe la
+// persona que la vive.
+function solapesDe(profId, dow){
+  const fr = franjasDe(profId, dow).slice().sort((a,b) => a.ini - b.ini);
+  const out = [];
+  for(let i=0; i<fr.length-1; i++){
+    const a = fr[i], b = fr[i+1];
+    if(b.ini < a.fin && a.clinica !== b.clinica){
+      out.push({ a, b, desde: b.ini, hasta: Math.min(a.fin, b.fin) });
+    }
+  }
+  return out;
+}
+
+// FRANJAS y JORNADA se resuelven al vuelo contra la tabla actual. Si se
+// arman como objeto fijo, un profesional dado de alta después queda afuera.
+const _proxyTabla = (fn) => new Proxy({}, {
+  get: (_, id) => (typeof id === 'string' && PROFESIONALES[id]) ? (dow => fn(id, dow)) : undefined,
+  has: (_, id) => id in PROFESIONALES,
+  ownKeys: () => Reflect.ownKeys(PROFESIONALES),
+  getOwnPropertyDescriptor: () => ({ enumerable:true, configurable:true }),
+});
+
+const FRANJAS = _proxyTabla((id, dow) => franjasDe(id, dow));
+
+// La firma vieja recibía [ini,fin] de Mixco. Se conserva para no tocar quien
+// la llama, pero por dentro ya es genérica.
+function construirFranjasDenis(dow, mixcoOverride){
+  return franjasDe('denis', dow,
+    mixcoOverride ? { sede:'mixco', ini:mixcoOverride[0], fin:mixcoOverride[1] } : null);
+}
+
+// JORNADA: el tramo de referencia del profesional ese dia. Antes buscaba a
+// mano la franja de clinic1 para uno y la de clinic2 para otra, con un
+// comentario explicando por que fallaba. Ahora es la sede donde cada quien
+// tiene sus bloques fijos, sacada de la tabla.
+const JORNADA = _proxyTabla((id, dow) => {
+  const P = PROFESIONALES[id];
+  const sedeBase = Object.keys(P.bloques || {})[0];
+  if(!sedeBase) return null;
+  const f = franjasDe(id, dow).find(x => x.clinica === SEDES[sedeBase].clave);
+  return f ? { ini:f.ini, fin:f.fin } : null;
+});
+
+reconstruirDerivados();
+
+// ── Carga del modelo desde Firestore ────────────────────────────────────
+// La tabla de arriba es el valor de fábrica y el respaldo. Si en Firestore hay
+// horarios guardados, pisan a los de fábrica. Si Firestore no responde o el
+// documento viene mal formado, se sigue con los de fábrica: el sistema nunca
+// se queda sin horarios por un problema de red.
+function _validarProf(d){
+  if(!d || typeof d !== 'object') return null;
+  const ok = (par) => Array.isArray(par) && par.length === 2
+    && Number.isFinite(par[0]) && Number.isFinite(par[1])
+    && par[0] >= 0 && par[1] <= 1440 && par[0] < par[1];
+  const limpio = {};
+  if(d.bloques && typeof d.bloques === 'object'){
+    // TODO o NADA. Si se aceptara lo que está bien y se descartara en silencio
+    // lo que está mal, un documento con una sede mal escrita entraría como
+    // "sin franjas" y le borraría el horario al profesional sin que nadie se
+    // entere. Ante cualquier dato raro, se rechaza el documento entero y se
+    // siguen usando los horarios de fábrica.
+    limpio.bloques = {};
+    for(const [sede, porDia] of Object.entries(d.bloques)){
+      if(!SEDES[sede]){ console.warn('modelo: sede desconocida', sede); return null; }
+      if(!porDia || typeof porDia !== 'object') return null;
+      const dias = {};
+      for(const [dow, pares] of Object.entries(porDia)){
+        const n = Number(dow);
+        if(!(n >= 0 && n <= 6) || !Array.isArray(pares)) return null;
+        if(pares.some(x => !ok(x))){ console.warn('modelo: franja inválida', sede, dow); return null; }
+        if(pares.length) dias[n] = pares;
+      }
+      limpio.bloques[sede] = dias;
+    }
+  }
+  if(d.jornada && typeof d.jornada === 'object'){
+    limpio.jornada = {};
+    for(const [dow, par] of Object.entries(d.jornada)){
+      const n = Number(dow);
+      if(n >= 0 && n <= 6 && ok(par)) limpio.jornada[n] = par;
+    }
+  }
+  if(typeof d.sedeResto === 'string' && SEDES[d.sedeResto]) limpio.sedeResto = d.sedeResto;
+  else if(d.sedeResto === null) limpio.sedeResto = null;
+  if(typeof d.publica === 'boolean') limpio.publica = d.publica;
+  if(d.traslados && typeof d.traslados === 'object'){
+    const t = {};
+    for(const [k, v] of Object.entries(d.traslados)){
+      const [a, b] = k.split('>');
+      if(SEDES[a] && SEDES[b] && Number.isFinite(v) && v >= 0 && v <= 240) t[k] = v;
+    }
+    limpio.traslados = t;
+  }
+  if(Array.isArray(d.especialidades)) limpio.especialidades = d.especialidades.filter(x => typeof x === 'string');
+  for(const c of ['nombre','corto','trato','iniciales','idCitas'])
+    if(typeof d[c] === 'string' && d[c].trim()) limpio[c] = d[c].trim();
+  return Object.keys(limpio).length ? limpio : null;
+}
+
+let _modeloDeFirestore = false;
+async function cargarModelo(){
+  if(!_db) return false;
+  try {
+    const snap = await _db.collection('modelo_horarios').get();
+    let aplicados = 0;
+    snap.forEach(d => {
+      const limpio = _validarProf(d.data());
+      if(!limpio) return;
+      PROFESIONALES[d.id] = { ...(PROFESIONALES[d.id] || {}), ...limpio };
+      aplicados++;
+    });
+    if(aplicados){
+      reconstruirDerivados();
+      _modeloDeFirestore = true;
+      console.log(`Modelo de horarios: ${aplicados} profesional(es) desde Firestore`);
+    }
+    return aplicados > 0;
+  } catch(e){
+    console.warn('cargarModelo (se usan los horarios de fábrica):', e.message);
+    return false;
+  }
+}
+
 const tMin=(t)=>{ const[h,m]=t.split(':').map(Number); return h*60+m; };
 const tFmt=(m)=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
 
@@ -2816,8 +3228,7 @@ async function loadCitasOnline(){
 }
 
 // Map between agenda doctor ids and citas-mixco medicoId
-const MEDICO_TO_CITAS = { 'denis': 'denis', 'majo': 'nochez' };
-const CITAS_TO_MEDICO = { 'denis': 'denis', 'nochez': 'majo' };
+// (MEDICO_TO_CITAS y CITAS_TO_MEDICO ahora se derivan de PROFESIONALES)
 
 // Load blocks ("Paciente directo / Reservado") from the citas system.
 // These occupy time slots — they show as virtual reservations in the agenda.
@@ -3288,11 +3699,16 @@ function actualizarContadoresHome(){
   // 3. Lista de espera — se lee de Firebase citas-mixco de forma asíncrona
   // para no bloquear el render. Si falla, simplemente no muestra ese contador.
   if(_citasDb){
+    // OJO: antes filtraba con .where('estado','==','pendiente'), pero la página
+    // de citas nunca escribía ese campo al anotar a alguien. El contador daba
+    // SIEMPRE cero y nadie se enteraba de que había gente esperando. Ahora se
+    // traen todos y se filtra acá, tratando los registros sin `estado` como
+    // pendientes (que es lo que son).
     _citasDb.collection('lista_espera')
-      .where('estado','==','pendiente')
       .get()
       .then(snap=>{
-        const n = snap.size;
+        let n = 0;
+        snap.forEach(d => { if((d.data().estado||'pendiente') === 'pendiente') n++; });
         set('hc-espera', 'hc-espera-n', n);
         // Re-evaluar visibilidad con el valor actualizado
         const hayAlgo = nReservas>0 || nOnline>0 || n>0;
@@ -3688,6 +4104,700 @@ function getJornadaEfectiva(doctorId, dateStr){
   const dow = new Date(Y, Mo-1, D).getDay();
   return JORNADA[doctorId] ? JORNADA[doctorId](dow) : null;
 }
+
+// ═══ ¿HASTA QUÉ HORA? ═════════════════════════════════════════════════════
+// Hay días en que la hora de salida no la decide la clínica. Un viernes se
+// puede hasta las tres, otro hasta las cinco, y encima depende de cuánta
+// demanda haya en Mixco esa mañana. Eso no es un patrón semanal: es una
+// decisión que se toma ese día.
+//
+// Armar una jornada especial a mano para eso es demasiado trabajo para algo
+// que pasa todas las semanas. Acá se elige la hora y el sistema recorta el día
+// en las dos sedes, avisando qué queda y si hay alguna cita que se pasa.
+
+let _hqhFecha = null;
+let _hqhDemanda = null;   // { sinCupo, buscoCercana, aEspera } de ese día
+
+// Lee cuánta gente buscó cita ese día y no encontró. Son contadores anónimos
+// que escriben las páginas de pacientes: sin nombre, sin teléfono, solo números.
+async function hqhCargarDemanda(fecha){
+  _hqhDemanda = null;
+  if(!_citasDb) return;
+  const tot = { sinCupo:0, buscoCercana:0, aEspera:0 };
+  await Promise.all(Object.keys(SEDES).map(async sede => {
+    try {
+      const d = await _citasDb.collection('demanda').doc(`${sede}_${fecha}`).get();
+      if(!d.exists) return;
+      const v = d.data() || {};
+      for(const k of Object.keys(tot)) tot[k] += (v[k] || 0);
+    } catch(_){}
+  }));
+  _hqhDemanda = tot;
+}
+
+function abrirHastaQueHora(fecha){
+  _hqhFecha = fecha || todayKey();
+  const [Y,M,D] = _hqhFecha.split('-').map(Number);
+  const d = new Date(Y, M-1, D);
+  document.getElementById('hqh-fecha').textContent =
+    d.toLocaleDateString('es-GT', { weekday:'long', day:'numeric', month:'long' }) +
+    ' · ' + nombreProf(currentDoc);
+  document.getElementById('hqh-estado').textContent = '';
+  document.getElementById('hqh-custom').value = '';
+  hqhPrevisualizar();
+  document.getElementById('hqh-overlay').classList.add('on');
+  hqhCargarDemanda(_hqhFecha).then(hqhPrevisualizar);
+}
+window.abrirHastaQueHora = abrirHastaQueHora;
+function cerrarHastaQueHora(){ document.getElementById('hqh-overlay').classList.remove('on'); }
+window.cerrarHastaQueHora = cerrarHastaQueHora;
+
+// Recorta las franjas del día a una hora tope. Lo que empieza después se cae;
+// lo que la cruza, se corta.
+function hqhRecortar(fecha, tope){
+  const [Y,M,D] = fecha.split('-').map(Number);
+  const dow = new Date(Y, M-1, D).getDay();
+  const base = (FRANJAS[currentDoc] ? FRANJAS[currentDoc](dow) : []);
+  const out = [];
+  for(const f of base){
+    if(f.ini >= tope) continue;
+    const fin = Math.min(f.fin, tope);
+    if(fin - f.ini >= 20) out.push({ ...f, fin });
+  }
+  return out;
+}
+
+// Citas ya agendadas que quedarían fuera del tope.
+function hqhCitasAfectadas(fecha, tope){
+  return events.filter(e => e.date === fecha && e.doctor === currentDoc
+    && !e.blocked && e.time && tMin(e.time) >= tope);
+}
+
+function hqhOpciones(){
+  const [Y,M,D] = _hqhFecha.split('-').map(Number);
+  const dow = new Date(Y, M-1, D).getDay();
+  const base = (FRANJAS[currentDoc] ? FRANJAS[currentDoc](dow) : []);
+  const finNormal = base.length ? Math.max(...base.map(f => f.fin)) : 18*60;
+  // Las horas que de verdad se usan, más el final normal del día.
+  const cand = [...new Set([15*60, 17*60, finNormal])].filter(h => h <= finNormal).sort((a,b)=>a-b);
+  return cand.map(h => ({ tope:h, esNormal: h === finNormal }));
+}
+
+function hqhPrevisualizar(){
+  const cont = document.getElementById('hqh-opciones');
+  // Demanda que NO se pudo atender ese día: el número que faltaba para decidir
+  // si vale la pena estirar la jornada o conviene recortarla.
+  const dem = document.getElementById('hqh-demanda');
+  if(dem){
+    if(!_hqhDemanda){ dem.innerHTML = ''; }
+    else {
+      const t = _hqhDemanda;
+      const nada = !t.sinCupo && !t.buscoCercana && !t.aEspera;
+      dem.innerHTML = nada
+        ? `<div class="hqh-dem vacio">Nadie se quedó sin cupo este día.</div>`
+        : `<div class="hqh-dem">
+             <b>Demanda que no se atendió</b>
+             ${t.sinCupo      ? `<span>${t.sinCupo} vieron el día sin horarios</span>` : ''}
+             ${t.buscoCercana ? `<span>${t.buscoCercana} buscaron otro día</span>` : ''}
+             ${t.aEspera      ? `<span>${t.aEspera} se anotaron en espera</span>` : ''}
+           </div>`;
+    }
+  }
+  const custom = document.getElementById('hqh-custom').value;
+  const lista = hqhOpciones();
+  if(custom){
+    const t = tMin(custom);
+    if(!lista.some(o => o.tope === t)) lista.push({ tope:t, esNormal:false });
+    lista.sort((a,b) => a.tope - b.tope);
+  }
+  cont.innerHTML = lista.map(o => {
+    const fr = hqhRecortar(_hqhFecha, o.tope);
+    const porSede = {};
+    for(const f of fr){
+      const sid = SEDE_POR_CLAVE[f.clinica];
+      if(!sid) continue;
+      porSede[sid.nombre] = (porSede[sid.nombre] || 0) + (f.fin - f.ini);
+    }
+    const total = Object.values(porSede).reduce((a,b)=>a+b,0);
+    const hs = (m) => (m/60).toFixed(1).replace('.0','') + ' h';
+    const det = Object.entries(porSede).map(([n,m]) => `${n} ${hs(m)}`).join(' · ');
+    const afect = hqhCitasAfectadas(_hqhFecha, o.tope);
+    const dentro = events.filter(e => e.date === _hqhFecha && e.doctor === currentDoc
+      && !e.blocked && e.time && tMin(e.time) < o.tope).length;
+    return `<button class="hqh-op" onclick="hqhAplicar(${o.tope})">
+      <div class="hqh-op-h">
+        <span class="hqh-op-t">Hasta las ${tFmt(o.tope)}${o.esNormal ? ' · jornada completa' : ''}</span>
+        <span class="hqh-op-tot">${hs(total)}</span>
+      </div>
+      <div class="hqh-op-d ${det ? '' : 'nada'}">${det || 'No queda tiempo de consulta'}</div>
+      <div class="hqh-op-dem">${dentro} cita${dentro===1?'':'s'} agendada${dentro===1?'':'s'} en ese rango</div>
+      ${afect.length ? `<div class="hqh-op-cit">⚠️ ${afect.length} cita${afect.length>1?'s':''} ya agendada${afect.length>1?'s':''} después de esa hora</div>` : ''}
+    </button>`;
+  }).join('');
+}
+window.hqhPrevisualizar = hqhPrevisualizar;
+
+async function hqhAplicar(tope){
+  if(tope === null){
+    const v = document.getElementById('hqh-custom').value;
+    if(!v){ return; }
+    tope = tMin(v);
+  }
+  const est = document.getElementById('hqh-estado');
+  est.textContent = 'Guardando…';
+  const fr = hqhRecortar(_hqhFecha, tope);
+  try {
+    // Una jornada especial por sede con lo que quedó; las sedes sin nada
+    // quedan cerradas ese día.
+    for(const [sedeId, sede] of Object.entries(SEDES)){
+      const delDia = fr.filter(f => f.clinica === sede.clave);
+      const id = `je_${currentDoc}_${sede.clave}_${_hqhFecha}`;
+      jornadasEspeciales = jornadasEspeciales.filter(j => j.id !== id);
+      if(delDia.length){
+        const j = {
+          id, doctor: currentDoc, clinica: sede.clave, fecha: _hqhFecha,
+          ini: tFmt(Math.min(...delDia.map(x=>x.ini))),
+          fin: tFmt(Math.max(...delDia.map(x=>x.fin))),
+          motivo: `Hasta las ${tFmt(tope)}`,
+          creadoEn: new Date().toISOString(),
+        };
+        jornadasEspeciales.push(j);
+        if(_db) await _db.collection('jornadas_especiales').doc(id).set(j);
+      } else if(_db){
+        try { await _db.collection('jornadas_especiales').doc(id).delete(); } catch(_){}
+      }
+    }
+    render();
+    est.textContent = 'Publicando…';
+    await publicarSlotsDisponibles({ fechas:[_hqhFecha] });
+    await publicarSlotsSanCristobal({ fechas:[_hqhFecha] });
+    est.textContent = `✓ Listo · hasta las ${tFmt(tope)}`;
+    setTimeout(cerrarHastaQueHora, 1000);
+  } catch(e){
+    console.warn('hqhAplicar:', e.message);
+    est.textContent = 'No se pudo guardar: ' + e.message;
+  }
+}
+window.hqhAplicar = hqhAplicar;
+
+// ═══ PROFESIONALES Y HORARIOS ═════════════════════════════════════════════
+// Hasta acá los horarios vivían en el código: para mover una hora había que
+// editar el HTML y volver a publicarlo. Ahora se editan desde la app y quedan
+// en Firestore. La tabla del código sigue siendo el respaldo: si Firestore no
+// responde, se usa esa y el sistema no se queda sin horarios.
+
+let pfActual = null;
+let pfBorrador = null;      // copia de trabajo; nada se guarda hasta confirmar
+
+const DIAS_SEM = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const _pfMin = (t) => { const [h,m] = (t||'0:0').split(':').map(Number); return h*60+m; };
+
+function openProfesionales(){
+  goScreen('s-profs');
+  pfActual = pfActual && PROFESIONALES[pfActual] ? pfActual : Object.keys(PROFESIONALES)[0];
+  pfRenderTabs();
+  pfCargarBorrador();
+  pfRender();
+}
+window.openProfesionales = openProfesionales;
+
+function pfRenderTabs(){
+  const t = document.getElementById('pf-tabs');
+  t.innerHTML = Object.entries(PROFESIONALES).map(([id,p]) =>
+    `<button class="pf-tab ${id===pfActual?'on':''}" onclick="pfSet('${id}')">${p.corto||p.nombre||id}</button>`
+  ).join('');
+}
+function pfSet(id){
+  if(pfBorrador && pfHayCambios() && !confirm('Hay cambios sin guardar. ¿Descartarlos?')) return;
+  pfActual = id; pfRenderTabs(); pfCargarBorrador(); pfRender();
+}
+window.pfSet = pfSet;
+
+function pfCargarBorrador(){
+  const P = PROFESIONALES[pfActual] || {};
+  // Se aplana a filas {dow, sede, ini, fin} — mucho más fácil de editar que
+  // el objeto anidado, y se vuelve a plegar al guardar.
+  const filas = [];
+  for(const [sede, porDia] of Object.entries(P.bloques || {}))
+    for(const [dow, pares] of Object.entries(porDia))
+      for(const [ini, fin] of pares) filas.push({ dow:Number(dow), sede, ini, fin });
+  filas.sort((a,b) => a.dow-b.dow || a.ini-b.ini);
+  pfBorrador = {
+    filas,
+    jornada: JSON.parse(JSON.stringify(P.jornada || {})),
+    sedeResto: P.sedeResto || null,
+    traslados: JSON.parse(JSON.stringify(P.traslados || {})),
+    publica: P.publica !== false,
+    _orig: '',
+  };
+  pfBorrador._orig = pfHuella();
+}
+const pfHuella = () => JSON.stringify([pfBorrador.filas, pfBorrador.jornada,
+  pfBorrador.sedeResto, pfBorrador.traslados]);
+const pfHayCambios = () => pfBorrador && pfHuella() !== pfBorrador._orig;
+
+// Cambiar quién hereda. Si nadie tenía jornada total definida, se crea una a
+// partir de las franjas del día: sin ella no habría "resto" que repartir.
+function pfSetResto(valor){
+  pfBorrador.sedeResto = valor || null;
+  if(valor){
+    for(let d=1; d<=6; d++){
+      if(pfBorrador.jornada[d]) continue;
+      const delDia = pfBorrador.filas.filter(f => f.dow===d);
+      if(!delDia.length) continue;
+      pfBorrador.jornada[d] = [Math.min(...delDia.map(f=>f.ini)),
+                               Math.max(...delDia.map(f=>f.fin))];
+    }
+  }
+  pfRender();
+}
+function pfSetTraslado(clave, valor){
+  const n = Math.max(0, Math.min(240, parseInt(valor,10) || 0));
+  pfBorrador.traslados[clave] = n;
+  pfRender();
+}
+window.pfSetResto = pfSetResto; window.pfSetTraslado = pfSetTraslado;
+
+function pfRender(){
+  const P = PROFESIONALES[pfActual] || {};
+  const c = document.getElementById('pf-cuerpo');
+  const opcSede = Object.entries(SEDES).map(([id,s]) => ({id, nombre:s.nombre}));
+
+  let html = `<div class="pf-info">
+    <b>${P.nombre||pfActual}</b> · ${(P.especialidades||[]).join(', ')||'sin especialidad'}
+  </div>`;
+
+  if(P.publica !== false){
+    const resto = pfBorrador.sedeResto;
+    html += `<div class="pf-bloque">
+      <div class="pf-bloque-t">¿Qué sede absorbe el tiempo libre?</div>
+      <p class="pf-bloque-p">La sede con más demanda lleva horas fijas; la otra se queda con
+      lo que sobra de la jornada, descontando el traslado. Si la demanda se mueve, se cambia acá
+      y los horarios se recalculan solos.</p>
+      <select class="pf-sel" onchange="pfSetResto(this.value)">
+        <option value="" ${!resto?'selected':''}>Ninguna — cada sede con su horario declarado</option>
+        ${Object.entries(SEDES).map(([id,x]) =>
+          `<option value="${id}" ${resto===id?'selected':''}>${x.nombre} hereda el tiempo restante</option>`).join('')}
+      </select>`;
+    if(resto){
+      const otras = Object.keys(SEDES).filter(x => x !== resto);
+      html += `<div class="pf-bloque-t" style="margin-top:12px">Traslado entre sedes (minutos)</div>`;
+      for(const o of otras){
+        const ida = (pfBorrador.traslados[`${resto}>${o}`] ?? TRASLADOS[`${resto}>${o}`] ?? 0);
+        const vue = (pfBorrador.traslados[`${o}>${resto}`] ?? TRASLADOS[`${o}>${resto}`] ?? 0);
+        html += `<div class="pf-fila">
+          <span style="font-size:11.5px;color:var(--muted);flex:1.6">${SEDES[resto].nombre} → ${SEDES[o].nombre}</span>
+          <input class="pf-h" type="number" min="0" max="240" step="5" value="${ida}" onchange="pfSetTraslado('${resto}>${o}',this.value)">
+        </div>
+        <div class="pf-fila">
+          <span style="font-size:11.5px;color:var(--muted);flex:1.6">${SEDES[o].nombre} → ${SEDES[resto].nombre}</span>
+          <input class="pf-h" type="number" min="0" max="240" step="5" value="${vue}" onchange="pfSetTraslado('${o}>${resto}',this.value)">
+        </div>`;
+      }
+    }
+    html += `</div>`;
+  }
+
+  if(P.publica === false){
+    html += `<div class="pf-info">No hay horarios que editar para ${P.corto||pfActual}.</div>`;
+    c.innerHTML = html;
+    return;
+  }
+
+  // ── Reparto entre sedes ────────────────────────────────────────────────
+  // Una sede declara sus horas y la otra absorbe lo que queda de la jornada.
+  // Hoy declara Mixco porque tiene más demanda; si eso cambia, se invierte acá
+  // y todo se recalcula, incluidos los traslados (que son asimétricos: salir de
+  // San Cristóbal cuesta 60 min y volver 45).
+  html += `<div class="pf-reparto">
+    <div class="pf-reparto-t">Reparto entre sedes</div>
+    <select class="pf-reparto-sel" onchange="pfSedeResto(this.value)">
+      ${Object.entries(SEDES).map(([id,x]) => `<option value="${id}" ${pfBorrador.sedeResto===id?'selected':''}>
+        Declaro ${Object.keys(SEDES).filter(o=>o!==id).map(o=>SEDES[o].nombre).join(' y ')} · ${x.nombre} absorbe el resto</option>`).join('')}
+      <option value="" ${!pfBorrador.sedeResto?'selected':''}>Declaro las dos sedes a mano</option>
+    </select>
+    <div class="pf-balance" id="pf-balance"></div>
+  </div>`;
+
+  for(let d=1; d<=6; d++){
+    const filas = pfBorrador.filas.filter(f => f.dow===d);
+    const j = pfBorrador.jornada[d];
+    html += `<div class="pf-dia">
+      <div class="pf-dia-h">
+        <span class="pf-dia-n">${DIAS_SEM[d]}</span>
+        <button class="pf-add" onclick="pfAgregar(${d})">+ franja</button>
+      </div>`;
+    if(!filas.length){
+      html += `<div class="pf-vacio">Sin franjas fijas este día.</div>`;
+    } else {
+      filas.forEach(f => {
+        const i = pfBorrador.filas.indexOf(f);
+        html += `<div class="pf-fila">
+          <select class="pf-sede" onchange="pfEditar(${i},'sede',this.value)">
+            ${opcSede.map(o => `<option value="${o.id}" ${o.id===f.sede?'selected':''}>${o.nombre}</option>`).join('')}
+          </select>
+          <input class="pf-h" type="time" step="900" value="${tFmt(f.ini)}" onchange="pfEditar(${i},'ini',this.value)">
+          <input class="pf-h" type="time" step="900" value="${tFmt(f.fin)}" onchange="pfEditar(${i},'fin',this.value)">
+          <button class="pf-x" onclick="pfQuitar(${i})">✕</button>
+        </div>`;
+      });
+    }
+    if(!j && pfBorrador.sedeResto && filas.length){
+      pfBorrador.jornada[d] = [Math.min(...filas.map(f=>f.ini)), Math.max(...filas.map(f=>f.fin))];
+    }
+    const j2 = pfBorrador.jornada[d];
+    if(j2) html += `<div class="pf-fila" style="margin-top:4px">
+      <span style="font-size:11.5px;color:var(--muted);flex:1.4">Jornada total</span>
+      <input class="pf-h" type="time" step="900" value="${tFmt(j2[0])}" onchange="pfJornada(${d},0,this.value)">
+      <input class="pf-h" type="time" step="900" value="${tFmt(j2[1])}" onchange="pfJornada(${d},1,this.value)">
+    </div>`;
+
+    // Vista previa: lo que realmente va a quedar publicado ese día.
+    const prev = pfCalcularPreview(d);
+    const choques = pfCalcularSolapes(d);
+    html += prev.length
+      ? `<div class="pf-prev">${prev.map(f =>
+          `<b>${SEDE_POR_CLAVE[f.clinica].nombre}</b> ${tFmt(f.ini)}–${tFmt(f.fin)}`).join('<br>')}</div>`
+      : `<div class="pf-prev nada">No atiende este día.</div>`;
+    if(choques.length) html += `<div class="pf-choque">⚠️ ${choques.map(c =>
+      `${tFmt(c.desde)}–${tFmt(c.hasta)} aparece en ${SEDE_POR_CLAVE[c.a.clinica].nombre} y en ${SEDE_POR_CLAVE[c.b.clinica].nombre} a la vez`
+    ).join('<br>')}</div>`;
+    html += `</div>`;
+  }
+
+  html += `<button class="pf-guardar" id="pf-btn-guardar" onclick="pfGuardar()">Guardar horarios</button>`;
+  c.innerHTML = html;
+
+  // Balance semanal: cuánto tiempo le toca a cada sede con este reparto.
+  // Es el número que permite decidir según demanda en vez de a ojo.
+  const total = {};
+  for(let d=1; d<=6; d++)
+    for(const f of pfCalcularPreview(d)){
+      const sid = SEDE_POR_CLAVE[f.clinica].id;
+      total[sid] = (total[sid]||0) + (f.fin - f.ini);
+    }
+  const bal = document.getElementById('pf-balance');
+  if(bal){
+    const horas = (m) => (m/60).toFixed(1).replace('.0','') + ' h';
+    const suma = Object.values(total).reduce((a,b)=>a+b,0) || 1;
+    bal.innerHTML = Object.entries(SEDES).map(([id,x]) => {
+      const m = total[id]||0;
+      return `<div class="pf-bal-fila">
+        <span class="pf-bal-n">${x.nombre}</span>
+        <span class="pf-bal-barra"><i style="width:${Math.round(m/suma*100)}%"></i></span>
+        <span class="pf-bal-h">${horas(m)}<small>${Math.round(m/suma*100)}%</small></span>
+      </div>`;
+    }).join('') + `<div class="pf-bal-pie">a la semana, sin contar traslados</div>`;
+  }
+}
+
+// Calcula las franjas resultantes usando el borrador, sin tocar el modelo real.
+function pfCalcularSolapes(dow){
+  const P = PROFESIONALES[pfActual], original = P;
+  const bloques = {};
+  for(const f of pfBorrador.filas.filter(x => x.dow===dow)){
+    bloques[f.sede] = bloques[f.sede] || {};
+    (bloques[f.sede][dow] = bloques[f.sede][dow] || []).push([f.ini, f.fin]);
+  }
+  PROFESIONALES[pfActual] = { ...P, bloques, jornada: pfBorrador.jornada, sedeResto: pfBorrador.sedeResto, traslados: pfBorrador.traslados };
+  let out = [];
+  try { out = solapesDe(pfActual, dow); } catch(_){}
+  PROFESIONALES[pfActual] = original;
+  return out;
+}
+
+function pfCalcularPreview(dow){
+  const P = PROFESIONALES[pfActual];
+  const bloques = {};
+  for(const f of pfBorrador.filas.filter(x => x.dow===dow)){
+    bloques[f.sede] = bloques[f.sede] || {};
+    (bloques[f.sede][dow] = bloques[f.sede][dow] || []).push([f.ini, f.fin]);
+  }
+  const original = PROFESIONALES[pfActual];
+  PROFESIONALES[pfActual] = { ...P, bloques, jornada: pfBorrador.jornada, sedeResto: pfBorrador.sedeResto, traslados: pfBorrador.traslados };
+  let out = [];
+  try { out = franjasDe(pfActual, dow); } catch(_){}
+  PROFESIONALES[pfActual] = original;
+  return out;
+}
+
+function pfSedeResto(valor){
+  pfBorrador.sedeResto = valor || null;
+  pfRender();
+}
+window.pfSedeResto = pfSedeResto;
+
+function pfAgregar(dow){
+  const sede = pfBorrador.sedeResto
+    ? Object.keys(SEDES).find(x => x !== pfBorrador.sedeResto) || Object.keys(SEDES)[0]
+    : Object.keys(SEDES)[0];
+  pfBorrador.filas.push({ dow, sede, ini: 9*60, fin: 12*60 });
+  pfBorrador.filas.sort((a,b) => a.dow-b.dow || a.ini-b.ini);
+  pfRender();
+}
+function pfEditar(i, campo, valor){
+  const f = pfBorrador.filas[i]; if(!f) return;
+  f[campo] = (campo==='sede') ? valor : _pfMin(valor);
+  if(f.fin <= f.ini) f.fin = f.ini + 60;
+  pfRender();
+}
+function pfQuitar(i){ pfBorrador.filas.splice(i,1); pfRender(); }
+function pfJornada(dow, idx, valor){
+  const j = pfBorrador.jornada[dow] || [9*60, 18*60];
+  j[idx] = _pfMin(valor);
+  if(j[1] <= j[0]) j[1] = j[0] + 60;
+  pfBorrador.jornada[dow] = j;
+  pfRender();
+}
+window.pfAgregar = pfAgregar; window.pfEditar = pfEditar;
+window.pfQuitar = pfQuitar;  window.pfJornada = pfJornada;
+
+async function pfGuardar(){
+  const btn = document.getElementById('pf-btn-guardar');
+  if(btn){ btn.disabled = true; btn.textContent = 'Guardando…'; }
+  const bloques = {};
+  for(const f of pfBorrador.filas){
+    bloques[f.sede] = bloques[f.sede] || {};
+    (bloques[f.sede][f.dow] = bloques[f.sede][f.dow] || []).push([f.ini, f.fin]);
+  }
+  const datos = {
+    bloques,
+    jornada: pfBorrador.jornada,
+    sedeResto: pfBorrador.sedeResto,
+    traslados: pfBorrador.traslados,
+    publica: pfBorrador.publica,
+    actualizado: new Date().toISOString(),
+  };
+  try {
+    await _db.collection('modelo_horarios').doc(pfActual).set(datos, { merge:true });
+    // Aplicar en caliente y republicar: lo que ve el paciente cambia ya.
+    PROFESIONALES[pfActual] = { ...PROFESIONALES[pfActual], bloques,
+      jornada: pfBorrador.jornada, sedeResto: pfBorrador.sedeResto,
+      traslados: pfBorrador.traslados };
+    reconstruirDerivados();
+    pfBorrador._orig = pfHuella();
+    render();
+    if(btn) btn.textContent = 'Publicando horarios…';
+    await publicarModeloPublico();
+    await publicarSlotsDisponibles();
+    await publicarSlotsSanCristobal();
+    if(btn){ btn.textContent = '✓ Guardado y publicado'; setTimeout(()=>{ btn.textContent='Guardar horarios'; btn.disabled=false; }, 2200); }
+  } catch(e){
+    console.warn('pfGuardar:', e.message);
+    alert('No se pudieron guardar los horarios: ' + e.message);
+    if(btn){ btn.textContent = 'Guardar horarios'; btn.disabled = false; }
+  }
+}
+window.pfGuardar = pfGuardar;
+
+// ═══ LISTA DE ESPERA ══════════════════════════════════════════════════════
+// El eslabón que faltaba. La gente se anotaba, quedaba guardada, y nadie se
+// enteraba: la agenda solo contaba cuántos había (y ni eso — ver abajo). Acá
+// se cruza cada persona con los huecos que hay libres AHORA para su médico y
+// su sede, y se ofrece el WhatsApp ya escrito.
+
+let espFiltro = 'pendiente';
+let _espCache = [];
+
+// La especialidad que elige el paciente decide el médico.
+function _espMedico(item){
+  // Antes: "si dice pediatría es de Nóchez, si no, es de Denis". El mismo
+  // sesgo que el resto del sistema. Ahora sale de la tabla, y si la
+  // especialidad no corresponde a nadie, se dice, en vez de asumir.
+  return profDeEspecialidad(item.especialidad);
+}
+function _espSedeClinica(item){
+  return (item.clinica==='sancristobal') ? 'clinic2' : 'clinic1';
+}
+
+// Primeros huecos libres para ese médico y esa sede, mirando 30 días.
+function espBuscarHuecos(item, cuantos = 3){
+  const medico = _espMedico(item);
+  // Pamela no tiene horario fijo: sus citas se coordinan una por una, así que
+  // no hay huecos que ofrecer y no tiene sentido calcularlos.
+  if(!medico || PROFESIONALES[medico]?.publica === false) return [];
+  const clinica = _espSedeClinica(item);
+  const out = [];
+  const hoy = todayKey();
+  for(let i=0; i<=30 && out.length<cuantos; i++){
+    const d = new Date(); d.setDate(d.getDate()+i);
+    const fecha = dateKey(d);
+    if(fecha < hoy) continue;
+    let huecos = [];
+    try { huecos = calcularHuecos(medico, fecha, clinica) || []; } catch(_){ continue; }
+    for(const h of huecos){
+      if(out.length >= cuantos) break;
+      const dur = (h.fin - h.ini);
+      if(dur < 20) continue;
+      out.push({ fecha, hora: tFmt(h.ini), dur });
+    }
+  }
+  return out;
+}
+
+const _espFechaLarga = (f) => {
+  const [Y,M,D] = f.split('-').map(Number);
+  return new Date(Y, M-1, D).toLocaleDateString('es-GT',
+    { weekday:'long', day:'numeric', month:'long' });
+};
+
+function espSetFiltro(f){
+  espFiltro = f;
+  document.querySelectorAll('.esp-f-btn').forEach(b => b.classList.toggle('on', b.dataset.f===f));
+  espRender();
+}
+window.espSetFiltro = espSetFiltro;
+
+async function openEspera(){
+  goScreen('s-espera');
+  espFiltro = 'pendiente';
+  document.querySelectorAll('.esp-f-btn').forEach(b => b.classList.toggle('on', b.dataset.f==='pendiente'));
+  document.getElementById('esp-status').textContent = 'Cargando…';
+  document.getElementById('esp-list').innerHTML = '';
+  await espCargar();
+  espRender();
+}
+window.openEspera = openEspera;
+
+async function espCargar(){
+  _espCache = [];
+  if(!_citasDb) return;
+  try {
+    const snap = await _citasDb.collection('lista_espera').get();
+    const items = [];
+    snap.forEach(d => items.push({ ...d.data(), _id: d.id }));
+    // Nombre y teléfono viven aparte, en espera_datos.
+    await Promise.all(items.map(async it => {
+      try {
+        const s2 = await _citasDb.collection('espera_datos').doc(it._id).get();
+        if(s2.exists) Object.assign(it, s2.data());
+      } catch(_){}
+    }));
+    items.sort((a,b) => (a.registradoEn||'').localeCompare(b.registradoEn||''));
+    _espCache = items;
+  } catch(e){
+    console.warn('espCargar:', e.message);
+  }
+}
+
+function espRender(){
+  const cont = document.getElementById('esp-list');
+  const est  = document.getElementById('esp-status');
+  if(!cont) return;
+
+  const lista = _espCache.filter(it => {
+    // Los registros viejos no traen `estado`: cuentan como pendientes.
+    const e = it.estado || 'pendiente';
+    if(espFiltro==='todas') return true;
+    return e === espFiltro;
+  });
+
+  if(!lista.length){
+    est.textContent = espFiltro==='pendiente'
+      ? 'Nadie esperando. Todo al día.'
+      : 'Nada en este filtro.';
+    cont.innerHTML = '';
+    return;
+  }
+  est.textContent = `${lista.length} ${lista.length===1?'persona':'personas'}`;
+
+  const hoy = new Date();
+  cont.innerHTML = lista.map(it => {
+    const nombre = it.nombre || '(sin nombre)';
+    const tel = (it.tel||'').replace(/\D/g,'');
+    const dias = it.registradoEn
+      ? Math.floor((hoy - new Date(it.registradoEn)) / 86400000) : null;
+    const espTxt = dias===null ? '' : dias===0 ? 'hoy' : dias===1 ? 'hace 1 día' : `hace ${dias} días`;
+    const sede = it.clinica==='sancristobal' ? 'San Cristóbal' : 'Mixco';
+    const profId = _espMedico(it);
+    const medico = profId ? nombreProf(profId) : 'sin asignar';
+    const huecos = profId ? espBuscarHuecos(it, 3) : [];
+
+    const pref = [];
+    if(it.fechaPreferida) pref.push('preferían ' + _espFechaLarga(it.fechaPreferida));
+    if(it.horaPreferida)  pref.push('a las ' + it.horaPreferida);
+
+    let bloque;
+    if(huecos.length){
+      bloque = `<div class="esp-huecos">
+        <div class="esp-huecos-t">Huecos libres para ofrecerle</div>
+        ${huecos.map(h => `<div class="esp-hueco">· ${_espFechaLarga(h.fecha)} a las ${h.hora}</div>`).join('')}
+      </div>`;
+    } else {
+      bloque = profId
+        ? `<div class="esp-sinhueco">Sin huecos en los próximos 30 días para ${medico} en ${sede}.</div>`
+        : `<div class="esp-sinhueco">${PROFESIONALES[profDeEspecialidad(it.especialidad)] ? '' : ''}Esta especialidad no tiene horario publicado — hay que coordinar la cita directamente.</div>`;
+    }
+
+    const primero = huecos[0];
+    const msg = primero
+      ? `Hola ${nombre.split(' ')[0]}, le escribimos de la clínica. Se liberó un espacio con el ${medico} en ${sede}: ${_espFechaLarga(primero.fecha)} a las ${primero.hora}. ¿Le sirve? Quedamos atentos.`
+      : `Hola ${nombre.split(' ')[0]}, le escribimos de la clínica por su solicitud de cita con el ${medico} en ${sede}. Estamos viendo opciones de horario, ¿le llamamos?`;
+    const wa = tel ? `https://wa.me/502${tel}?text=${encodeURIComponent(msg)}` : null;
+
+    const yaContactado = (it.estado||'pendiente') === 'contactado';
+
+    return `<div class="esp-card ${huecos.length?'listo':''}">
+      <div class="esp-top">
+        <span class="esp-nom">${(nombre+'').replace(/</g,'&lt;')}</span>
+        ${espTxt ? `<span class="esp-espera ${dias>=7?'viejo':''}">${espTxt}</span>` : ''}
+      </div>
+      <div class="esp-meta">
+        ${it.especialidad ? (it.especialidad+'').replace(/</g,'&lt;')+' · ' : ''}${medico} · ${sede}
+        ${tel ? '<br>📞 '+tel : '<br>Sin teléfono registrado'}
+        ${pref.length ? '<br>'+pref.join(', ') : ''}
+      </div>
+      ${bloque}
+      <div class="esp-acciones">
+        ${wa ? `<a class="esp-btn esp-wa" href="${wa}" target="_blank" rel="noopener" onclick="espMarcar('${it._id}','contactado')">💬 WhatsApp</a>` : ''}
+        <button class="esp-btn esp-ok" onclick="espMarcar('${it._id}','${yaContactado?'pendiente':'contactado'}')">${yaContactado?'Volver a pendiente':'Marcar contactado'}</button>
+        <button class="esp-btn esp-del" onclick="espBorrar('${it._id}')" title="Quitar de la lista">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function espMarcar(id, estado){
+  const it = _espCache.find(x => x._id === id);
+  if(it) it.estado = estado;
+  espRender();
+  try {
+    await _citasDb.collection('lista_espera').doc(id)
+      .set({ estado, contactadoEn: estado==='contactado' ? new Date().toISOString() : null }, { merge:true });
+  } catch(e){ console.warn('espMarcar:', e.message); }
+  espActualizarBadge();
+}
+window.espMarcar = espMarcar;
+
+async function espBorrar(id){
+  if(!confirm('¿Quitar a esta persona de la lista de espera?')) return;
+  _espCache = _espCache.filter(x => x._id !== id);
+  espRender();
+  try {
+    await _citasDb.collection('lista_espera').doc(id).delete();
+    await _citasDb.collection('espera_datos').doc(id).delete();
+  } catch(e){ console.warn('espBorrar:', e.message); }
+  espActualizarBadge();
+}
+window.espBorrar = espBorrar;
+
+// Contador en la pantalla de Gestión.
+async function espActualizarBadge(){
+  if(!_citasDb) return;
+  try {
+    const snap = await _citasDb.collection('lista_espera').get();
+    let n = 0;
+    snap.forEach(d => { if((d.data().estado||'pendiente') === 'pendiente') n++; });
+    const b = document.getElementById('esp-badge');
+    if(b){
+      b.style.display = n ? 'inline-block' : 'none';
+      b.textContent = n + (n===1 ? ' espera' : ' esperan');
+      b.style.background = n ? '#FEF3C7' : '';
+      b.style.color = n ? '#B45309' : '';
+    }
+  } catch(_){}
+}
+window.espActualizarBadge = espActualizarBadge;
 
 function openRecordatorios(){
   goScreen('s-recordatorios');
@@ -4513,7 +5623,11 @@ function onStartTimeChange(){
   if(!end || end<=start){ const [h,m]=start.split(':').map(Number); const em=h*60+m+45; buildEndTimes(`${String(Math.floor(em/60)).padStart(2,'0')}:${String(em%60).padStart(2,'0')}`); }
 }
 function setDoc(d){ currentDoc=d; document.getElementById('db-denis').className='seg-btn'+(d==='denis'?' on-denis':''); document.getElementById('db-majo').className='seg-btn'+(d==='majo'?' on-majo':''); }
-function setClinic(c){ currentClinic=c;
+let _sedeBloqueo = 'clinic1';   // última sede real; la referencia al bloquear
+
+function setClinic(c){
+  if(c==='clinic1' || c==='clinic2') _sedeBloqueo = c;
+  currentClinic=c;
   document.getElementById('cb-mixco').className='seg-btn'+(c==='clinic1'?' on-mixco':'');
   document.getElementById('cb-sanc').className='seg-btn'+(c==='clinic2'?' on-sanc':'');
   document.getElementById('cb-block').className='seg-btn'+(c==='blocked'?' on-block':'');
@@ -4549,7 +5663,10 @@ function setClinic(c){ currentClinic=c;
   // al abrir (no arrastra estado de un bloqueo anterior).
   const mw = document.getElementById('msg-dia-wrap');
   if(mw){
-    mw.style.display = 'none';   // se muestra al tocar "Todo el día"
+    // Antes solo aparecía al tocar "Todo el día". Poner un aviso no tiene por
+    // qué depender de eso: se puede querer avisar en un bloqueo de media
+    // mañana igual que en uno de día completo. Es opcional en todos los casos.
+    mw.style.display = isBlock ? 'block' : 'none';
     const on = document.getElementById('msg-dia-on');
     if(on) on.checked = false;
     const body = document.getElementById('msg-dia-body');
@@ -4564,15 +5681,19 @@ function setClinic(c){ currentClinic=c;
     // Sugerencia: el aviso se ve donde el paciente NO va a encontrar consulta,
     // o sea la sede que se está bloqueando.
     const sedeSel = document.getElementById('msg-dia-sede');
-    if(sedeSel) sedeSel.value = (currentClinic==='clinic2') ? 'sancristobal' : 'mixco';
+    if(sedeSel) sedeSel.value = (_sedeBloqueo==='clinic2') ? 'sancristobal' : 'mixco';
   }
   // Reset del bloqueo por sede
   const bsw = document.getElementById('block-sede-wrap');
   if(bsw){
-    bsw.style.display = 'none';
+    bsw.style.display = isBlock ? 'flex' : 'none';
     const bso = document.getElementById('block-sede-on');
     if(bso) bso.checked = false;
+    const bsn = document.getElementById('block-sede-nombre');
+    if(bsn) bsn.textContent = (_sedeBloqueo==='clinic2') ? 'San Cristóbal' : 'Mixco';
   }
+  const fdi = document.getElementById('fullday-info');
+  if(fdi) fdi.style.display = 'none';
 }
 
 function toggleAmbosDoc(btn){
@@ -4589,26 +5710,47 @@ function setFullDayBlock(){
   const dateStr = document.getElementById('f-date').value || todayKey();
   const [Y,Mo,D] = dateStr.split('-').map(Number);
   const dow = new Date(Y, Mo-1, D).getDay();
-  const j = JORNADA[currentDoc] ? JORNADA[currentDoc](dow) : null;
-  if(!j){
-    alert(`${CONFIG.DOCTORS[currentDoc]?.name||currentDoc} no atiende este día — no hay jornada que bloquear.`);
+
+  // "Todo el día" es TODO el día: de la primera franja a la última, sumando
+  // las dos sedes. Antes tomaba solo la franja de Mixco, así que un bloqueo de
+  // día completo dejaba San Cristóbal abierto y había que corregir las horas
+  // a mano — de ahí la sensación de que igual pedía horario.
+  const todas = (FRANJAS[currentDoc] ? FRANJAS[currentDoc](dow) : []);
+  const soloSede = document.getElementById('block-sede-on')?.checked;
+  const franjas = soloSede ? todas.filter(f => f.clinica === _sedeBloqueo) : todas;
+
+  if(!franjas.length){
+    const quien = CONFIG.DOCTORS[currentDoc]?.name || currentDoc;
+    alert(soloSede
+      ? `${quien} no atiende en esa sede este día — no hay jornada que bloquear.`
+      : `${quien} no atiende este día — no hay jornada que bloquear.`);
     return;
   }
-  buildTimes(tFmt(j.ini));
-  buildEndTimes(tFmt(j.fin));
-  document.getElementById('f-time').value = tFmt(j.ini);
-  document.getElementById('f-endtime').value = tFmt(j.fin);
-  // Al marcar "todo el día" ofrecemos poner un mensaje para los pacientes.
-  const wrap = document.getElementById('msg-dia-wrap');
-  if(wrap) wrap.style.display = 'block';
-  // Y ofrecemos bloquear solo esta sede (para pasar la jornada a la otra).
-  const bsw = document.getElementById('block-sede-wrap');
-  const bsn = document.getElementById('block-sede-nombre');
-  if(bsw){
-    bsw.style.display = 'flex';
-    if(bsn) bsn.textContent = (currentClinic==='clinic1') ? 'Mixco' : 'San Cristóbal';
+
+  const ini = Math.min(...franjas.map(f => f.ini));
+  const fin = Math.max(...franjas.map(f => f.fin));
+  buildTimes(tFmt(ini));
+  buildEndTimes(tFmt(fin));
+  document.getElementById('f-time').value = tFmt(ini);
+  document.getElementById('f-endtime').value = tFmt(fin);
+
+  // Confirmación visible: qué franja quedó puesta y en qué sedes.
+  const sedes = [...new Set(franjas.map(f => f.clinica==='clinic1' ? 'Mixco' : 'San Cristóbal'))];
+  const info = document.getElementById('fullday-info');
+  if(info){
+    info.style.display = 'block';
+    info.textContent = `✓ Jornada completa: ${tFmt(ini)} – ${tFmt(fin)} · ${sedes.join(' y ')}`;
   }
 }
+
+// Si se cambia "solo esta sede" después de tocar "Todo el día", recalcular.
+function onBlockSedeChange(){
+  const info = document.getElementById('fullday-info');
+  if(info && info.style.display === 'block') setFullDayBlock();
+  const bsn = document.getElementById('block-sede-nombre');
+  if(bsn) bsn.textContent = (_sedeBloqueo==='clinic2') ? 'San Cristóbal' : 'Mixco';
+}
+window.onBlockSedeChange = onBlockSedeChange;
 
 // Textos sugeridos según el tipo de mensaje.
 function _msgDiaSugerido(tipo){
@@ -4641,7 +5783,7 @@ function onMsgDiaBtnToggle(){
   // Sugerir destino según la clínica que se está bloqueando
   if(on){
     const dest = document.getElementById('msg-dia-btn-dest');
-    dest.value = (currentClinic==='clinic1') ? 'sancristobal' : 'mixco';
+    dest.value = (_sedeBloqueo==='clinic1') ? 'sancristobal' : 'mixco';
   }
 }
 // ── Imagen del aviso del día ─────────────────────────────────────────────
@@ -4908,7 +6050,7 @@ async function saveEvent(){
   // Sirve para pasar la jornada a la otra sede sin borrarla (currentClinic:
   // clinic1=Mixco, clinic2=San Cristóbal).
   if(isBlock && document.getElementById('block-sede-on')?.checked){
-    ev.blockClinica = currentClinic;
+    ev.blockClinica = _sedeBloqueo;
   }
   // Si es un bloqueo con mensaje para pacientes, guardarlo ANTES de cerrar el
   // modal (cerrarlo limpia el formulario).
@@ -5165,6 +6307,19 @@ function cerrarPanelJornada(){
   const p = document.getElementById('jornadaPanel');
   if(p) p.style.display = 'none';
 }
+function jpHastaQueHora(){
+  cerrarPanelJornada();
+  // Si la vista está en un día concreto, ese; si no, hoy.
+  let f = todayKey();
+  if(currentDayOffset){
+    const d = new Date(); d.setDate(d.getDate() + currentDayOffset); f = dateKey(d);
+  }
+  const doc = resolverMedico('¿Hasta qué hora?');
+  if(!doc) return;
+  currentDoc = doc;
+  abrirHastaQueHora(f);
+}
+window.jpHastaQueHora = jpHastaQueHora;
 function jpCambiarHorario(){ cerrarPanelJornada(); openJornadaEspecial(); }
 function jpTerminarAntes(){ cerrarPanelJornada(); finalizarJornada(); }
 function jpCitas30(){ cerrarPanelJornada(); reducirSlots30(); }
@@ -5458,6 +6613,37 @@ async function publicarSlotsSanCristobal(opciones){
 //
 // Se corre: automáticamente después de cada syncNow, y con botón manual.
 
+// Deja en el sistema de citas un resumen del modelo: qué días y en qué franjas
+// trabaja cada profesional, por sede. Las páginas de pacientes lo leen para
+// saber qué días ofrecer, en vez de depender de su propia tabla.
+async function publicarModeloPublico(){
+  if(!_citasDb) return false;
+  const profs = {};
+  for(const [id, P] of Object.entries(PROFESIONALES)){
+    const franjas = {};
+    for(let dow = 0; dow <= 6; dow++){
+      for(const f of franjasDe(id, dow)){
+        const sede = SEDE_POR_CLAVE[f.clinica];
+        if(!sede) continue;
+        franjas[sede.id] = franjas[sede.id] || {};
+        (franjas[sede.id][dow] = franjas[sede.id][dow] || []).push([f.ini, f.fin]);
+      }
+    }
+    profs[P.idCitas || id] = {
+      nombre: P.nombre || id,
+      corto: P.corto || P.nombre || id,
+      especialidades: P.especialidades || [],
+      publica: P.publica !== false,
+      franjas,
+    };
+  }
+  await _citasDb.collection('config_app').doc('modelo_publico').set({
+    profesionales: profs,
+    actualizado: new Date().toISOString(),
+  });
+  return true;
+}
+
 let _publicando = false;
 
 // ── ESCRITURA POR LOTES ────────────────────────────────────────────────────
@@ -5661,6 +6847,11 @@ async function publicarSlotsDisponibles(opciones){
       console.log(`⚡ Mixco (${soloFechas.join(', ')}): ${_slotsEscritos} horarios`);
       return true;
     }
+    // Publicar también el MODELO, para que las páginas de pacientes sepan qué
+    // días trabaja cada quien en cada sede. Hasta ahora cada página tenía su
+    // propia copia del horario escrita a mano: eran tres tablas que había que
+    // mantener iguales a pulso, y si acá se cambiaba una, allá seguía la vieja.
+    try { await publicarModeloPublico(); } catch(e){ console.warn('modelo público:', e.message); }
     window._pubMixco = { dias: fechas.size, horarios: _slotsEscritos };
     console.log(`✅ Mixco: ${_slotsEscritos} horarios en ${fechas.size} días`);
     // Alarma visible: si no se escribió NI UN horario, la clínica se queda sin
@@ -6502,6 +7693,9 @@ function wireUp(){
 
 async function init(){
   setSyncBadge('loading');
+  // Los horarios guardados pisan a los de fábrica. Va primero: todo lo que
+  // sigue (franjas, huecos, publicación) depende de esta tabla.
+  try { await cargarModelo(); } catch(e){ console.warn('modelo:', e.message); }
   // Esperar a que se restaure (o no) la sesión del proyecto de citas.
   const hayCitas = await _citasListo;
   if(_citasAuth && !hayCitas){
