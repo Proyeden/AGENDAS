@@ -369,6 +369,20 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   padding:8px 12px;display:flex;align-items:center;gap:8px;overflow:hidden}
 .nv-bloq b{color:var(--n-danger);font-weight:650;font-size:13px}
 .nv-bloq .d{font-size:11px;color:var(--n-danger);opacity:.8;margin-left:auto}
+.nv-pal{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px;padding-top:12px;
+  border-top:1px dashed #CBD5E1}
+.nv-pal button{flex:1 1 150px;border:1.5px solid #A9C4D8;background:#fff;border-radius:10px;
+  padding:9px 11px;cursor:pointer;text-align:left;font-family:var(--font);
+  transition:border-color .14s,background .14s}
+.nv-pal button:hover{border-color:#1B72B8;background:#F7FBFE}
+.nv-pal button b{display:block;font-size:13px;font-weight:700;color:#123F73}
+.nv-pal button span{display:block;font-size:11px;color:#54718A;margin-top:2px;line-height:1.35}
+.nv-pal button.on{border-color:#6BB745;background:#EAF5E3}
+.nv-pal button.on b{color:#3F8A2E}
+.nv-pal button.on span{color:#3F8A2E}
+.nv-pal button.urg{border-color:#EFC3BE;background:#FBE8E6}
+.nv-pal button.urg b{color:#B02A20}
+.nv-pal button.urg span{color:#B02A20;opacity:.85}
 .nv-acc{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
 .nv-acc button{flex:1 1 46%;border:1px solid var(--n-line2);background:var(--n-surface);
   border-radius:10px;padding:12px;cursor:pointer;text-align:left;font-family:var(--font)}
@@ -2106,7 +2120,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 39;
+const APP_VERSION = 40;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -4704,6 +4718,154 @@ function nvHTMLPanorama(){
     panel + espera;
 }
 
+// ── LAS TRES PALANCAS DEL DÍA ─────────────────────────────────────────────
+// Partir en 30 minutos, terminar antes y alargar. Antes vivían en un panel
+// «Jornada» con tres opciones que pedían la fecha por teclado —«formato
+// YYYY-MM-DD»— y volvían a preguntar de qué médico se trataba, estando ya
+// parado en el día de esa persona. Acá el día y el profesional ya se saben,
+// y cada palanca dice qué se gana antes de tocarla.
+
+const nvEn30 = (profId, fecha) => {
+  try{
+    const o = JSON.parse(localStorage.getItem('slots30_overrides')||'{}');
+    return !!o[`slots30_${MEDICO_TO_CITAS[profId]||profId}_${fecha}`];
+  }catch(_){ return false; }
+};
+
+function nvPalancas(profId, m, libre, caben){
+  const en30 = nvEn30(profId, nvFecha);
+  const min  = NV_MIN_CONSULTA;
+  // Cuántas cabrían si las citas fueran de 30: el número que hace decidir.
+  const con30 = m.bloques.filter(b=>b.t==='li'||b.t==='co')
+    .reduce((a,b)=>a+Math.floor((b.fin-b.ini)/30),0);
+  const gana = con30 - caben;
+
+  const hoy = nvFecha === todayKey();
+  const ahora = new Date().getHours()*60 + new Date().getMinutes();
+  const enJornada = hoy && ahora > m.ini && ahora < m.fin;
+
+  return `<div class="nv-pal">
+    <button class="${en30?'on':''}" onclick="nvToggle30('${profId}')">
+      <b>Citas de 30 min</b>
+      <span>${en30 ? 'Activado para este día · tocá para volver a '+min+' min'
+                   : (gana>0 ? `Cabrían ${con30} en vez de ${caben}` : 'Partir los huecos a la mitad')}</span>
+    </button>
+    <button onclick="nvCambiarFin('${profId}')">
+      <b>Termina ${tFmt(m.fin)}</b>
+      <span>Alargar o recortar este día</span>
+    </button>
+    ${enJornada ? `<button class="urg" onclick="nvTerminarAhora('${profId}')">
+      <b>Terminar ahora</b><span>Cerrar desde las ${tFmt(Math.ceil(ahora/15)*15)}</span></button>` : ''}
+  </div>`;
+}
+
+// ── Partir el día en citas de 30 ─────────────────────────────────────────
+async function nvToggle30(profId){
+  const idCitas = MEDICO_TO_CITAS[profId] || profId;
+  const clave = `slots30_${idCitas}_${nvFecha}`;
+  const m = nvModeloDia(profId, nvFecha);
+  if(!m || !m.bloques.length) return;
+  const activo = nvEn30(profId, nvFecha);
+
+  let prev = {};
+  try{ prev = JSON.parse(localStorage.getItem('slots30_overrides')||'{}'); }catch(_){}
+
+  if(activo){
+    delete prev[clave];
+    if(_db) try{ await _db.collection('slots30_overrides').doc(clave).delete(); }catch(_){}
+  } else {
+    // Cubre la jornada entera: partir media mañana y media no fue nunca lo
+    // que se pedía, y obligaba a teclear dos horas más.
+    const dato = { desde: tFmt(m.ini), hasta: tFmt(m.fin), fecha: nvFecha,
+                   doctor: idCitas, creadoEn: new Date().toISOString() };
+    prev[clave] = dato;
+    if(_db) try{ await _db.collection('slots30_overrides').doc(clave).set(dato); }
+      catch(e){ console.warn('slots30:', e.message); }
+  }
+  try{ localStorage.setItem('slots30_overrides', JSON.stringify(prev)); }catch(_){}
+
+  render();
+  await nvPublicarDia();
+  mostrarAvisoBreve(activo ? `Vuelve a citas de ${NV_MIN_CONSULTA} min`
+                           : 'Citas de 30 min · publicado');
+}
+window.nvToggle30 = nvToggle30;
+
+// ── Alargar o recortar: una sola pregunta, en los dos sentidos ───────────
+async function nvCambiarFin(profId){
+  const m = nvModeloDia(profId, nvFecha);
+  if(!m || !m.bloques.length) return;
+  const v = prompt(
+    `¿A qué hora termina este día?\n\n` +
+    `Ahora termina a las ${tFmt(m.fin)}. Poné una hora más temprana para recortar ` +
+    `o más tarde para alargar.`, tFmt(m.fin));
+  if(!v) return;
+  const mm = /^(\d{1,2}):(\d{2})$/.exec(v.trim());
+  if(!mm){ alert('No entendí la hora. Usá el formato 16:30'); return; }
+  await nvAplicarFin(profId, Number(mm[1])*60 + Number(mm[2]));
+}
+window.nvCambiarFin = nvCambiarFin;
+
+async function nvTerminarAhora(profId){
+  const ahora = new Date().getHours()*60 + new Date().getMinutes();
+  const tope = Math.ceil(ahora/15)*15;   // al cuarto de hora siguiente
+  if(!confirm(`¿Cerrar la jornada a las ${tFmt(tope)}?\n\n` +
+              `Los horarios posteriores dejan de publicarse.`)) return;
+  await nvAplicarFin(profId, tope);
+}
+window.nvTerminarAhora = nvTerminarAhora;
+
+async function nvAplicarFin(profId, tope){
+  let fr = [];
+  try{ fr = franjasEfectivas(profId, nvFecha) || []; }catch(_){}
+  if(!fr.length){ alert('Ese día no hay jornada que ajustar.'); return; }
+
+  const finActual = Math.max(...fr.map(f=>f.fin));
+  const citas = events.filter(e => e.date===nvFecha && e.doctor===profId &&
+    e.type!=='blocked' && !e.blocked && e.time && tMin(e.time) >= tope);
+  if(citas.length && !confirm(
+      `Hay ${citas.length} cita${citas.length>1?'s':''} después de las ${tFmt(tope)}.\n\n` +
+      `Recortar el día no las borra, pero quedan fuera del horario publicado. ¿Continuar?`)) return;
+
+  let nuevas;
+  if(tope > finActual){
+    // Alargar: se estira la última franja del día, que es la que sigue abierta.
+    nuevas = fr.map(f => f.fin === finActual ? {...f, fin:tope} : {...f});
+  } else {
+    nuevas = fr.map(f => ({...f, fin: Math.min(f.fin, tope)}))
+               .filter(f => f.fin - f.ini >= 20);
+  }
+
+  for(const sede of Object.values(SEDES)){
+    const idJe = `je_${profId}_${sede.clave}_${nvFecha}`;
+    const mias = nuevas.filter(f => f.clinica === sede.clave);
+    jornadasEspeciales = jornadasEspeciales.filter(j => j.id !== idJe);
+    if(mias.length){
+      const j = { id:idJe, doctor:profId, clinica:sede.clave, fecha:nvFecha,
+        ini: tFmt(Math.min(...mias.map(x=>x.ini))),
+        fin: tFmt(Math.max(...mias.map(x=>x.fin))),
+        motivo: tope > finActual ? `Alargado hasta ${tFmt(tope)}` : `Hasta las ${tFmt(tope)}`,
+        creadoEn: new Date().toISOString() };
+      jornadasEspeciales.push(j);
+      if(_db) try{ await _db.collection('jornadas_especiales').doc(idJe).set(j); }
+        catch(e){ console.warn('je:', e.message); }
+    } else if(_db){
+      try{ await _db.collection('jornadas_especiales').doc(idJe).delete(); }catch(_){}
+    }
+  }
+  render();
+  await nvPublicarDia();
+  mostrarAvisoBreve(tope > finActual ? `Alargado hasta ${tFmt(tope)} · publicado`
+                                     : `Termina ${tFmt(tope)} · publicado`);
+}
+
+async function nvPublicarDia(){
+  try{
+    await publicarSlotsDisponibles({ fechas:[nvFecha] });
+    await publicarSlotsSanCristobal({ fechas:[nvFecha] });
+  }catch(e){ console.warn('publicar:', e.message); }
+}
+
 function nvHTMLMiDia(){
   const id = [...nvVisibles][0] && PROFESIONALES[[...nvVisibles][0]]
     ? [...nvVisibles][0] : currentDoc;
@@ -4763,6 +4925,7 @@ function nvHTMLMiDia(){
       </div>
       ${caben||tr ? `<p class="res">${caben?`Caben <b>${caben}</b> consulta${caben===1?'':'s'} más.`:''}
         ${tr?` Los traslados se llevan <b>${nvDur(tr)}</b>.`:''}</p>` : ''}
+      ${nvPalancas(id, m, li, caben)}
     </div>
     <div class="nv-sec">El día, hora por hora</div>
     <div class="nv-dia">${filas}
