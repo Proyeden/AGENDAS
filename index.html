@@ -43,6 +43,22 @@
 
   --font: 'Inter', sans-serif;
   --mono: 'DM Mono', monospace;
+
+  /* ── SISTEMA VISUAL DE LAS VISTAS DE DÍA ─────────────────────────────
+     Antes había seis acentos a máxima saturación conviviendo en la misma
+     pantalla —un color por médico, otro por sede, otro por bloqueo— y el
+     ojo no sabía qué mirar porque todo pesaba igual. Acá hay UN acento
+     activo, que sigue al profesional seleccionado, y el resto es neutro.
+     El color queda libre para cuando algo significa algo. */
+  --navy:#123F73; --nblue:#1B72B8; --nsky:#2C9CCB; --ngreen:#6BB745; --norange:#F59120;
+  --n-bg:#EEF5FA; --n-surface:#FFFFFF; --n-surface2:#E7F0F7;
+  --n-ink:#14304F; --n-muted:#54718A; --n-line:#D4E3EE; --n-line2:#A9C4D8;
+  --n-brand:#1B72B8; --n-brand-soft:#E2F1F7;
+  --n-ok:#3F8A2E; --n-ok-soft:#EAF5E3;
+  --n-warn:#B36A05; --n-warn-soft:#FDF0DC;
+  --n-danger:#B02A20; --n-danger-soft:#FBE8E6;
+  --round:ui-rounded,"SF Pro Rounded","Segoe UI Variable Display",'Inter',system-ui,sans-serif;
+  --n-shadow:0 1px 2px rgba(18,63,115,.06), 0 4px 14px rgba(18,63,115,.07);
 }
 
 body { font-family:var(--font); background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
@@ -215,6 +231,326 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .hqh-otra input { flex:1; padding:9px; border:1px solid #CBD5E1; border-radius:9px; font-family:var(--font); font-size:13px; }
 .hqh-otra button { border:none; background:var(--denis); color:#fff; border-radius:9px; padding:9px 15px; font-family:var(--font); font-size:12.5px; font-weight:700; cursor:pointer; }
 .hqh-estado { font-size:12px; margin-top:11px; text-align:center; color:var(--muted); min-height:16px; }
+
+/* ════════════════════════════════════════════════════════════════════
+   VISTAS DE DÍA — panorama (asistente) y mi día (médico)
+   Mismos datos, dos formas. La asistente contesta el teléfono y necesita
+   ver a los tres a la vez; el médico necesita su propio día.
+   ════════════════════════════════════════════════════════════════════ */
+.nv{background:var(--n-bg);min-height:100vh;font-family:var(--font);color:var(--n-ink)}
+.nv-wrap{max-width:640px;margin:0 auto;padding:14px 14px 40px}
+.nv .num{font-variant-numeric:tabular-nums}
+
+.nv-rol{display:flex;gap:2px;background:var(--n-surface2);padding:3px;border-radius:99px;margin-bottom:14px}
+.nv-rol button{flex:1;background:none;border:0;color:var(--navy);padding:9px 8px;border-radius:99px;
+  font-size:13px;cursor:pointer;font-family:var(--round);font-weight:600}
+.nv-rol button.on{background:var(--n-brand);color:#fff;font-weight:700}
+
+.nv-fecha{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.nv-fecha button{border:1px solid var(--n-line2);background:var(--n-surface);border-radius:9px;
+  width:34px;height:34px;cursor:pointer;font-size:15px;color:var(--navy);flex-shrink:0}
+.nv-fecha .d{flex:1;text-align:center;font-family:var(--round);font-weight:700;color:var(--navy);
+  font-size:15px;text-transform:capitalize}
+.nv-fecha .hoy{width:auto;padding:0 12px;font-size:12px;font-weight:700}
+
+.nv-card{background:var(--n-surface);border:1px solid var(--n-line);border-radius:10px;
+  box-shadow:var(--n-shadow)}
+.nv-filtro{padding:12px;margin-bottom:12px}
+.nv-filtro .t{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--n-muted);
+  font-weight:700;margin-bottom:8px;display:flex;align-items:baseline}
+.nv-filtro .t button{margin-left:auto;background:none;border:0;color:var(--n-brand);font-size:11px;
+  font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;font-family:var(--font)}
+.nv-cas{display:flex;flex-wrap:wrap;gap:8px}
+.nv-cas label{display:flex;align-items:center;gap:7px;padding:8px 13px;border:1.5px solid var(--n-line2);
+  border-radius:99px;cursor:pointer;font-size:13px;font-weight:600;color:var(--n-muted);
+  background:var(--n-surface);user-select:none}
+.nv-cas input{width:16px;height:16px;margin:0;accent-color:var(--n-brand);cursor:pointer}
+.nv-cas label.on{border-color:var(--n-brand);background:var(--n-brand-soft);color:var(--navy)}
+.nv-cas .pt{width:8px;height:8px;border-radius:50%;display:block}
+
+.nv-pronto{border-left:5px solid var(--ngreen);padding:12px 16px;margin-bottom:14px}
+.nv-pronto .t{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--n-muted);
+  font-weight:700;margin-bottom:8px}
+.nv-pronto .f{display:flex;align-items:baseline;gap:8px;padding:6px 0;
+  border-bottom:1px solid var(--n-line);font-size:13px}
+.nv-pronto .f:last-child{border-bottom:none}
+.nv-pronto .esp{flex:1;font-weight:650}
+.nv-pronto .esp span{display:block;font-weight:400;font-size:11px;color:var(--n-muted)}
+.nv-pronto .cu{font-family:var(--round);font-weight:700;color:var(--n-ok);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.nv-pronto .cu.nada{color:var(--n-muted);font-weight:600}
+
+.nv-pan{padding:12px 12px 8px}
+.nv-cab{display:flex;gap:3px;margin-left:34px;margin-bottom:8px}
+.nv-cab div{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--navy);
+  font-family:var(--round);line-height:1.25;min-width:0}
+.nv-cab small{display:block;font-weight:400;font-size:9px;color:var(--n-muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nv-cuerpo{position:relative;display:flex;gap:3px;margin-left:34px}
+.nv-horas{position:absolute;left:-34px;top:0;bottom:0;width:30px}
+.nv-horas span{position:absolute;right:0;transform:translateY(-50%);font-size:10px;
+  color:var(--n-muted);font-variant-numeric:tabular-nums}
+.nv-raya{position:absolute;left:0;right:0;height:1px;background:var(--n-line)}
+.nv-col{flex:1;position:relative;background:var(--n-surface2);border-radius:6px;overflow:hidden;min-width:0}
+.nv-blk{position:absolute;left:2px;right:2px;border-radius:4px;overflow:hidden;font-size:9px;
+  line-height:1.15;padding:2px 4px;border:0;text-align:left;font-family:var(--font)}
+.nv-oc{background:#CFE0EC;color:var(--navy);font-weight:600}
+.nv-li{background:var(--n-ok-soft);border:1.5px solid var(--ngreen);color:var(--n-ok);
+  font-weight:800;font-family:var(--round);font-variant-numeric:tabular-nums;cursor:pointer}
+.nv-co{background:transparent;border:1px dashed var(--n-line2);color:var(--n-muted)}
+.nv-bl{background:var(--n-danger-soft);color:var(--n-danger);font-weight:700}
+.nv-tr{background:repeating-linear-gradient(45deg,#DCE7F0,#DCE7F0 3px,#EEF5FA 3px,#EEF5FA 6px);
+  color:var(--n-muted)}
+/* Con una o dos columnas sobra ancho: se usa para mostrar la hora y el
+   nombre completo. La misma pantalla sirve de vistazo y de detalle. */
+.nv-cuerpo.holgado .nv-blk{font-size:11px;padding:3px 7px;line-height:1.25}
+.nv-cuerpo.holgado .nv-li{font-size:13px}
+.nv-col.sinhorario{display:flex;align-items:center;justify-content:center;text-align:center;
+  background:var(--n-warn-soft);border:1px dashed #EBD3AC;color:var(--n-warn);
+  font-size:10px;font-weight:600;padding:8px;line-height:1.35}
+.nv-vacio{padding:24px;text-align:center;color:var(--n-muted);font-size:13px;line-height:1.55}
+.nv-vacio b{display:block;color:var(--n-ink);font-size:15px;margin-bottom:4px}
+.nv-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:10px;color:var(--n-muted);
+  margin-top:12px;padding-top:8px;border-top:1px solid var(--n-line)}
+.nv-leg span{display:flex;align-items:center;gap:5px}
+.nv-leg i{width:9px;height:9px;border-radius:3px;display:block}
+
+.nv-espera{background:var(--n-warn-soft);border:1px solid #EBD3AC;border-left:5px solid var(--norange);
+  border-radius:10px;padding:12px 16px;margin-top:14px}
+.nv-espera b{color:var(--navy)}
+.nv-espera .fila{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px}
+.nv-espera .fila + .fila{border-top:1px solid #EBD3AC}
+.nv-espera .n{flex:1}
+.nv-espera .n span{display:block;font-size:11px;color:var(--n-muted)}
+.nv-espera .wa{background:var(--ngreen);color:#fff;border:0;border-radius:99px;padding:6px 13px;
+  font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;text-decoration:none;font-family:var(--font)}
+
+/* ── MI DÍA ── */
+.nv-cap{border-left:5px solid var(--n-brand);padding:16px;margin-bottom:20px}
+.nv-cap .f{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--n-muted);font-weight:700}
+.nv-cap .t{font-family:var(--round);font-size:22px;font-weight:700;color:var(--navy);
+  letter-spacing:-.02em;margin-top:2px}
+.nv-barra{display:flex;height:10px;border-radius:6px;overflow:hidden;margin:12px 0 8px;
+  background:var(--n-surface2)}
+.nv-barra i{display:block;height:100%}
+.bb-oc{background:var(--n-brand)} .bb-li{background:var(--ngreen)} .bb-co{background:#C9D9E6}
+.bb-tr{background:repeating-linear-gradient(45deg,#DCE7F0,#DCE7F0 3px,#EEF5FA 3px,#EEF5FA 6px)}
+.nv-cap .leg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--n-muted)}
+.nv-cap .leg span{display:flex;align-items:center;gap:5px}
+.nv-cap .leg i{width:9px;height:9px;border-radius:3px;display:block}
+.nv-cap .res{font-size:13px;color:var(--n-ink);line-height:1.55;margin:12px 0 0}
+.nv-cap .res b{color:var(--navy)}
+
+.nv-sec{font-family:var(--round);font-size:11px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--n-brand);font-weight:700;margin:20px 4px 8px;padding-bottom:5px;
+  border-bottom:1px solid var(--n-line)}
+.nv-dia{position:relative;padding-left:52px}
+.nv-dia::before{content:"";position:absolute;left:52px;top:0;bottom:0;width:1px;background:var(--n-line)}
+.nv-fr{position:relative;margin-bottom:3px}
+.nv-fr .h{position:absolute;left:-52px;top:-1px;width:44px;text-align:right;font-size:11px;
+  color:var(--n-muted);font-variant-numeric:tabular-nums;font-weight:600}
+.nv-sub{font-size:11px;color:var(--n-muted);display:block}
+.nv-ocup{background:var(--n-surface);border:1px solid var(--n-line);border-radius:10px;
+  padding:8px 12px;display:flex;align-items:center;gap:8px;overflow:hidden}
+.nv-ocup b{font-weight:650;font-size:13px}
+.nv-ocup .d{font-size:11px;color:var(--n-muted);margin-left:auto;white-space:nowrap}
+.nv-sede{font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px;
+  background:var(--n-surface2);color:var(--navy);white-space:nowrap}
+.nv-libre{width:100%;text-align:left;border:1.5px solid var(--ngreen);background:var(--n-ok-soft);
+  border-radius:10px;padding:8px 12px;cursor:pointer;font-family:var(--font);
+  display:flex;align-items:center;gap:8px;overflow:hidden}
+.nv-libre b{font-family:var(--round);font-weight:700;color:var(--n-ok);font-size:15px;
+  font-variant-numeric:tabular-nums}
+.nv-libre .q{font-size:11px;color:var(--n-ok);opacity:.85}
+.nv-libre .cta{margin-left:auto;font-size:11px;font-weight:700;color:var(--n-ok);white-space:nowrap}
+.nv-libre.corto{border-style:dashed;border-color:var(--n-line2);background:transparent;cursor:default}
+.nv-libre.corto b,.nv-libre.corto .q{color:var(--n-muted);opacity:1}
+.nv-tras{background:repeating-linear-gradient(45deg,#E4EDF4,#E4EDF4 4px,#EEF5FA 4px,#EEF5FA 8px);
+  border:1px dashed var(--n-line2);border-radius:10px;padding:4px 12px;display:flex;
+  align-items:center;gap:6px;font-size:11px;color:var(--n-muted);overflow:hidden}
+.nv-tras b{font-weight:700}
+.nv-bloq{background:var(--n-danger-soft);border:1px solid #EFC3BE;border-radius:10px;
+  padding:8px 12px;display:flex;align-items:center;gap:8px;overflow:hidden}
+.nv-bloq b{color:var(--n-danger);font-weight:650;font-size:13px}
+.nv-bloq .d{font-size:11px;color:var(--n-danger);opacity:.8;margin-left:auto}
+.nv-acc{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.nv-acc button{flex:1 1 46%;border:1px solid var(--n-line2);background:var(--n-surface);
+  border-radius:10px;padding:12px;cursor:pointer;text-align:left;font-family:var(--font)}
+.nv-acc b{display:block;font-size:13px;font-weight:650;color:var(--n-ink)}
+.nv-acc span{display:block;font-size:11px;color:var(--n-muted);margin-top:2px}
+@media (max-width:420px){
+  .nv-libre .cta{display:none}
+  .nv-libre::after{content:"\203A";margin-left:auto;font-size:17px;color:var(--n-ok);font-weight:700}
+  .nv-libre.corto::after{display:none}
+  .nv-cas label{flex:1 1 auto;justify-content:center}
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   EL DÍA — sistema visual propio, tomado del carné de Neo Pediatrics.
+   Todo va bajo #s-dia para no pelearse con el resto de la agenda mientras
+   las demás pantallas siguen con la piel vieja.
+   ══════════════════════════════════════════════════════════════════════ */
+#s-dia{
+  --d-navy:#123F73; --d-blue:#1B72B8; --d-sky:#2C9CCB; --d-green:#6BB745; --d-orange:#F59120;
+  --d-bg:#EEF5FA; --d-surf:#FFFFFF; --d-surf2:#E7F0F7;
+  --d-ink:#14304F; --d-mut:#54718A; --d-line:#D4E3EE; --d-line2:#A9C4D8;
+  --d-ok:#3F8A2E; --d-ok-s:#EAF5E3;
+  --d-warn:#B36A05; --d-warn-s:#FDF0DC;
+  --d-dang:#B02A20; --d-dang-s:#FBE8E6;
+  --d-round:ui-rounded,"SF Pro Rounded","Segoe UI Variable Display",var(--font),system-ui,sans-serif;
+  --d-sh:0 1px 2px rgba(18,63,115,.06), 0 4px 14px rgba(18,63,115,.07);
+  background:var(--d-bg); color:var(--d-ink);
+}
+#s-dia .num{font-variant-numeric:tabular-nums}
+.d-top{background:var(--d-surf);border-bottom:1px solid var(--d-line);position:relative;
+  display:flex;align-items:center;gap:8px;padding:11px 14px;position:sticky;top:0;z-index:20}
+.d-top::after{content:"";position:absolute;left:0;right:0;bottom:-4px;height:4px;
+  background:linear-gradient(90deg,var(--d-green) 0%,var(--d-sky) 45%,var(--d-blue) 100%)}
+.d-nav{border:1px solid var(--d-line2);background:var(--d-surf);color:var(--d-navy);
+  width:36px;height:36px;border-radius:50%;font-size:19px;line-height:1;cursor:pointer;
+  font-family:var(--font);flex:none}
+.d-fecha{flex:1;text-align:center;min-width:0}
+.d-dow{display:block;font-family:var(--d-round);font-size:16px;font-weight:700;
+  color:var(--d-navy);letter-spacing:-.01em;text-transform:capitalize}
+.d-hoy{display:block;font-size:11px;color:var(--d-mut)}
+.d-wrap{max-width:640px;margin:0 auto;padding:16px 14px 40px}
+
+.d-modo{display:flex;gap:2px;background:var(--d-surf2);padding:3px;border-radius:99px;margin-bottom:12px}
+.d-modo button{flex:1;background:none;border:0;color:var(--d-navy);padding:9px 8px;border-radius:99px;
+  font-size:13px;cursor:pointer;font-family:var(--d-round);font-weight:600}
+.d-modo button.on{background:var(--d-blue);color:#fff;font-weight:700}
+
+.d-filtro{background:var(--d-surf);border:1px solid var(--d-line);border-radius:10px;
+  padding:12px;margin-bottom:12px;box-shadow:var(--d-sh)}
+.d-filtro-t{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--d-mut);
+  font-weight:700;margin-bottom:8px;display:flex;align-items:baseline}
+.d-filtro-t button{margin-left:auto;background:none;border:0;color:var(--d-blue);font-size:11px;
+  font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;font-family:var(--font)}
+.d-casillas{display:flex;flex-wrap:wrap;gap:8px}
+.d-cas{display:flex;align-items:center;gap:7px;padding:8px 13px;border:1.5px solid var(--d-line2);
+  border-radius:99px;cursor:pointer;font-size:13px;font-weight:600;color:var(--d-mut);
+  background:var(--d-surf);user-select:none;transition:border-color .14s,background .14s,color .14s}
+.d-cas input{width:16px;height:16px;margin:0;cursor:pointer}
+.d-cas.on{border-color:var(--d-blue);background:#E2F1F7;color:var(--d-navy)}
+.d-cas .pt{width:8px;height:8px;border-radius:50%;display:block;flex:none}
+
+.d-pronto{background:var(--d-surf);border:1px solid var(--d-line);border-left:5px solid var(--d-green);
+  border-radius:10px;padding:12px 16px;box-shadow:var(--d-sh);margin-bottom:16px}
+.d-pronto .t{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--d-mut);
+  font-weight:700;margin-bottom:8px}
+.d-pronto .f{display:flex;align-items:baseline;gap:8px;padding:6px 0;
+  border-bottom:1px solid var(--d-line);font-size:13px}
+.d-pronto .f:last-child{border-bottom:none}
+.d-pronto .esp{flex:1;font-weight:650}
+.d-pronto .esp small{display:block;font-weight:400;font-size:11px;color:var(--d-mut)}
+.d-pronto .cuando{font-family:var(--d-round);font-weight:700;color:var(--d-ok);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.d-pronto .cuando.nada{color:var(--d-mut);font-weight:600}
+
+/* ── Panorama ── */
+.d-pan{background:var(--d-surf);border:1px solid var(--d-line);border-radius:10px;
+  padding:12px 12px 8px;box-shadow:var(--d-sh)}
+.d-cab{display:flex;gap:3px;margin-left:34px;margin-bottom:8px}
+.d-cab div{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--d-navy);
+  font-family:var(--d-round);line-height:1.25;min-width:0}
+.d-cab small{display:block;font-weight:400;font-size:9px;color:var(--d-mut);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.d-cuerpo{position:relative;display:flex;gap:3px;margin-left:34px}
+.d-horas{position:absolute;left:-34px;top:0;bottom:0;width:30px}
+.d-horas span{position:absolute;right:0;transform:translateY(-50%);font-size:10px;
+  color:var(--d-mut);font-variant-numeric:tabular-nums}
+.d-raya{position:absolute;left:0;right:0;height:1px;background:var(--d-line)}
+.d-col{flex:1;position:relative;background:var(--d-surf2);border-radius:6px;overflow:hidden;min-width:0}
+.d-blk{position:absolute;left:2px;right:2px;border-radius:4px;overflow:hidden;
+  font-size:9px;line-height:1.15;padding:2px 4px}
+.d-oc{background:#CFE0EC;color:var(--d-navy);font-weight:600}
+.d-li{background:var(--d-ok-s);border:1.5px solid var(--d-green);color:var(--d-ok);
+  font-weight:800;font-family:var(--d-round);font-variant-numeric:tabular-nums;cursor:pointer}
+.d-co{background:transparent;border:1px dashed var(--d-line2);color:var(--d-mut)}
+.d-bl{background:var(--d-dang-s);color:var(--d-dang);font-weight:700}
+.d-tr{background:repeating-linear-gradient(45deg,#DCE7F0,#DCE7F0 3px,#EEF5FA 3px,#EEF5FA 6px);
+  color:var(--d-mut)}
+.d-cuerpo.holgado .d-blk{font-size:11px;padding:3px 7px;line-height:1.25}
+.d-cuerpo.holgado .d-li{font-size:13px}
+.d-col.sinhorario{display:flex;align-items:center;justify-content:center;text-align:center;
+  background:var(--d-warn-s);border:1px dashed #EBD3AC;color:var(--d-warn);
+  font-size:10px;font-weight:600;padding:8px;line-height:1.35}
+.d-col.noatiende{display:flex;align-items:center;justify-content:center;text-align:center;
+  color:var(--d-mut);font-size:10px;padding:8px}
+.d-vacio{padding:26px;text-align:center;color:var(--d-mut);font-size:13px;line-height:1.55}
+.d-vacio b{display:block;color:var(--d-ink);font-size:15px;margin-bottom:4px}
+.d-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:10px;color:var(--d-mut);
+  margin-top:12px;padding-top:8px;border-top:1px solid var(--d-line)}
+.d-leg span{display:flex;align-items:center;gap:5px}
+.d-leg i{width:9px;height:9px;border-radius:3px;display:block;flex:none}
+
+/* ── Un día ── */
+.d-cap{background:var(--d-surf);border:1px solid var(--d-line);border-left:5px solid var(--d-blue);
+  border-radius:10px;padding:16px;box-shadow:var(--d-sh);margin-bottom:20px}
+.d-cap .quien{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--d-mut);font-weight:700}
+.d-cap .tt{font-family:var(--d-round);font-size:22px;font-weight:700;color:var(--d-navy);
+  letter-spacing:-.02em;margin-top:2px;line-height:1.2}
+.d-barra{display:flex;height:10px;border-radius:6px;overflow:hidden;margin:12px 0 8px;background:var(--d-surf2)}
+.d-barra i{display:block;height:100%}
+.bb-oc{background:var(--d-blue)} .bb-ut{background:var(--d-green)} .bb-fr{background:#C9D9E6}
+.bb-tr{background:repeating-linear-gradient(45deg,#DCE7F0,#DCE7F0 3px,#EEF5FA 3px,#EEF5FA 6px)}
+.d-cap .leg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--d-mut)}
+.d-cap .leg span{display:flex;align-items:center;gap:5px}
+.d-cap .leg i{width:9px;height:9px;border-radius:3px;display:block;flex:none}
+.d-cap .res{font-size:13px;color:var(--d-ink);line-height:1.55;margin:12px 0 0}
+.d-cap .res b{color:var(--d-navy)}
+
+.d-sec{font-family:var(--d-round);font-size:11px;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--d-blue);font-weight:700;margin:20px 4px 8px;padding-bottom:5px;
+  border-bottom:1px solid var(--d-line)}
+.d-linea{position:relative;padding-left:52px}
+.d-linea::before{content:"";position:absolute;left:52px;top:0;bottom:0;width:1px;background:var(--d-line)}
+.d-fr{position:relative;margin-bottom:3px}
+.d-fr .h{position:absolute;left:-52px;top:-1px;width:44px;text-align:right;font-size:11px;
+  color:var(--d-mut);font-variant-numeric:tabular-nums;font-weight:600}
+.d-sub{font-size:11px;color:var(--d-mut);display:block}
+.dl-oc{background:var(--d-surf);border:1px solid var(--d-line);border-radius:10px;
+  padding:8px 12px;display:flex;align-items:center;gap:8px;overflow:hidden}
+.dl-oc b{font-weight:650;font-size:13px}
+.dl-oc .d{font-size:11px;color:var(--d-mut);margin-left:auto;white-space:nowrap}
+.dl-sede{font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px;
+  background:var(--d-surf2);color:var(--d-navy);white-space:nowrap;flex:none}
+.dl-li{width:100%;text-align:left;border:1.5px solid var(--d-green);background:var(--d-ok-s);
+  border-radius:10px;padding:8px 12px;cursor:pointer;font-family:var(--font);
+  display:flex;align-items:center;gap:8px;overflow:hidden}
+.dl-li b{font-family:var(--d-round);font-weight:700;color:var(--d-ok);font-size:15px;
+  font-variant-numeric:tabular-nums;flex:none}
+.dl-li .q{font-size:11px;color:var(--d-ok);opacity:.85}
+.dl-li .cta{margin-left:auto;font-size:11px;font-weight:700;color:var(--d-ok);white-space:nowrap}
+.dl-li.corto{border-style:dashed;border-color:var(--d-line2);background:transparent;cursor:default}
+.dl-li.corto b,.dl-li.corto .q{color:var(--d-mut);opacity:1}
+.dl-tr{background:repeating-linear-gradient(45deg,#E4EDF4,#E4EDF4 4px,#EEF5FA 4px,#EEF5FA 8px);
+  border:1px dashed var(--d-line2);border-radius:10px;padding:4px 12px;display:flex;
+  align-items:center;gap:6px;font-size:11px;color:var(--d-mut);overflow:hidden}
+.dl-tr b{font-weight:700}
+.dl-bl{background:var(--d-dang-s);border:1px solid #EFC3BE;border-radius:10px;padding:8px 12px;
+  display:flex;align-items:center;gap:8px;overflow:hidden}
+.dl-bl b{color:var(--d-dang);font-weight:650;font-size:13px}
+.dl-bl .d{font-size:11px;color:var(--d-dang);opacity:.8;margin-left:auto}
+
+.d-esp{background:var(--d-warn-s);border:1px solid #EBD3AC;border-left:5px solid var(--d-orange);
+  border-radius:10px;padding:12px 16px;margin-top:16px}
+.d-esp .tt{color:var(--d-navy);font-weight:700;font-size:13px}
+.d-esp .fila{display:flex;align-items:center;gap:8px;padding:7px 0;font-size:13px}
+.d-esp .fila + .fila{border-top:1px solid #EBD3AC}
+.d-esp .n{flex:1;min-width:0}
+.d-esp .n small{display:block;font-size:11px;color:var(--d-mut)}
+.d-esp .wa{background:var(--d-green);color:#fff;border:0;border-radius:99px;padding:6px 13px;
+  font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font);
+  text-decoration:none;flex:none}
+.d-esp .wa.sin{background:var(--d-mut)}
+
+@media (max-width:420px){
+  .dl-li .cta{display:none}
+  .dl-li::after{content:"›";margin-left:auto;font-size:17px;color:var(--d-ok);font-weight:700}
+  .dl-li.corto::after{display:none}
+  .d-cas{flex:1 1 auto;justify-content:center}
+}
 
 /* ── PROFESIONALES ── */
 .pf-tab {
@@ -1124,13 +1460,34 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </button>
 
     <!-- Botón 2: Gestión — morado -->
+    <button class="home-btn home-btn-blue" onclick="abrirVistas()" style="margin-bottom:12px">
+      <div class="home-btn-icon-wrap home-btn-icon-blue">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1B72B8" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/>
+          <path d="M3 9h18M8 2v4M16 2v4"/><rect x="6.5" y="12" width="4" height="3" rx="1" fill="#1B72B8" stroke="none"/>
+          <rect x="13.5" y="12" width="4" height="6" rx="1" fill="#6BB745" stroke="none"/></svg>
+      </div>
+      <div class="home-btn-text">
+        <span class="home-btn-title">El día</span>
+        <span class="home-btn-sub">Panorama de todos · o solo el tuyo</span>
+      </div>
+    </button>
+    <button class="home-btn" style="background:#EAF5E3;border-color:#BFDECB" onclick="openDia()">
+      <div class="home-btn-icon-wrap" style="background:#DCEFD2">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3F8A2E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 15h3"/></svg>
+      </div>
+      <div class="home-btn-text">
+        <span class="home-btn-title">El día</span>
+        <span class="home-btn-sub">Quién está libre y dónde hay espacio</span>
+      </div>
+    </button>
     <button class="home-btn home-btn-purple" onclick="goScreen('s-gestion'); espActualizarBadge()">
       <div class="home-btn-icon-wrap home-btn-icon-purple">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </div>
       <div class="home-btn-text">
         <span class="home-btn-title">Gestión</span>
-        <span class="home-btn-sub">Recordatorios · Jornada · Admin</span>
+        <span class="home-btn-sub">Horarios · Espera · Anuncios</span>
       </div>
       <span class="home-btn-arr">›</span>
     </button>
@@ -1165,14 +1522,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
         <div class="pick-sub">Quiénes esperan cupo y qué huecos hay para ofrecerles</div>
       </div>
       <span class="pick-badge" id="esp-badge" style="display:none"></span>
-      <span class="pick-arrow">›</span>
-    </div>
-    <div class="pick-item" onclick="openRecordatorios()">
-      <div class="pick-av g-av g-morado">🔔</div>
-      <div class="pick-info">
-        <div class="pick-name">Recordatorios</div>
-        <div class="pick-sub">Avisar a quienes tienen cita en ~2 semanas</div>
-      </div>
       <span class="pick-arrow">›</span>
     </div>
 
@@ -1507,6 +1856,16 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   </div>
 </div>
 
+<!-- ACCIONES DE UNA CITA WEB -->
+<div id="cwPanel" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)cerrarAccionesCitaWeb()">
+  <div style="max-width:360px;width:100%;background:#fff;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <h3 style="margin:0 0 3px;font-size:17px;color:var(--text)" id="cwNombre">Cita web</h3>
+    <p style="margin:0 0 16px;font-size:12.5px;color:var(--muted);line-height:1.55" id="cwInfo"></p>
+    <div id="cwOpciones"></div>
+    <button onclick="cerrarAccionesCitaWeb()" style="width:100%;margin-top:6px;padding:11px;border:none;border-radius:11px;background:#F1F5F9;color:var(--muted);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">Cerrar</button>
+  </div>
+</div>
+
 <!-- HASTA QUÉ HORA (ajuste rápido del día) -->
 <div id="hqh-overlay" class="veil" onclick="if(event.target===this) cerrarHastaQueHora()">
   <div class="modal">
@@ -1528,6 +1887,49 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       </div>
       <div id="hqh-estado" class="hqh-estado"></div>
     </div>
+  </div>
+</div>
+
+<!-- VISTAS DE DÍA -->
+<div id="s-vistas" class="screen">
+  <div class="nv"><div class="nv-wrap">
+    <div class="nv-rol" id="nv-rol"></div>
+    <div class="nv-fecha">
+      <button onclick="nvDia(-1)" aria-label="Día anterior">‹</button>
+      <span class="d" id="nv-fecha-lbl"></span>
+      <button class="hoy" onclick="nvHoy()">Hoy</button>
+      <button onclick="nvDia(1)" aria-label="Día siguiente">›</button>
+    </div>
+    <div id="nv-host"></div>
+  </div></div>
+</div>
+
+<!-- EL DÍA -->
+<div id="s-dia" class="screen">
+  <div class="d-top">
+    <button class="d-nav" onclick="diaMover(-1)" aria-label="Día anterior">‹</button>
+    <div class="d-fecha">
+      <span class="d-dow" id="d-dow"></span>
+      <span class="d-hoy" id="d-hoy"></span>
+    </div>
+    <button class="d-nav" onclick="diaMover(1)" aria-label="Día siguiente">›</button>
+  </div>
+
+  <div class="d-wrap">
+    <div class="d-modo" role="group" aria-label="Vista">
+      <button type="button" data-modo="panorama" onclick="diaModo('panorama')">Panorama</button>
+      <button type="button" data-modo="mio" onclick="diaModo('mio')">Un día</button>
+    </div>
+
+    <div class="d-filtro">
+      <div class="d-filtro-t">A quién estoy viendo
+        <button type="button" onclick="diaTodos()">Ver a todos</button></div>
+      <div class="d-casillas" id="d-casillas"></div>
+    </div>
+
+    <div id="d-pronto" class="d-pronto"></div>
+    <div id="d-cuerpo"></div>
+    <div id="d-espera"></div>
   </div>
 </div>
 
@@ -2002,7 +2404,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 32;
+const APP_VERSION = 35;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -2471,31 +2873,45 @@ function calcularHuecos(doctorId, dateStr, clinicId){
 // real, y cada sistema de citas publica solo los huecos que le corresponden.
 //
 // Devuelve: [{ ini:'HH:MM', durMin, clinica:'clinic1'|'clinic2' }]
-function calcularHuecosFranja(doctorId, dateStr){
+// Franjas de trabajo REALES de un profesional en una fecha: su horario del
+// modelo, con la jornada especial de ese día ya aplicada. Estaba metido dentro
+// de calcularHuecosFranja; se sacó porque la vista del día necesita las mismas
+// franjas para dibujar los traslados, y dos copias de esta lógica se habrían
+// desincronizado a la primera.
+function franjasEfectivas(doctorId, dateStr){
   const [Y,Mo,D] = dateStr.split('-').map(Number);
   const dow = new Date(Y, Mo-1, D).getDay();
 
   let franjas = (FRANJAS[doctorId] ? FRANJAS[doctorId](dow) : []).map(f=>({...f}));
   if(!franjas.length) return [];
 
-  // Jornada especial: reemplaza la franja de ESA clínica ese día.
   const je = jornadasEspeciales.find(j => j.doctor===doctorId && j.fecha===dateStr);
   if(je){
-    if(doctorId==='denis' && je.clinica==='clinic1'){
-      // Denis corrió su horario de MIXCO (p. ej. 12:00–18:00 por alta demanda).
-      // San Cristóbal se deriva de Mixco, así que hay que RECALCULAR todo el
-      // día con el horario nuevo. Si solo reemplazáramos la franja de Mixco,
-      // quedarían franjas viejas de San Cristóbal encimadas con la jornada
-      // extendida, y el sistema ofrecería SC mientras está en Mixco.
-      franjas = construirFranjasDenis(dow, [tMin(je.ini), tMin(je.fin)]).map(f=>({...f}));
-      // Marcar la franja de Mixco como especial (es la que se corrió).
-      franjas.forEach(f=>{ if(f.clinica==='clinic1') f.especial = true; });
+    const P = PROFESIONALES[doctorId];
+    const sedeJe = SEDE_POR_CLAVE[je.clinica];
+    // Si el profesional hereda el resto en otra sede, correr la franja
+    // declarada obliga a recalcular TODO el día: si solo se reemplazara esa
+    // franja, quedarían franjas viejas de la otra sede encimadas y el sistema
+    // ofrecería horarios mientras la persona está en el otro lado.
+    if(P && P.sedeResto && sedeJe && sedeJe.id !== P.sedeResto){
+      franjas = franjasDe(doctorId, dow,
+        { sede: sedeJe.id, ini: tMin(je.ini), fin: tMin(je.fin) }).map(f=>({...f}));
+      franjas.forEach(f=>{ if(f.clinica === je.clinica) f.especial = true; });
     } else {
       franjas = franjas.filter(f => f.clinica !== je.clinica);
       franjas.push({ clinica: je.clinica, ini: tMin(je.ini), fin: tMin(je.fin), especial: true });
       franjas.sort((a,b)=>a.ini-b.ini);
     }
   }
+  return franjas;
+}
+
+function calcularHuecosFranja(doctorId, dateStr){
+  const [Y,Mo,D] = dateStr.split('-').map(Number);
+  const dow = new Date(Y, Mo-1, D).getDay();
+
+  const franjas = franjasEfectivas(doctorId, dateStr);
+  if(!franjas.length) return [];
 
   // Ocupación real de la persona: sus citas (en CUALQUIER sede) y los bloqueos.
   const ocup = events
@@ -3198,7 +3614,11 @@ async function loadCitasOnline(){
       if (c.estado === 'cancelada') return;
       // Pamela no figura en la agenda: su cita no se importa.
       if (c.medicoId === 'pamela') return;
-      const doctorId = MEDICO_MAP[c.medicoId] || 'denis';
+      // Antes: cualquier medicoId desconocido caía en 'denis' y aparecía en su
+      // agenda una cita que no era suya. Ahora se resuelve con la tabla y, si
+      // no corresponde a nadie, se descarta en vez de adjudicarla.
+      const doctorId = CITAS_TO_MEDICO[c.medicoId] || MEDICO_MAP[c.medicoId];
+      if(!doctorId){ console.warn('cita con médico desconocido:', c.medicoId); return; }
       const clinicId = (c.clinica && CLINIC_MAP[c.clinica]) ? CLINIC_MAP[c.clinica] : 'clinic1';
       const durCita = duracionCitaOnline(doctorId, c.fecha, c.hora || '08:00', 'online_'+d.id);
       evs.push({
@@ -3321,7 +3741,6 @@ async function syncNow(){
     if(btn){ btn.classList.remove('syncing'); btn.innerHTML=oldHtml||'↻ <span class="wb-sync-txt">Sincronizar</span>'; }
     // Los datos recién llegaron: refrescar el aviso de recordatorios si la
     // agenda está abierta.
-    try { if(document.getElementById('s-agenda')?.classList.contains('on')) avisarRecordatorios(); } catch(_){}
   }
 }
 
@@ -3642,7 +4061,7 @@ async function saveWithDupCheck(ev){
 }
 
 // ═══ SCREEN NAV ════════════════════════════════════════════════════════════
-const ALL_SCREENS=['s-home','s-agendar','s-consultar','s-agenda','s-recordatorios','s-anuncios','s-jornada','s-gestion'];
+const ALL_SCREENS=['s-home','s-agendar','s-consultar','s-agenda','s-recordatorios','s-anuncios','s-jornada','s-gestion','s-vistas','s-espera','s-profs','s-dia'];
 
 function goScreen(id){
   ALL_SCREENS.forEach(s=>{
@@ -3755,7 +4174,6 @@ function enterAgenda(view){
   // la asistente necesita ver primero: la jornada de hoy.
   currentDayOffset = 0;
   setCalMode('day');   // setCalMode ya llama a render()
-  avisarRecordatorios();
 }
 
 function openModalFromHome(doctor){
@@ -4105,6 +4523,53 @@ function getJornadaEfectiva(doctorId, dateStr){
   return JORNADA[doctorId] ? JORNADA[doctorId](dow) : null;
 }
 
+// ═══ ACCIONES DE UNA CITA WEB ═════════════════════════════════════════════
+let _cwEv = null, _cwMc = null;
+
+function abrirAccionesCitaWeb(ev, mcCercana){
+  _cwEv = ev; _cwMc = mcCercana || null;
+  document.getElementById('cwNombre').textContent = ev.name || '(sin nombre)';
+  const d = CONFIG.DOCTORS[ev.doctor] || {};
+  const sede = ev.type === 'clinic2' ? 'San Cristóbal' : 'Mixco';
+  document.getElementById('cwInfo').innerHTML =
+    `🌐 Reservada por la web<br>${d.name || ev.doctor} · ${sede} · ${ev.time}`
+    + (ev.phone ? `<br>📞 ${ev.phone}` : '');
+
+  let ops = '';
+  if(_cwMc){
+    ops += `<button class="jp-opt" onclick="cwUnificar()">
+      <span class="jp-ic" style="background:#DBEAFE;color:#1D4ED8">🔗</span>
+      <span class="jp-tx"><strong>Es la misma de MediCloud</strong><small>Unificar: borra la web, queda la de MediCloud (${_cwMc.time})</small></span>
+      <span class="jp-ar">›</span>
+    </button>`;
+  }
+  // Borrar SIEMPRE disponible: es lo que hace falta cuando el paciente cancela.
+  ops += `<button class="jp-opt" onclick="cwEliminar()">
+    <span class="jp-ic" style="background:#FEE2E2;color:#B91C1C">🗑️</span>
+    <span class="jp-tx"><strong>Eliminar la cita</strong><small>El paciente canceló · libera el horario</small></span>
+    <span class="jp-ar">›</span>
+  </button>`;
+  document.getElementById('cwOpciones').innerHTML = ops;
+  document.getElementById('cwPanel').style.display = 'flex';
+}
+window.abrirAccionesCitaWeb = abrirAccionesCitaWeb;
+function cerrarAccionesCitaWeb(){ document.getElementById('cwPanel').style.display = 'none'; }
+window.cerrarAccionesCitaWeb = cerrarAccionesCitaWeb;
+
+async function cwEliminar(){
+  const ev = _cwEv; if(!ev) return;
+  cerrarAccionesCitaWeb();
+  const ok = await eliminarCitaWeb(ev, { mensaje: `Cita de ${ev.name} eliminada · horario liberado` });
+  if(ok) await publicarSlotsSanCristobal({ fechas:[ev.date] }).catch(()=>{});
+}
+window.cwEliminar = cwEliminar;
+
+function cwUnificar(){
+  const ev = _cwEv; cerrarAccionesCitaWeb();
+  if(ev) unificarCitaWebConMedicloud(ev);
+}
+window.cwUnificar = cwUnificar;
+
 // ═══ ¿HASTA QUÉ HORA? ═════════════════════════════════════════════════════
 // Hay días en que la hora de salida no la decide la clínica. Un viernes se
 // puede hasta las tres, otro hasta las cinco, y encima depende de cuánta
@@ -4279,6 +4744,718 @@ async function hqhAplicar(tope){
   }
 }
 window.hqhAplicar = hqhAplicar;
+
+// ═══ VISTAS DE DÍA ════════════════════════════════════════════════════════
+// Dos formas de leer el mismo día. La asistente contesta el teléfono y
+// necesita ver a los tres a la vez para responder «¿tienen campo?»; el
+// médico necesita su propio día y dónde puede abrir espacio.
+//
+// Todo sale del modelo real: FRANJAS, jornadas especiales, los eventos del
+// día y la lista de espera. No hay una segunda fuente que mantener.
+
+const NV_ESCALA = 0.55;      // píxeles por minuto en el panorama
+const NV_INICIO = 8*60;      // el panorama arranca a las 08:00
+const NV_FIN    = 19*60;
+// Lo que hace que un hueco «sirva». Si una consulta de control dura 30, se
+// cambia acá y cambian la capacidad, lo que se ofrece y lo que se descarta.
+let NV_MIN_CONSULTA = 45;
+
+let nvVista = localStorage.getItem('nv_vista') || 'panorama';
+let nvFecha = todayKey();
+let nvVisibles = new Set(
+  (localStorage.getItem('nv_visibles') || '').split(',').filter(Boolean)
+);
+if(!nvVisibles.size) nvVisibles = new Set(Object.keys(PROFESIONALES));
+
+const nvColor = { denis:'#1B72B8', majo:'#6BB745', pamela:'#F59120' };
+const nvDur = m => m>=60 ? (m%60 ? `${Math.floor(m/60)} h ${m%60}` : `${Math.floor(m/60)} h`) : `${m} min`;
+const nvFechaLarga = f => {
+  const [Y,M,D] = f.split('-').map(Number);
+  return new Date(Y,M-1,D).toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long'});
+};
+
+// ── El día de un profesional, como lista ordenada de bloques ────────────
+// Tipos: oc (ocupado) · li (libre) · co (libre pero corto) · bl (bloqueo)
+//        tr (traslado entre sedes: NO es hueco, es el precio de cruzar)
+function nvModeloDia(profId, fecha){
+  const P = PROFESIONALES[profId];
+  if(!P || P.publica === false) return { publica:false, bloques:[] };
+
+  const [Y,Mo,D] = fecha.split('-').map(Number);
+  const dow = new Date(Y,Mo-1,D).getDay();
+  let franjas = (FRANJAS[profId] ? FRANJAS[profId](dow) : []).map(f=>({...f}));
+
+  // Jornada especial del día, si la hay
+  const je = jornadasEspeciales.find(j => j.doctor===profId && j.fecha===fecha);
+  if(je){
+    if(P.sedeResto && je.clinica === SEDES[Object.keys(P.bloques||{})[0]]?.clave){
+      franjas = franjasDe(profId, dow, {
+        sede: Object.keys(P.bloques)[0], ini: tMin(je.ini), fin: tMin(je.fin)
+      }).map(f=>({...f}));
+    } else {
+      franjas = franjas.filter(f => f.clinica !== je.clinica);
+      franjas.push({ clinica:je.clinica, ini:tMin(je.ini), fin:tMin(je.fin) });
+    }
+  }
+  franjas.sort((a,b)=>a.ini-b.ini);
+  if(!franjas.length) return { publica:true, bloques:[], sinJornada:true };
+
+  // Citas y bloqueos reales de esa persona ese día
+  const ocup = events
+    .filter(e => e.date===fecha && e.status!=='cancelled' && e.doctor===profId && e.time)
+    .map(e => {
+      const ini = tMin(e.time);
+      const dur = e.durMin || ((e.duration||1)*(e.source==='medicloud'?30:60));
+      return { ini, fin:ini+dur, nombre:e.name||'(sin nombre)',
+               bloqueo:e.type==='blocked', nota:e.notes||'' };
+    })
+    .sort((a,b)=>a.ini-b.ini);
+
+  const out = [];
+  let anterior = null;
+  for(const f of franjas){
+    // Hueco entre franjas de distinta sede = traslado
+    if(anterior && f.ini > anterior.fin){
+      out.push({ t:'tr', ini:anterior.fin, fin:f.ini,
+                 de:SEDE_POR_CLAVE[anterior.clinica]?.nombre,
+                 a:SEDE_POR_CLAVE[f.clinica]?.nombre });
+    }
+    const sede = SEDE_POR_CLAVE[f.clinica]?.nombre || '';
+    // Recorrer la franja repartiendo entre ocupado y libre
+    let cur = f.ini;
+    for(const o of ocup){
+      if(o.fin <= f.ini || o.ini >= f.fin) continue;
+      const oi = Math.max(o.ini, f.ini), of_ = Math.min(o.fin, f.fin);
+      if(oi > cur) out.push(nvHueco(cur, oi, sede));
+      out.push({ t: o.bloqueo ? 'bl' : 'oc', ini:oi, fin:of_,
+                 nombre:o.nombre, sede, nota:o.nota });
+      cur = Math.max(cur, of_);
+    }
+    if(f.fin > cur) out.push(nvHueco(cur, f.fin, sede));
+    anterior = f;
+  }
+  return { publica:true, bloques: out.sort((a,b)=>a.ini-b.ini),
+           ini: franjas[0].ini, fin: franjas[franjas.length-1].fin };
+}
+const nvHueco = (ini, fin, sede) => ({
+  t: (fin-ini) >= NV_MIN_CONSULTA ? 'li' : 'co', ini, fin, sede
+});
+
+function nvPrimerHueco(profId, fecha){
+  const m = nvModeloDia(profId, fecha);
+  if(!m.publica) return null;
+  const ahora = (fecha === todayKey()) ? (new Date().getHours()*60 + new Date().getMinutes()) : 0;
+  return m.bloques.find(b => b.t==='li' && b.fin > ahora) || null;
+}
+
+// ── Pintado ─────────────────────────────────────────────────────────────
+function abrirVistas(vista){
+  if(vista) nvVista = vista;
+  goScreen('s-vistas');
+  nvPintar();
+}
+window.abrirVistas = abrirVistas;
+
+function nvSetVista(v){
+  nvVista = v; localStorage.setItem('nv_vista', v); nvPintar();
+}
+window.nvSetVista = nvSetVista;
+
+function nvDia(d){
+  const [Y,M,D] = nvFecha.split('-').map(Number);
+  const x = new Date(Y,M-1,D); x.setDate(x.getDate()+d);
+  nvFecha = dateKey(x); nvPintar();
+}
+window.nvDia = nvDia;
+function nvHoy(){ nvFecha = todayKey(); nvPintar(); }
+window.nvHoy = nvHoy;
+
+function nvAlternar(id){
+  nvVisibles.has(id) ? nvVisibles.delete(id) : nvVisibles.add(id);
+  localStorage.setItem('nv_visibles', [...nvVisibles].join(','));
+  nvPintar();
+}
+window.nvAlternar = nvAlternar;
+function nvTodos(){
+  nvVisibles = new Set(Object.keys(PROFESIONALES));
+  localStorage.setItem('nv_visibles', [...nvVisibles].join(','));
+  nvPintar();
+}
+window.nvTodos = nvTodos;
+
+function nvPintar(){
+  document.getElementById('nv-rol').innerHTML =
+    `<button class="${nvVista==='panorama'?'on':''}" onclick="nvSetVista('panorama')">Panorama</button>
+     <button class="${nvVista==='mi-dia'?'on':''}" onclick="nvSetVista('mi-dia')">Mi día</button>`;
+  document.getElementById('nv-fecha-lbl').textContent = nvFechaLarga(nvFecha);
+  document.getElementById('nv-host').innerHTML =
+    nvVista==='panorama' ? nvHTMLPanorama() : nvHTMLMiDia();
+}
+
+function nvCasillas(){
+  return `<div class="nv-card nv-filtro">
+    <div class="t">A quién estoy viendo
+      <button onclick="nvTodos()">Ver a todos</button></div>
+    <div class="nv-cas">${Object.entries(PROFESIONALES).map(([id,p])=>{
+      const on = nvVisibles.has(id);
+      return `<label class="${on?'on':''}">
+        <input type="checkbox" ${on?'checked':''} onchange="nvAlternar('${id}')">
+        <span class="pt" style="background:${nvColor[id]||'var(--n-brand)'}"></span>${p.corto||p.nombre}
+      </label>`;
+    }).join('')}</div>
+  </div>`;
+}
+
+function nvHTMLPanorama(){
+  const ids = Object.keys(PROFESIONALES).filter(id => nvVisibles.has(id));
+
+  // Lo más pronto: la frase que la asistente dice por teléfono, ya hecha.
+  const pronto = ids.length
+    ? ids.map(id=>{
+        const p = PROFESIONALES[id];
+        const h = nvPrimerHueco(id, nvFecha);
+        return `<div class="f">
+          <span class="esp">${(p.especialidades||[]).join(' · ')||p.nombre}<span>${p.corto||p.nombre}</span></span>
+          ${p.publica === false
+            ? `<span class="cu nada">Se coordina con ${p.corto||'la persona'}</span>`
+            : `<span class="cu num">${h ? tFmt(h.ini) : 'Sin cupo'}</span>`}
+        </div>`;
+      }).join('')
+    : `<div class="f"><span class="esp" style="font-weight:400;color:var(--n-muted)">
+         Marque a alguien arriba para ver sus horarios.</span></div>`;
+
+  let panel;
+  if(!ids.length){
+    panel = `<div class="nv-card nv-pan"><div class="nv-vacio">
+      <b>Nadie seleccionado</b>Marque arriba a quién quiere ver.</div></div>`;
+  } else {
+    const holgado = ids.length <= 2;
+    const alto = (NV_FIN - NV_INICIO) * NV_ESCALA;
+    const horas = [8,10,12,14,16,18];
+    const cols = ids.map(id=>{
+      const p = PROFESIONALES[id];
+      const m = nvModeloDia(id, nvFecha);
+      if(!m.publica) return `<div class="nv-col sinhorario">Sin horario fijo<br>cada cita se coordina</div>`;
+      if(!m.bloques.length) return `<div class="nv-col"></div>`;
+      return `<div class="nv-col">${m.bloques.map(b=>{
+        const top = (b.ini-NV_INICIO)*NV_ESCALA, h = (b.fin-b.ini)*NV_ESCALA;
+        if(h < 3) return '';
+        const cls = {oc:'nv-oc', li:'nv-li', co:'nv-co', bl:'nv-bl', tr:'nv-tr'}[b.t];
+        let txt = '';
+        if(b.t==='oc') txt = holgado ? `${tFmt(b.ini)} · ${esc(b.nombre)}<br>${b.sede}` : esc(b.nombre);
+        else if(b.t==='li') txt = holgado ? `${tFmt(b.ini)} · ${nvDur(b.fin-b.ini)} libre` : nvDur(b.fin-b.ini);
+        else if(b.t==='bl') txt = esc(b.nombre);
+        else if(b.t==='tr') txt = holgado ? `traslado · ${b.fin-b.ini} min` : 'traslado';
+        const tag = b.t==='li' ? 'button' : 'div';
+        const act = b.t==='li' ? ` onclick="nvAbrirHueco('${id}','${b.ini}')"` : '';
+        return `<${tag} class="nv-blk ${cls}" style="top:${top}px;height:${h}px"${act}>${txt}</${tag}>`;
+      }).join('')}</div>`;
+    }).join('');
+
+    panel = `<div class="nv-card nv-pan">
+      <div class="nv-cab">${ids.map(id=>{
+        const p = PROFESIONALES[id];
+        return `<div>${p.corto||p.nombre}<small>${(p.especialidades||[])[0]||''}</small></div>`;
+      }).join('')}</div>
+      <div class="nv-cuerpo ${ids.length<=2?'holgado':''}" style="height:${alto}px">
+        <div class="nv-horas">${horas.map(h=>
+          `<span style="top:${(h*60-NV_INICIO)*NV_ESCALA}px">${String(h).padStart(2,'0')}</span>`).join('')}</div>
+        ${horas.map(h=>`<div class="nv-raya" style="top:${(h*60-NV_INICIO)*NV_ESCALA}px"></div>`).join('')}
+        ${cols}
+      </div>
+      <div class="nv-leg">
+        <span><i style="background:#CFE0EC"></i>Ocupado</span>
+        <span><i style="background:var(--n-ok-soft);border:1.5px solid var(--ngreen)"></i>Libre</span>
+        <span><i class="bb-tr"></i>Traslado</span>
+        <span><i style="background:var(--n-danger-soft)"></i>Bloqueado</span>
+      </div>
+    </div>`;
+  }
+
+  // Lista de espera cruzada con los huecos de HOY, ya con la hora puesta.
+  let espera = '';
+  const pend = (_espCache||[]).filter(it => (it.estado||'pendiente')==='pendiente');
+  const conProf = pend.map(it => ({ it, prof: _espMedico(it) }))
+                      .filter(x => x.prof && nvVisibles.has(x.prof));
+  if(conProf.length){
+    espera = `<div class="nv-espera"><b>${conProf.length}
+      ${conProf.length===1?'persona esperando':'personas esperando'} cupo</b>` +
+      conProf.slice(0,4).map(({it,prof})=>{
+        const h = nvPrimerHueco(prof, nvFecha);
+        const tel = (it.tel||'').replace(/\D/g,'');
+        const msg = h ? `Hola ${(it.nombre||'').split(' ')[0]}, se liberó un espacio el ${nvFechaLarga(nvFecha)} a las ${tFmt(h.ini)}. ¿Le sirve?` : '';
+        return `<div class="fila">
+          <span class="n">${esc(it.nombre||'(sin nombre)')}<span>${esc(it.especialidad||'')}</span></span>
+          ${h && tel
+            ? `<a class="wa" href="https://wa.me/502${tel}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Ofrecer ${tFmt(h.ini)}</a>`
+            : `<button class="wa" style="background:var(--n-muted)" onclick="openEspera()">Ver lista</button>`}
+        </div>`;
+      }).join('') + `</div>`;
+  }
+
+  return nvCasillas() +
+    `<div class="nv-card nv-pronto"><div class="t">Lo más pronto disponible</div>${pronto}</div>` +
+    panel + espera;
+}
+
+function nvHTMLMiDia(){
+  const id = [...nvVisibles][0] && PROFESIONALES[[...nvVisibles][0]]
+    ? [...nvVisibles][0] : currentDoc;
+  const p = PROFESIONALES[id] || {};
+  const m = nvModeloDia(id, nvFecha);
+
+  if(!m.publica) return nvCasillas() + `<div class="nv-card nv-vacio">
+    <b>${esc(p.corto||id)} no publica horarios</b>
+    Sus citas se coordinan una por una; todo entra por lista de espera.</div>`;
+  if(!m.bloques.length) return nvCasillas() + `<div class="nv-card nv-vacio">
+    <b>No hay jornada este día</b>${esc(p.corto||id)} no atiende el ${nvFechaLarga(nvFecha)}.</div>`;
+
+  const suma = t => m.bloques.filter(b=>b.t===t).reduce((a,b)=>a+(b.fin-b.ini),0);
+  const oc = suma('oc')+suma('bl'), li = suma('li'), co = suma('co'), tr = suma('tr');
+  const tot = oc+li+co+tr || 1;
+  const caben = m.bloques.filter(b=>b.t==='li')
+    .reduce((a,b)=>a+Math.floor((b.fin-b.ini)/NV_MIN_CONSULTA),0);
+
+  const filas = m.bloques.map(b=>{
+    const alto = Math.max(26, (b.fin-b.ini)*0.9);
+    const hora = `<span class="h num">${tFmt(b.ini)}</span>`;
+    if(b.t==='oc') return `<div class="nv-fr">${hora}
+      <div class="nv-ocup" style="height:${alto}px"><span><b>${esc(b.nombre)}</b>
+      ${b.nota?`<span class="nv-sub">${esc(b.nota).slice(0,60)}</span>`:''}</span>
+      <span class="nv-sede">${b.sede}</span><span class="d num">${nvDur(b.fin-b.ini)}</span></div></div>`;
+    if(b.t==='bl') return `<div class="nv-fr">${hora}
+      <div class="nv-bloq" style="height:${alto}px"><span><b>${esc(b.nombre)}</b></span>
+      <span class="d num">${nvDur(b.fin-b.ini)}</span></div></div>`;
+    if(b.t==='tr') return `<div class="nv-fr">${hora}
+      <div class="nv-tras" style="height:${alto}px"><b>Traslado</b> ${b.de} → ${b.a} · ${b.fin-b.ini} min</div></div>`;
+    if(b.t==='co') return `<div class="nv-fr">${hora}
+      <div class="nv-libre corto" style="height:${alto}px"><b class="num">${nvDur(b.fin-b.ini)}</b>
+      <span class="q">no cabe una consulta</span></div></div>`;
+    const n = Math.floor((b.fin-b.ini)/NV_MIN_CONSULTA);
+    return `<div class="nv-fr">${hora}
+      <button class="nv-libre" style="height:${alto}px" onclick="nvAbrirHueco('${id}','${b.ini}')">
+      <b class="num">${nvDur(b.fin-b.ini)}</b>
+      <span class="q">${n>1?`caben ${n} consultas`:'cabe una consulta'} · ${b.sede}</span>
+      <span class="cta">Agendar →</span></button></div>`;
+  }).join('');
+
+  return nvCasillas() + `
+    <div class="nv-card nv-cap">
+      <div class="f">${nvFechaLarga(nvFecha)}</div>
+      <div class="t">${li?nvDur(li)+' de espacio aprovechable':'Sin espacio libre'}</div>
+      <div class="nv-barra">
+        <i class="bb-oc" style="width:${oc/tot*100}%"></i>
+        <i class="bb-li" style="width:${li/tot*100}%"></i>
+        <i class="bb-co" style="width:${co/tot*100}%"></i>
+        <i class="bb-tr" style="width:${tr/tot*100}%"></i>
+      </div>
+      <div class="leg">
+        <span><i class="bb-oc"></i>Ocupado ${nvDur(oc)}</span>
+        <span><i class="bb-li"></i>Aprovechable ${nvDur(li)}</span>
+        ${co?`<span><i class="bb-co"></i>Fragmentado ${nvDur(co)}</span>`:''}
+        ${tr?`<span><i class="bb-tr"></i>Traslados ${nvDur(tr)}</span>`:''}
+      </div>
+      ${caben||tr ? `<p class="res">${caben?`Caben <b>${caben}</b> consulta${caben===1?'':'s'} más.`:''}
+        ${tr?` Los traslados se llevan <b>${nvDur(tr)}</b>.`:''}</p>` : ''}
+    </div>
+    <div class="nv-sec">El día, hora por hora</div>
+    <div class="nv-dia">${filas}
+      <div class="nv-fr"><span class="h num">${tFmt(m.fin)}</span>
+        <span class="nv-sub">Fin de la jornada</span></div></div>
+    <div class="nv-acc">
+      <button onclick="jpHastaQueHora()"><b>¿Hasta qué hora?</b><span>Recortar o estirar el día</span></button>
+      <button onclick="openJornadaEspecial()"><b>Jornada especial</b><span>Cambiar el horario de este día</span></button>
+      <button onclick="openEspera()"><b>Lista de espera</b><span>Ofrecer estos huecos</span></button>
+      <button onclick="openProfesionales()"><b>Horarios</b><span>El reparto entre sedes</span></button>
+    </div>`;
+}
+
+// Tocar un hueco abre el formulario de cita ya con la fecha, la hora y
+// el profesional puestos: es el atajo que convierte mirar en hacer.
+function nvAbrirHueco(profId, ini){
+  currentDoc = profId;
+  openModal(null, nvFecha, tFmt(Number(ini)), profId);
+}
+window.nvAbrirHueco = nvAbrirHueco;
+
+// ═══ EL DÍA ═══════════════════════════════════════════════════════════════
+// Dos lecturas del mismo día. La asistente contesta el teléfono y necesita
+// ver a todos a la vez para responder «¿tienen campo?». El médico necesita su
+// propio día. Antes había una sola vista, pensada para el segundo caso, y la
+// asistente tenía que abrir tres agendas y comparar a ojo.
+//
+// El modo y a quién se mira se guardan POR DISPOSITIVO: la tablet del
+// mostrador se queda en panorama, el teléfono del médico en su día, y nadie
+// tiene que volver a elegir cada mañana.
+
+const D_ESCALA = 0.55;        // píxeles por minuto en el panorama
+const D_DESDE  = 7*60;        // el panorama arranca a las 07:00
+const D_HASTA  = 20*60;       // y cierra a las 20:00
+
+// Cuántos minutos hace falta que un hueco tenga para que valga la pena
+// ofrecerlo. Por debajo de esto existe, pero no cabe una consulta.
+function minConsulta(profId){
+  const P = PROFESIONALES[profId];
+  return (P && P.minConsulta) || 45;
+}
+
+let dDia    = todayKey();
+let dModo   = localStorage.getItem('ag_dia_modo') || 'panorama';
+let dVisibles = null;   // Set de ids; se inicializa en openDia
+
+function dGuardarPrefs(){
+  try{
+    localStorage.setItem('ag_dia_modo', dModo);
+    localStorage.setItem('ag_dia_vis', JSON.stringify([...dVisibles]));
+  }catch(_){}
+}
+
+const dHHMM = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+const dDur  = m => m>=60 ? (m%60 ? `${Math.floor(m/60)} h ${m%60}` : `${Math.floor(m/60)} h`) : `${m} min`;
+const dSede = clave => (SEDE_POR_CLAVE[clave] || {}).nombre || '';
+
+// ── El día de una persona, como una sola tira de bloques ordenados ────────
+// Reutiliza el motor que ya existe: franjasEfectivas para el horario y
+// calcularHuecosFranja para los huecos. No recalcula nada por su cuenta, para
+// que lo que se ve acá sea exactamente lo que se publica a los pacientes.
+function dArmarDia(profId, fecha){
+  const P = PROFESIONALES[profId];
+  if(!P) return {vacio:'no-existe'};
+  if(P.publica === false) return {vacio:'sin-horario'};
+
+  let franjas = [];
+  try { franjas = franjasEfectivas(profId, fecha) || []; } catch(e){ franjas = []; }
+  if(!franjas.length) return {vacio:'no-atiende'};
+
+  const bloques = [];
+  const min = minConsulta(profId);
+
+  // Ocupado: sus citas y sus bloqueos
+  events.filter(e => e.date===fecha && e.doctor===profId && e.status!=='cancelled' && e.time)
+    .forEach(e => {
+      const ini = tMin(e.time);
+      const fin = ini + (e.durMin || ((e.duration||1) * (e.source==='medicloud' ? 30 : 60)));
+      bloques.push({
+        t: (e.type==='blocked' || e.blocked) ? 'bl' : 'oc',
+        ini, fin, id:e.id,
+        quien: e.name || (e.type==='blocked' ? 'Bloqueado' : 'Cita'),
+        detalle: e.notes || '',
+        sede: e.blockClinica ? dSede(e.blockClinica) : '',
+      });
+    });
+
+  // Libre: exactamente lo que se le ofrece al paciente
+  try {
+    (calcularHuecosFranja(profId, fecha) || []).forEach(h => {
+      const largo = h.fin - h.ini;
+      if(largo < 10) return;
+      bloques.push({ t: largo >= min ? 'li' : 'co', ini:h.ini, fin:h.fin,
+                     sede: dSede(h.clinica), clinica:h.clinica });
+    });
+  } catch(e){ console.warn('huecos del día:', e.message); }
+
+  // Traslado: el espacio entre dos franjas de sedes distintas. No es hueco.
+  const orden = franjas.slice().sort((a,b)=>a.ini-b.ini);
+  for(let i=0; i<orden.length-1; i++){
+    const a = orden[i], b = orden[i+1];
+    if(a.clinica !== b.clinica && b.ini > a.fin){
+      bloques.push({ t:'tr', ini:a.fin, fin:b.ini, de:dSede(a.clinica), a:dSede(b.clinica) });
+    }
+  }
+
+  bloques.sort((a,b) => a.ini - b.ini || a.fin - b.fin);
+
+  const suma = t => bloques.filter(b=>b.t===t).reduce((n,b)=>n + (b.fin-b.ini), 0);
+  return {
+    bloques, franjas,
+    ini: Math.min(...orden.map(f=>f.ini)),
+    fin: Math.max(...orden.map(f=>f.fin)),
+    ocupado: suma('oc') + suma('bl'),
+    util: suma('li'),
+    frag: suma('co'),
+    traslado: suma('tr'),
+    caben: bloques.filter(b=>b.t==='li').reduce((n,b)=>n + Math.floor((b.fin-b.ini)/min), 0),
+  };
+}
+
+function dPrimerHueco(profId, fecha){
+  const d = dArmarDia(profId, fecha);
+  if(d.vacio) return null;
+  const ahora = (fecha === todayKey()) ? (new Date().getHours()*60 + new Date().getMinutes()) : -1;
+  return d.bloques.find(b => b.t==='li' && b.fin > ahora) || null;
+}
+
+// ── Pantalla ──────────────────────────────────────────────────────────────
+function openDia(){
+  if(!dVisibles){
+    let guardado = null;
+    try { guardado = JSON.parse(localStorage.getItem('ag_dia_vis') || 'null'); } catch(_){}
+    const validos = (guardado || []).filter(id => PROFESIONALES[id]);
+    dVisibles = new Set(validos.length ? validos : Object.keys(PROFESIONALES));
+  }
+  goScreen('s-dia');
+  dPintar();
+  // La lista de espera se cruza con los huecos del día. Si todavía no se
+  // cargó, se trae y se repinta: sin esto el bloque de espera aparecería
+  // vacío la primera vez y lleno la segunda, sin motivo aparente.
+  if(!_espCache.length) espCargar().then(dPintarEspera).catch(()=>{});
+}
+window.openDia = openDia;
+
+function diaMover(n){
+  const [Y,M,D] = dDia.split('-').map(Number);
+  const f = new Date(Y, M-1, D); f.setDate(f.getDate()+n);
+  dDia = dateKey(f);
+  dPintar();
+}
+window.diaMover = diaMover;
+
+function diaModo(m){ dModo = m; dGuardarPrefs(); dPintar(); }
+window.diaModo = diaModo;
+
+function diaAlternar(id){
+  dVisibles.has(id) ? dVisibles.delete(id) : dVisibles.add(id);
+  dGuardarPrefs(); dPintar();
+}
+window.diaAlternar = diaAlternar;
+
+function diaTodos(){ dVisibles = new Set(Object.keys(PROFESIONALES)); dGuardarPrefs(); dPintar(); }
+window.diaTodos = diaTodos;
+
+const D_COLORES = ['#1B72B8','#6BB745','#F59120','#2C9CCB','#B02A20'];
+const dColor = id => D_COLORES[Object.keys(PROFESIONALES).indexOf(id) % D_COLORES.length];
+
+function dPintar(){
+  const [Y,M,D] = dDia.split('-').map(Number);
+  const f = new Date(Y, M-1, D);
+  document.getElementById('d-dow').textContent =
+    f.toLocaleDateString('es-GT', { weekday:'long', day:'numeric', month:'long' });
+  document.getElementById('d-hoy').textContent =
+    dDia === todayKey() ? 'Hoy' : (dDia < todayKey() ? 'Día pasado' : '');
+
+  document.querySelectorAll('.d-modo button').forEach(b =>
+    b.classList.toggle('on', b.dataset.modo === dModo));
+
+  document.getElementById('d-casillas').innerHTML = Object.entries(PROFESIONALES).map(([id,P])=>`
+    <label class="d-cas ${dVisibles.has(id)?'on':''}">
+      <input type="checkbox" ${dVisibles.has(id)?'checked':''} onchange="diaAlternar('${id}')">
+      <span class="pt" style="background:${dColor(id)}"></span>${esc(P.corto || P.nombre || id)}
+    </label>`).join('');
+
+  dPintarPronto();
+  if(dModo === 'panorama') dPintarPanorama(); else dPintarMio();
+  dPintarEspera();
+}
+
+function dPintarPronto(){
+  const host = document.getElementById('d-pronto');
+  const ids = Object.keys(PROFESIONALES).filter(id => dVisibles.has(id));
+  if(!ids.length){ host.innerHTML = ''; host.style.display='none'; return; }
+  host.style.display = '';
+  host.innerHTML = `<div class="t">Lo más pronto disponible</div>` + ids.map(id=>{
+    const P = PROFESIONALES[id];
+    const esp = (P.especialidades||[]).join(' · ') || '—';
+    if(P.publica === false)
+      return `<div class="f"><span class="esp">${esc(esp)}<small>${esc(P.corto||id)}</small></span>
+              <span class="cuando nada">Se coordina con ${esc((P.nombre||'').split(' ')[0])}</span></div>`;
+    const h = dPrimerHueco(id, dDia);
+    return `<div class="f"><span class="esp">${esc(esp)}<small>${esc(P.corto||id)}</small></span>
+      <span class="cuando num">${h ? dHHMM(h.ini) : 'Sin cupo este día'}</span></div>`;
+  }).join('');
+}
+
+function dPintarPanorama(){
+  const ids = Object.keys(PROFESIONALES).filter(id => dVisibles.has(id));
+  const host = document.getElementById('d-cuerpo');
+
+  if(!ids.length){
+    host.innerHTML = `<div class="d-pan"><div class="d-vacio"><b>Nadie seleccionado</b>
+      Marque arriba a quién quiere ver.</div></div>`;
+    return;
+  }
+
+  const dias = ids.map(id => ({ id, P:PROFESIONALES[id], d:dArmarDia(id, dDia) }));
+
+  // El eje se ajusta a lo que realmente hay ese día: si nadie empieza antes de
+  // las nueve, no se dibujan dos horas vacías arriba.
+  let ini = D_HASTA, fin = D_DESDE;
+  dias.forEach(x => { if(!x.d.vacio){ ini = Math.min(ini, x.d.ini); fin = Math.max(fin, x.d.fin); } });
+  if(ini >= fin){ ini = 8*60; fin = 18*60; }
+  ini = Math.max(D_DESDE, Math.floor(ini/60)*60);
+  fin = Math.min(D_HASTA, Math.ceil(fin/60)*60);
+  const alto = (fin - ini) * D_ESCALA;
+  const holgado = ids.length <= 2;
+
+  const horas = [], rayas = [];
+  for(let h = Math.ceil(ini/60); h*60 <= fin; h += (fin-ini > 600 ? 2 : 1)){
+    const y = (h*60 - ini) * D_ESCALA;
+    horas.push(`<span style="top:${y}px">${String(h).padStart(2,'0')}</span>`);
+    rayas.push(`<div class="d-raya" style="top:${y}px"></div>`);
+  }
+
+  const cols = dias.map(x=>{
+    if(x.d.vacio === 'sin-horario')
+      return `<div class="d-col sinhorario">Sin horario fijo<br>cada cita se coordina</div>`;
+    if(x.d.vacio)
+      return `<div class="d-col noatiende">No atiende<br>este día</div>`;
+    const bs = x.d.bloques.map(b=>{
+      const top = (b.ini - ini) * D_ESCALA;
+      const h   = Math.max(6, (b.fin - b.ini) * D_ESCALA);
+      const cls = { oc:'d-oc', li:'d-li', co:'d-co', bl:'d-bl', tr:'d-tr' }[b.t];
+      let txt = '';
+      if(b.t==='oc') txt = holgado ? `${dHHMM(b.ini)} · ${esc(b.quien)}${b.sede?'<br>'+esc(b.sede):''}` : esc(b.quien);
+      else if(b.t==='li') txt = holgado ? `${dHHMM(b.ini)} · ${dDur(b.fin-b.ini)} libre` : dDur(b.fin-b.ini);
+      else if(b.t==='co') txt = holgado ? `${dDur(b.fin-b.ini)}` : '';
+      else if(b.t==='bl') txt = esc(b.quien);
+      else if(b.t==='tr') txt = holgado ? `traslado · ${b.fin-b.ini} min` : 'traslado';
+      const click = b.t==='li' ? ` onclick="dIrAHueco('${x.id}','${dHHMM(b.ini)}')"` : '';
+      return `<div class="d-blk ${cls}" style="top:${top}px;height:${h}px"${click}>${txt}</div>`;
+    }).join('');
+    return `<div class="d-col">${bs}</div>`;
+  }).join('');
+
+  host.innerHTML = `<div class="d-pan">
+    <div class="d-cab">${dias.map(x=>`<div>${esc(x.P.corto||x.id)}
+      <small>${esc((x.P.especialidades||[])[0]||'')}</small></div>`).join('')}</div>
+    <div class="d-cuerpo ${holgado?'holgado':''}" style="height:${alto}px">
+      <div class="d-horas">${horas.join('')}</div>${rayas.join('')}${cols}
+    </div>
+    <div class="d-leg">
+      <span><i style="background:#CFE0EC"></i>Ocupado</span>
+      <span><i style="background:#EAF5E3;border:1.5px solid #6BB745"></i>Libre</span>
+      <span><i class="d-tr"></i>Traslado</span>
+      <span><i style="background:#FBE8E6"></i>Bloqueado</span>
+    </div></div>`;
+}
+
+function dPintarMio(){
+  const ids = Object.keys(PROFESIONALES).filter(id => dVisibles.has(id));
+  const host = document.getElementById('d-cuerpo');
+  if(!ids.length){
+    host.innerHTML = `<div class="d-vacio"><b>Nadie seleccionado</b>
+      Marque arriba a quién quiere ver.</div>`;
+    return;
+  }
+  host.innerHTML = ids.map(id => dTarjetaDia(id)).join('');
+}
+
+function dTarjetaDia(profId){
+  const P = PROFESIONALES[profId];
+  const d = dArmarDia(profId, dDia);
+  const nom = esc(P.corto || P.nombre || profId);
+
+  if(d.vacio === 'sin-horario') return `<div class="d-cap">
+    <div class="quien">${nom}</div><div class="tt">Sin horario fijo</div>
+    <p class="res">Sus citas se coordinan una por una. Las solicitudes entran por lista de espera.</p></div>`;
+  if(d.vacio) return `<div class="d-cap">
+    <div class="quien">${nom}</div><div class="tt">No atiende este día</div></div>`;
+
+  const total = d.ocupado + d.util + d.frag + d.traslado || 1;
+  const pct = n => Math.round(n/total*100);
+  const min = minConsulta(profId);
+
+  const barras = `<div class="d-barra">
+    <i class="bb-oc" style="width:${pct(d.ocupado)}%"></i>
+    <i class="bb-ut" style="width:${pct(d.util)}%"></i>
+    <i class="bb-fr" style="width:${pct(d.frag)}%"></i>
+    <i class="bb-tr" style="width:${pct(d.traslado)}%"></i></div>
+    <div class="leg">
+      <span><i class="bb-oc"></i>Ocupado ${dDur(d.ocupado)}</span>
+      <span><i class="bb-ut"></i>Aprovechable ${dDur(d.util)}</span>
+      ${d.frag?`<span><i class="bb-fr"></i>Fragmentado ${dDur(d.frag)}</span>`:''}
+      ${d.traslado?`<span><i class="bb-tr"></i>Traslados ${dDur(d.traslado)}</span>`:''}
+    </div>`;
+
+  const alerta = d.traslado > d.util
+    ? `<p class="res">Caben <b>${d.caben}</b> ${d.caben===1?'consulta':'consultas'} más.
+       Los traslados se llevan <b>${dDur(d.traslado)}</b>: más que todo el espacio libre del día.</p>`
+    : `<p class="res">${d.caben ? `Caben <b>${d.caben}</b> ${d.caben===1?'consulta':'consultas'} más.`
+        : 'El día está lleno.'}${d.traslado?` Traslados: ${dDur(d.traslado)}.`:''}</p>`;
+
+  const linea = d.bloques.map(b=>{
+    const alto = Math.max(26, (b.fin-b.ini) * 0.9);
+    const hora = `<span class="h num">${dHHMM(b.ini)}</span>`;
+    if(b.t==='oc') return `<div class="d-fr">${hora}
+      <div class="dl-oc" style="min-height:${alto}px"><span><b>${esc(b.quien)}</b>
+        ${b.detalle?`<span class="d-sub">${esc(String(b.detalle).slice(0,60))}</span>`:''}</span>
+        ${b.sede?`<span class="dl-sede">${esc(b.sede)}</span>`:''}
+        <span class="d num">${dDur(b.fin-b.ini)}</span></div></div>`;
+    if(b.t==='bl') return `<div class="d-fr">${hora}
+      <div class="dl-bl" style="min-height:${alto}px"><span><b>${esc(b.quien)}</b>
+        ${b.sede?`<span class="d-sub" style="color:inherit;opacity:.85">Solo ${esc(b.sede)}</span>`:''}</span>
+        <span class="d num">${dDur(b.fin-b.ini)}</span></div></div>`;
+    if(b.t==='tr') return `<div class="d-fr">${hora}
+      <div class="dl-tr" style="min-height:${Math.max(22,alto)}px">
+        <b>Traslado</b> ${esc(b.de)} → ${esc(b.a)} · ${b.fin-b.ini} min</div></div>`;
+    if(b.t==='co') return `<div class="d-fr">${hora}
+      <div class="dl-li corto" style="min-height:26px"><b class="num">${dDur(b.fin-b.ini)}</b>
+        <span class="q">no cabe una consulta</span></div></div>`;
+    const caben = Math.floor((b.fin-b.ini)/min);
+    return `<div class="d-fr">${hora}
+      <button class="dl-li" style="min-height:${alto}px"
+        onclick="dIrAHueco('${profId}','${dHHMM(b.ini)}')">
+        <b class="num">${dDur(b.fin-b.ini)}</b>
+        <span class="q">${caben>1?`caben ${caben} consultas`:'cabe una consulta'}${b.sede?' · '+esc(b.sede):''}</span>
+        <span class="cta">Abrir cupo →</span></button></div>`;
+  }).join('');
+
+  return `<div class="d-cap">
+      <div class="quien">${nom}</div>
+      <div class="tt">${d.util ? dDur(d.util)+' de espacio aprovechable' : 'Sin espacio libre'}</div>
+      ${barras}${alerta}
+    </div>
+    <div class="d-sec">El día, hora por hora</div>
+    <div class="d-linea">${linea}
+      <div class="d-fr"><span class="h num">${dHHMM(d.fin)}</span>
+        <span class="d-sub">Fin de la jornada</span></div></div>`;
+}
+
+// Tocar un hueco abre el formulario de siempre, con el médico, la fecha y la
+// hora ya puestos. La pantalla nueva no reimplementa el agendado.
+function dIrAHueco(profId, hora){
+  currentDoc = profId;
+  const f = document.getElementById('f-date');
+  goScreen('s-agenda');
+  setTimeout(()=>{
+    try{
+      openModal();
+      if(f) f.value = dDia;
+      buildTimes(hora);
+      const t = document.getElementById('f-time'); if(t) t.value = hora;
+    }catch(e){ console.warn('abrir hueco:', e.message); }
+  }, 60);
+}
+window.dIrAHueco = dIrAHueco;
+
+function dPintarEspera(){
+  const host = document.getElementById('d-espera');
+  if(!_espCache.length){ host.innerHTML = ''; return; }
+  const pend = _espCache.filter(it => (it.estado||'pendiente')==='pendiente')
+    .filter(it => { const pid = _espMedico(it); return pid && dVisibles.has(pid); });
+  if(!pend.length){ host.innerHTML = ''; return; }
+
+  host.innerHTML = `<div class="d-esp">
+    <div class="tt">${pend.length} ${pend.length===1?'persona esperando':'personas esperando'} cupo</div>
+    ${pend.slice(0,4).map(it=>{
+      const pid = _espMedico(it);
+      const h = dPrimerHueco(pid, dDia);
+      const tel = (it.tel||'').replace(/\D/g,'');
+      const nom = esc(it.nombre || '(sin nombre)');
+      const msg = h
+        ? `Hola ${(it.nombre||'').split(' ')[0]}, le escribimos de la clínica. Se liberó un espacio con ${nombreProf(pid)} el ${dDia} a las ${dHHMM(h.ini)}. ¿Le sirve?`
+        : '';
+      return `<div class="fila"><span class="n">${nom}
+        <small>${esc(it.especialidad||'')} · ${nombreProf(pid)}</small></span>
+        ${h && tel
+          ? `<a class="wa" href="https://wa.me/502${tel}?text=${encodeURIComponent(msg)}"
+               target="_blank" rel="noopener">Ofrecer ${dHHMM(h.ini)}</a>`
+          : `<span class="wa sin">${h?'Sin teléfono':'Sin cupo este día'}</span>`}
+      </div>`;
+    }).join('')}
+    <div style="margin-top:8px"><button type="button" class="d-filtro-t" style="padding:0;border:0;background:none"
+      onclick="openEspera()">Ver la lista completa →</button></div>
+  </div>`;
+}
 
 // ═══ PROFESIONALES Y HORARIOS ═════════════════════════════════════════════
 // Hasta acá los horarios vivían en el código: para mover una hora había que
@@ -4827,6 +6004,8 @@ function contarRecordatoriosPendientes(){
 // Al abrir la agenda: si hay recordatorios pendientes, mostrar un aviso
 // discreto (no un pop-up que interrumpa) con un botón para ir a enviarlos.
 function avisarRecordatorios(){
+  return;   // Recordatorios retirado de la interfaz: no funcionó en la práctica.
+  /* eslint-disable */
   const box = document.getElementById('rec-aviso-agenda');
   if(!box) return;
   const n = contarRecordatoriosPendientes();
@@ -5060,7 +6239,6 @@ function render(){
   try { actualizarContadoresHome(); } catch(_){}
   // Refrescar el aviso de recordatorios si la agenda está abierta (así aparece
   // aunque los datos hayan llegado después de entrar).
-  try { if(document.getElementById('s-agenda')?.classList.contains('on')) avisarRecordatorios(); } catch(_){}
   // Stats reflect OCCUPATION of the visible week: every reserved/recorded slot
   // counts as occupied time, regardless of source (virtual reservation or expediente).
   const weekDays=getWeekDays(currentWeekOffset);
@@ -5421,55 +6599,62 @@ async function unificarCitaWebConMedicloud(ev){
 }
 
 // Borra completamente una cita web de Firebase (colección citas del sistema de citas)
-async function borrarCitaWebFirebase(ev, mensajeExito){
-  if(!_citasDb){ alert('Sin conexión con el sistema de citas'); return; }
-  // El id en la agenda es 'online_XXXX' — el id real en Firebase es XXXX
+// Borra la cita del sistema de citas (que es donde vive) y de la pantalla.
+// opciones.silencioso = no avisar; lo usa el borrado normal, que ya cierra el modal.
+async function eliminarCitaWeb(ev, opciones = {}){
+  if(!_citasDb){ if(!opciones.silencioso) alert('Sin conexión con el sistema de citas'); return false; }
   const firebaseId = ev.id.startsWith('online_') ? ev.id.slice(7) : ev.id;
   try {
     await _citasDb.collection('citas').doc(firebaseId).delete();
     try { await _citasDb.collection('citas_datos').doc(firebaseId).delete(); } catch(_){}
-    // Quitar de la vista local
     events = events.filter(e => e.id !== ev.id);
-    render();
-    publicarSlotsDisponibles().catch(()=>{});
-    alert(mensajeExito || '🗑️ Cita web eliminada de la base de datos.');
+    if(!opciones.silencioso){
+      render();
+      publicarSlotsDisponibles({ fechas:[ev.date] }).catch(()=>{});
+      if(opciones.mensaje) mostrarAvisoBreve(opciones.mensaje);
+    }
+    return true;
   } catch(e){
-    console.warn('borrarCitaWebFirebase error:', e.message);
-    alert('No se pudo borrar la cita web: ' + e.message);
+    console.warn('eliminarCitaWeb:', e.message);
+    if(!opciones.silencioso) alert('No se pudo borrar la cita: ' + e.message);
+    return false;
   }
 }
+// Nombre viejo, por si algo más lo llama.
+const borrarCitaWebFirebase = (ev, msg) => eliminarCitaWeb(ev, { mensaje: msg });
+
+// Aviso breve que no obliga a tocar "Aceptar".
+function mostrarAvisoBreve(txt){
+  let t = document.getElementById('aviso-breve');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'aviso-breve';
+    t.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:99999;'
+      + 'background:#0F172A;color:#fff;padding:12px 18px;border-radius:12px;font-family:var(--font);'
+      + 'font-size:13.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.28);opacity:0;'
+      + 'transition:opacity .18s;max-width:88vw;text-align:center';
+    document.body.appendChild(t);
+  }
+  t.textContent = txt;
+  requestAnimationFrame(()=>{ t.style.opacity = '1'; });
+  clearTimeout(t._tm);
+  t._tm = setTimeout(()=>{ t.style.opacity = '0'; }, 2600);
+}
+window.mostrarAvisoBreve = mostrarAvisoBreve;
 
 function handleClick(ev){
   // Cita web (del sistema de citas) — si hay una de MediCloud cerca en el mismo
   // horario, ofrecer unificar (borrar la web ya que MediCloud es la real)
   if(ev.source==='online'){
-    // Buscar cita de MediCloud en el mismo día y horario cercano (±30 min)
+    // Antes esto eran dos `confirm` encadenados donde había que leer
+    // "Aceptar → Eliminar" para entender qué hacía cada botón. Y si había una
+    // cita de MediCloud cerca, la única opción era unificar: no quedaba forma
+    // de borrar, que es justo lo que hace falta cuando el paciente cancela.
     const mcCercana = events.find(e =>
-      e.source==='medicloud' &&
-      e.doctor===ev.doctor &&
-      e.date===ev.date &&
+      e.source==='medicloud' && e.doctor===ev.doctor && e.date===ev.date &&
       Math.abs(toMin(e.time) - toMin(ev.time)) <= 30
     );
-    const d=CONFIG.DOCTORS[ev.doctor]||{};
-    const ph = ev.phone ? `\n📞 ${ev.phone}` : '';
-    const info = `🌐 Cita web\n${ev.name}${ph}\n${d.name} · ${ev.date} · ${ev.time}`;
-
-    if(mcCercana){
-      const r = confirm(
-        `${info}\n\n` +
-        `Hay una cita de MediCloud a las ${mcCercana.time}:\n"${mcCercana.name}"\n\n` +
-        `¿Es la MISMA paciente?\n\n` +
-        `• Aceptar → Sí, unificar (borra la cita web de la base de datos)\n` +
-        `• Cancelar → No, son diferentes (dejar ambas)`
-      );
-      if(r){
-        unificarCitaWebConMedicloud(ev);
-      }
-    } else {
-      // No hay MediCloud cerca — solo mostrar info y opción de borrar
-      const r = confirm(`${info}\n\n• Aceptar → Eliminar esta cita web\n• Cancelar → Cerrar`);
-      if(r){ borrarCitaWebFirebase(ev); }
-    }
+    abrirAccionesCitaWeb(ev, mcCercana);
     return;
   }
 
@@ -5523,6 +6708,8 @@ async function confirmarReserva(ev){
 
 // Eliminar evento por ID (para reservas)
 async function deleteEventById(id){
+  const ev = events.find(e => e.id === id);
+  if(ev && ev.source === 'online') await eliminarCitaWeb(ev, { silencioso:true });
   await DB.remove(id);
   publicarSlotsDisponibles().catch(()=>{});
   publicarSlotsSanCristobal().catch(()=>{});
@@ -6282,7 +7469,6 @@ async function actualizarTodo(btn){
           `Los pacientes no van a poder agendar ahí. Te muestro qué está calculando.`);
     try { diagnosticarPublicacion(); } catch(_){}
   }
-  try { avisarRecordatorios(); } catch(_){}
   window._actualizando = false;
 }
 window.actualizarTodo = actualizarTodo;
@@ -7217,7 +8403,19 @@ async function discardControl(id){
   openControlsPanel(); refreshControlBar();
 }
 
-async function deleteEvent(){ if(!editingId) return; const ev=events.find(e=>e.id===editingId); if(ev && ev.type==='blocked'){ await removeBloqueoFromCitas(ev); } await DB.remove(editingId); closeModal(); render(); publicarSlotsDisponibles().catch(()=>{}); publicarSlotsSanCristobal().catch(()=>{}); }
+async function deleteEvent(){
+  if(!editingId) return;
+  const ev = events.find(e => e.id === editingId);
+  if(ev && ev.type === 'blocked') await removeBloqueoFromCitas(ev);
+  // Una cita web NO vive en agenda_events: vive en el sistema de citas. Borrarla
+  // solo de acá la quitaba de la pantalla y el siguiente sync la traía de vuelta
+  // a los cinco minutos. Hay que borrarla de donde realmente está.
+  if(ev && ev.source === 'online') await eliminarCitaWeb(ev, { silencioso:true });
+  await DB.remove(editingId);
+  closeModal(); render();
+  publicarSlotsDisponibles().catch(()=>{});
+  publicarSlotsSanCristobal().catch(()=>{});
+}
 
 // ═══ PENDING MODAL ══════════════════════════════════════════════════════════
 function openPendingModal(){
