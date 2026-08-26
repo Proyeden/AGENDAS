@@ -421,6 +421,36 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .pf-prev b { color:#15803D; }
 .pf-prev.nada { background:#F8FAFC; border-color:var(--line); color:var(--muted); }
 .pf-choque { margin-top:7px; padding:9px 10px; border-radius:9px; background:#FEF2F2; border:1px solid #FECACA; font-size:12px; color:#B91C1C; font-weight:600; line-height:1.6; }
+.pf-modo { display:flex; gap:2px; background:#E7F0F7; padding:3px; border-radius:99px; margin-bottom:14px; }
+.pf-modo button { flex:1; background:none; border:0; color:#123F73; padding:9px 8px; border-radius:99px;
+  font-size:13px; cursor:pointer; font-family:var(--font); font-weight:600; }
+.pf-modo button.on { background:#1B72B8; color:#fff; font-weight:700; }
+.ps-nav { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+.ps-nav button { border:1px solid #A9C4D8; background:#fff; color:#123F73; width:34px; height:34px;
+  border-radius:50%; font-size:18px; line-height:1; cursor:pointer; font-family:var(--font); flex:none; }
+.ps-nav .lbl { flex:1; text-align:center; font-weight:700; color:#123F73; font-size:14px; }
+.ps-dia { background:#fff; border:1px solid var(--line); border-radius:13px; padding:12px 13px; margin-bottom:10px; }
+.ps-dia.tocado { border-color:#1B72B8; border-left:5px solid #1B72B8; }
+.ps-dia.cerrado { background:#FBE8E6; border-color:#EFC3BE; }
+.ps-h { display:flex; align-items:baseline; gap:8px; margin-bottom:8px; }
+.ps-n { font-size:14px; font-weight:800; color:#123F73; text-transform:capitalize; }
+.ps-f { font-size:11px; color:var(--muted); }
+.ps-est { margin-left:auto; font-size:11px; font-weight:700; padding:2px 9px; border-radius:99px;
+  background:#E7F0F7; color:#123F73; }
+.ps-est.esp { background:#E2F1F7; color:#1B72B8; }
+.ps-est.cer { background:#FBE8E6; color:#B02A20; }
+.ps-prev { font-size:12px; color:#14532D; background:#F0FDF4; border:1px solid #BBF7D0;
+  border-radius:9px; padding:8px 10px; line-height:1.6; margin-bottom:8px; }
+.ps-prev.nada { background:#F8FAFC; border-color:var(--line); color:var(--muted); }
+.ps-ops { display:flex; gap:6px; flex-wrap:wrap; }
+.ps-ops button { border:1px solid #CBD5E1; background:#fff; border-radius:8px; padding:6px 11px;
+  font-size:12px; font-weight:650; color:var(--text); cursor:pointer; font-family:var(--font); }
+.ps-ops button:hover { border-color:#1B72B8; background:#F5FAFE; }
+.ps-ops button.quitar { color:#B02A20; border-color:#EFC3BE; }
+.ps-horas { display:flex; gap:6px; align-items:center; margin-top:8px; }
+.ps-horas input { flex:1; padding:7px; border:1px solid #CBD5E1; border-radius:7px;
+  font-family:var(--font); font-size:12.5px; }
+.ps-horas span { font-size:11px; color:var(--muted); font-weight:600; }
 .pf-guardar { position:sticky; bottom:14px; width:100%; padding:14px; border:none; border-radius:12px; background:var(--denis); color:#fff; font-family:var(--font); font-size:14.5px; font-weight:800; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.16); margin-top:6px; }
 .pf-guardar:disabled { opacity:.5; cursor:default; }
 
@@ -1276,20 +1306,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   </div>
 
   <div class="home-btns">
-    <!-- Botón 1: Agenda — azul -->
-    <button class="home-btn home-btn-blue" onclick="goScreen('s-consultar')">
-      <div class="home-btn-icon-wrap home-btn-icon-blue">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      </div>
-      <div class="home-btn-text">
-        <span class="home-btn-title">Ver agenda · Agendar</span>
-        <span class="home-btn-sub">Consultar y registrar citas</span>
-      </div>
-      <span class="home-btn-arr">›</span>
-    </button>
-
-    <!-- Botón 2: Gestión — morado -->
-    <button class="home-btn home-btn-blue" onclick="abrirVistas()" style="margin-bottom:12px">
+    <button class="home-btn home-btn-blue" onclick="abrirDia()">
       <div class="home-btn-icon-wrap home-btn-icon-blue">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1B72B8" stroke-width="1.8"
           stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/>
@@ -1297,11 +1314,13 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
           <rect x="13.5" y="12" width="4" height="6" rx="1" fill="#6BB745" stroke="none"/></svg>
       </div>
       <div class="home-btn-text">
-        <span class="home-btn-title">El día</span>
-        <span class="home-btn-sub">Panorama de todos · o solo el tuyo</span>
+        <span class="home-btn-title">Ver agenda</span>
+        <span class="home-btn-sub">El día, la semana y los espacios libres</span>
       </div>
+      <span class="home-btn-arr">›</span>
     </button>
-    <button class="home-btn home-btn-purple" onclick="goScreen('s-gestion'); espActualizarBadge()">
+
+<button class="home-btn home-btn-purple" onclick="goScreen('s-gestion'); espActualizarBadge()">
       <div class="home-btn-icon-wrap home-btn-icon-purple">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </div>
@@ -1350,19 +1369,11 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       <div class="pick-av g-av g-morado">🗓️</div>
       <div class="pick-info">
         <div class="pick-name">Profesionales y horarios</div>
-        <div class="pick-sub">El tiempo de cada quien en cada sede</div>
+        <div class="pick-sub">Horario de siempre y planificar la semana</div>
       </div>
       <span class="pick-arrow">›</span>
     </div>
-    <div class="pick-item" onclick="openJornadaEspecial()">
-      <div class="pick-av g-av g-rosa">⏰</div>
-      <div class="pick-info">
-        <div class="pick-name">Jornada especial</div>
-        <div class="pick-sub">Cambiar el horario de un día puntual</div>
-      </div>
-      <span class="pick-arrow">›</span>
-    </div>
-    <a class="pick-item" href="https://proyeden.github.io/Citas-Mixco/" target="_blank" rel="noopener">
+        <a class="pick-item" href="https://proyeden.github.io/Citas-Mixco/" target="_blank" rel="noopener">
       <div class="pick-av g-av g-gris">⚙️</div>
       <div class="pick-info">
         <div class="pick-name">Panel del sistema de citas</div>
@@ -1424,78 +1435,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   </div>
 </div>
 <!-- CONSULTAR -->
-<div id="s-consultar" class="screen">
-  <div class="pick-hero" style="--accent:var(--mixco)">
-    <div class="pick-hero-inner">
-      <div class="pick-eyebrow">VER AGENDA</div>
-      <h1 class="pick-title">Consultar agenda<span class="pt-sub">Por médico o por clínica.</span></h1>
-    </div>
-  </div>
-  <div class="pick-list" style="padding-bottom:0">
-    <div class="mode-tabs">
-      <button class="mtab on" id="mt-doc" onclick="setMode('doc')">Por médico</button>
-      <button class="mtab"    id="mt-cli" onclick="setMode('cli')">Por clínica</button>
-    </div>
-  </div>
-
-  <div id="list-doc" class="pick-list">
-    <div class="pick-item denis" onclick="enterAgenda('denis')">
-      <div class="pick-av av-denis">DC</div>
-      <div class="pick-info">
-        <div class="pick-name">Dr. Denis Cotzojay</div>
-        <div class="pick-sub">Ver su semana completa</div>
-      </div>
-      <span class="pick-badge pb-denis" id="badge-denis">0 hoy</span>
-      <span class="pick-arrow">›</span>
-    </div>
-    <div class="pick-item majo" onclick="enterAgenda('majo')">
-      <div class="pick-av av-majo">MJ</div>
-      <div class="pick-info">
-        <div class="pick-name">Dra. María José Nóchez</div>
-        <div class="pick-sub">Ver su semana completa</div>
-      </div>
-      <span class="pick-badge pb-majo" id="badge-majo">0 hoy</span>
-      <span class="pick-arrow">›</span>
-    </div>
-    <div class="pick-item both" onclick="enterAgenda('compare')">
-      <div class="pick-av av-both">⇄</div>
-      <div class="pick-info">
-        <div class="pick-name">Ambos médicos</div>
-        <div class="pick-sub">Comparar agendas lado a lado</div>
-      </div>
-      <span class="pick-arrow">›</span>
-    </div>
-  </div>
-
-  <div id="list-cli" class="pick-list" style="display:none">
-    <div class="pick-item mixco" onclick="enterAgenda('clinic1')">
-      <div class="pick-av av-mixco">M</div>
-      <div class="pick-info">
-        <div class="pick-name">Zona 1 Mixco</div>
-        <div class="pick-sub">Ver agenda de la clínica</div>
-      </div>
-      <span class="pick-arrow">›</span>
-    </div>
-    <div class="pick-item sanc" onclick="enterAgenda('clinic2')">
-      <div class="pick-av av-sanc">SC</div>
-      <div class="pick-info">
-        <div class="pick-name">San Cristóbal</div>
-        <div class="pick-sub">Ver agenda de la clínica</div>
-      </div>
-      <span class="pick-arrow">›</span>
-    </div>
-    <div class="pick-item both" onclick="enterAgenda('compare')">
-      <div class="pick-av av-both">⇄</div>
-      <div class="pick-info">
-        <div class="pick-name">Ambas clínicas</div>
-        <div class="pick-sub">Comparar lado a lado</div>
-      </div>
-      <span class="pick-arrow">›</span>
-    </div>
-  </div>
-</div>
-
-<!-- JORNADA ESPECIAL -->
 <div id="s-jornada" class="screen">
   <div class="pick-hero" style="--accent:var(--sanc)">
     <div class="pick-hero-inner">
@@ -1711,16 +1650,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 </div>
 
 <!-- VISTAS DE DÍA -->
-<div id="s-vistas" class="screen">
-  <div class="nv"><div class="nv-wrap">
-    <div class="nv-fecha">
-      <button onclick="nvDia(-1)" aria-label="Día anterior">‹</button>
-      <span class="d" id="nv-fecha-lbl"></span>
-      <button class="hoy" onclick="nvHoy()">Hoy</button>
-      <button onclick="nvDia(1)" aria-label="Día siguiente">›</button>
-    </div>
-    <div id="nv-host"></div>
-  </div></div>
 </div>
 
 <!-- PROFESIONALES Y HORARIOS -->
@@ -1732,8 +1661,13 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </div>
   </div>
   <div style="padding:0 20px 40px;max-width:620px;margin:0 auto">
+    <div class="pf-modo" role="group" aria-label="Qué edito">
+      <button type="button" id="pf-m-base" class="on" onclick="pfSetModo('base')">Horario de siempre</button>
+      <button type="button" id="pf-m-sem" onclick="pfSetModo('semana')">Planificar una semana</button>
+    </div>
     <div class="rec-doc-seg" id="pf-tabs"></div>
     <div id="pf-cuerpo"></div>
+    <div id="pf-semana" style="display:none"></div>
   </div>
 </div>
 
@@ -1759,18 +1693,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 <!-- AGENDA -->
 <div id="s-agenda" class="screen">
   <div class="ag-toolbar">
-    <div class="ag-select-wrap">
-      <button class="ag-select" id="ag-doc-btn" onclick="toggleDocMenu()">
-        <span class="ag-select-dot" id="ag-doc-dot" style="background:var(--denis)"></span>
-        <span id="ag-doc-label">Dr. Denis</span>
-        <span class="ag-select-caret">▾</span>
-      </button>
-      <div class="ag-menu" id="ag-doc-menu">
-        <button class="ag-menu-item" onclick="pickView('denis')"><span class="ag-select-dot" style="background:var(--denis)"></span>Dr. Denis</button>
-        <button class="ag-menu-item" onclick="pickView('majo')"><span class="ag-select-dot" style="background:var(--majo)"></span>Dra. María José</button>
-        <button class="ag-menu-item" onclick="pickView('compare')"><span class="ag-select-dot" style="background:var(--mixco)"></span>Ambos</button>
-      </div>
-    </div>
     <div class="view-toggle">
       <button class="vt-btn on" id="vt-day" onclick="setCalMode('day')">Día</button>
       <button class="vt-btn" id="vt-week" onclick="setCalMode('week')">Semana</button>
@@ -1788,7 +1710,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </div>
     <span id="week-label"></span>
     <button class="wb-sync" id="btn-actualizar" onclick="actualizarTodo(this)" title="Trae las citas nuevas y publica los horarios">↻ <span class="wb-sync-txt">Actualizar</span></button>
-    <button class="wb-sync" id="btn-jornada" onclick="abrirPanelJornada()" title="Cambiar el horario de hoy, terminar antes o citas de 30 min" style="background:#F5F3FF;border-color:#7C3AED;color:#7C3AED">📅 <span class="wb-sync-txt">Jornada</span></button>
+    
   </div>
 
   <!-- Panel de Jornada: reúne alargar/cambiar horario, terminar antes y 30 min -->
@@ -1796,17 +1718,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <div style="max-width:340px;width:100%;background:#fff;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
       <h3 style="margin:0 0 4px;font-size:18px;color:var(--text)">Jornada de hoy</h3>
       <p style="margin:0 0 16px;font-size:13px;color:var(--muted)" id="jornadaPanelSub">Ajustá el día del médico seleccionado</p>
-      <button class="jp-opt" onclick="jpHastaQueHora()">
-        <span class="jp-ic" style="background:#DBEAFE;color:#1D4ED8">🕒</span>
-        <span class="jp-tx"><strong>¿Hasta qué hora?</strong><small>Recortar el día en las dos sedes de una vez</small></span>
-        <span class="jp-ar">›</span>
-      </button>
-      <button class="jp-opt" onclick="jpCambiarHorario()">
-        <span class="jp-ic" style="background:#EDE9FE;color:#6D28D9">⏰</span>
-        <span class="jp-tx"><strong>Cambiar el horario de hoy</strong><small>Alargar, acortar o mover la jornada</small></span>
-        <span class="jp-ar">›</span>
-      </button>
-      <button class="jp-opt" onclick="jpTerminarAntes()">
+                  <button class="jp-opt" onclick="jpTerminarAntes()">
         <span class="jp-ic" style="background:#FEE2E2;color:#B91C1C">⏹️</span>
         <span class="jp-tx"><strong>Terminar antes</strong><small>Cerrar la jornada desde ahora</small></span>
         <span class="jp-ar">›</span>
@@ -2194,7 +2106,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 36;
+const APP_VERSION = 38;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3851,7 +3763,7 @@ async function saveWithDupCheck(ev){
 }
 
 // ═══ SCREEN NAV ════════════════════════════════════════════════════════════
-const ALL_SCREENS=['s-home','s-agendar','s-consultar','s-agenda','s-recordatorios','s-anuncios','s-jornada','s-gestion','s-vistas','s-espera','s-profs'];
+const ALL_SCREENS=['s-home','s-agendar','s-agenda','s-recordatorios','s-anuncios','s-jornada','s-gestion','s-espera','s-profs'];
 
 // Escapa texto que va dentro de HTML. Estaba en uso en 26 lugares y NUNCA
 // se había definido: cada llamada lanzaba «esc is not defined» y dejaba la
@@ -3873,15 +3785,15 @@ function goScreen(id){
   document.getElementById('btn-back').classList.toggle('show',!isHome);
   document.getElementById('btn-add').style.display=isAgenda?'block':'none';
   if(isHome) updateHome();
-  if(id==='s-consultar') updateBadges();
 }
 
 function goHome(){ goScreen('s-home'); }
 function goBack(){
   const active=ALL_SCREENS.find(s=>document.getElementById(s)?.classList.contains('on'));
-  if(active==='s-agenda') goScreen('s-consultar');
-  else if(active==='s-agendar') goScreen('s-home');
-  else goScreen('s-home');
+  // Antes «atrás» desde la agenda volvía al selector de médico. Ese selector
+  // ya no existe: a quién se ve se elige dentro de la propia agenda, así que
+  // atrás lleva al inicio como en cualquier otra pantalla.
+  goScreen('s-home');
 }
 
 function updateHome(){
@@ -4636,11 +4548,16 @@ function nvPrimerHueco(profId, fecha){
 }
 
 // ── Pintado ─────────────────────────────────────────────────────────────
-function abrirVistas(){
-  goScreen('s-vistas');
-  nvPintar();
+// Una sola puerta: la agenda, abierta en el día. La pantalla suelta se
+// eliminó — era la misma información dos veces, con dos formas de filtrar.
+function abrirDia(){
+  calMode = 'day';
+  currentDayOffset = 0;
+  goScreen('s-agenda');
+  render();
 }
-window.abrirVistas = abrirVistas;
+window.abrirDia = abrirDia;
+window.abrirVistas = abrirDia;   // por si algo viejo todavía la llama
 
 
 function nvDia(d){
@@ -4655,25 +4572,31 @@ window.nvHoy = nvHoy;
 function nvAlternar(id){
   nvVisibles.has(id) ? nvVisibles.delete(id) : nvVisibles.add(id);
   localStorage.setItem('nv_visibles', [...nvVisibles].join(','));
-  nvPintar();
+  nvSincronizarVista();
+  render();          // Día, Semana y Mes se repintan con la misma selección
+}
+
+// Semana y Mes se dibujan con `currentView`, que antes movía el selector de
+// médico. Ese selector se quitó —era otra forma de decir lo mismo que las
+// casillas—, así que ahora las casillas lo alimentan: uno marcado es ese
+// profesional; dos o más, la vista comparada.
+function nvSincronizarVista(){
+  const ids = [...nvVisibles];
+  currentView = ids.length === 1 ? ids[0] : 'compare';
+  if(ids.length === 1) currentDoc = ids[0];
 }
 window.nvAlternar = nvAlternar;
 function nvTodos(){
   nvVisibles = new Set(Object.keys(PROFESIONALES));
   localStorage.setItem('nv_visibles', [...nvVisibles].join(','));
+  nvSincronizarVista();
   nvPintar();
 }
 window.nvTodos = nvTodos;
 
-function nvPintar(){
-  document.getElementById('nv-fecha-lbl').textContent = nvFechaLarga(nvFecha);
-  // Ya no hay interruptor «Panorama / Mi día»: era una segunda forma de decir
-  // lo mismo que las casillas. Con UNO marcado se muestra su día en detalle;
-  // con dos o más, las columnas comparadas. Un control en vez de dos.
-  const cuantos = Object.keys(PROFESIONALES).filter(id => nvVisibles.has(id)).length;
-  document.getElementById('nv-host').innerHTML =
-    cuantos === 1 ? nvHTMLMiDia() : nvHTMLPanorama();
-}
+// La pantalla suelta desapareció: ahora repintar el día es repintar la
+// agenda, que es la única que lo dibuja.
+function nvPintar(){ try{ render(); }catch(e){ console.warn('nvPintar:', e.message); } }
 
 function nvCasillas(){
   return `<div class="nv-card nv-filtro">
@@ -4846,10 +4769,8 @@ function nvHTMLMiDia(){
       <div class="nv-fr"><span class="h num">${tFmt(m.fin)}</span>
         <span class="nv-sub">Fin de la jornada</span></div></div>
     <div class="nv-acc">
-      <button onclick="jpHastaQueHora()"><b>¿Hasta qué hora?</b><span>Recortar o estirar el día</span></button>
-      <button onclick="openJornadaEspecial()"><b>Jornada especial</b><span>Cambiar el horario de este día</span></button>
+      <button onclick="pfDesdeDia('${profId}')"><b>Cambiar este día</b><span>Se abre en el planificador de la semana</span></button>
       <button onclick="openEspera()"><b>Lista de espera</b><span>Ofrecer estos huecos</span></button>
-      <button onclick="openProfesionales()"><b>Horarios</b><span>El reparto entre sedes</span></button>
     </div>`;
 }
 
@@ -4889,8 +4810,9 @@ function pfRenderTabs(){
   ).join('');
 }
 function pfSet(id){
-  if(pfBorrador && pfHayCambios() && !confirm('Hay cambios sin guardar. ¿Descartarlos?')) return;
-  pfActual = id; pfRenderTabs(); pfCargarBorrador(); pfRender();
+  if(pfModo==='base' && pfBorrador && pfHayCambios() && !confirm('Hay cambios sin guardar. ¿Descartarlos?')) return;
+  pfActual = id; pfRenderTabs(); pfCargarBorrador();
+  if(pfModo==='semana') psRender(); else pfRender();
 }
 window.pfSet = pfSet;
 
@@ -4938,6 +4860,182 @@ function pfSetTraslado(clave, valor){
   pfRender();
 }
 window.pfSetResto = pfSetResto; window.pfSetTraslado = pfSetTraslado;
+
+// ═══ PLANIFICAR UNA SEMANA ════════════════════════════════════════════════
+// Antes esto vivía repartido en tres lugares: el botón «Jornada» de la agenda,
+// «¿Hasta qué hora?» y la pantalla de Jornada especial. Tres formas de cambiar
+// lo mismo — el horario de un día suelto — y ninguna dejaba ver la semana
+// entera. Acá se planifica de corrido: se elige la semana, se ajusta cada día
+// y se ve al lado lo que queda.
+
+let pfModo = 'base';
+let psOffset = 0;   // semanas desde la actual
+
+// Desde la vista del día: abre el planificador ya parado en esa persona y en
+// la semana de ese día. Antes eran dos botones que llevaban a dos pantallas
+// distintas; ahora es un solo camino.
+function pfDesdeDia(profId){
+  pfActual = profId;
+  const [Y,M,D] = nvFecha.split('-').map(Number);
+  const d = new Date(Y, M-1, D); d.setHours(0,0,0,0);
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const lunDe = x => { const l=new Date(x); l.setDate(l.getDate()-((l.getDay()+6)%7)); return l; };
+  psOffset = Math.round((lunDe(d) - lunDe(hoy)) / (7*86400000));
+  openProfesionales();
+  pfSetModo('semana');
+}
+window.pfDesdeDia = pfDesdeDia;
+
+function pfSetModo(m){
+  pfModo = m;
+  document.getElementById('pf-m-base').classList.toggle('on', m==='base');
+  document.getElementById('pf-m-sem').classList.toggle('on', m==='semana');
+  document.getElementById('pf-cuerpo').style.display  = m==='base'   ? '' : 'none';
+  document.getElementById('pf-tabs').style.display    = '';
+  document.getElementById('pf-semana').style.display  = m==='semana' ? '' : 'none';
+  if(m==='semana') psRender(); else pfRender();
+}
+window.pfSetModo = pfSetModo;
+
+function psSemana(){
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const lun = new Date(hoy);
+  lun.setDate(lun.getDate() - ((lun.getDay()+6)%7) + psOffset*7);
+  return Array.from({length:6}, (_,i)=>{ const d=new Date(lun); d.setDate(d.getDate()+i); return d; });
+}
+function psMover(n){ psOffset += n; psRender(); }
+window.psMover = psMover;
+
+function psRender(){
+  const host = document.getElementById('pf-semana');
+  const dias = psSemana();
+  const P = PROFESIONALES[pfActual] || {};
+  const etq = ['','lunes','martes','miércoles','jueves','viernes','sábado'];
+
+  if(P.publica === false){
+    host.innerHTML = `<div class="pf-info">${esc(P.corto||pfActual)} no tiene horario publicado:
+      sus citas se coordinan una por una. No hay semana que planificar.</div>`;
+    return;
+  }
+
+  const rango = `${dias[0].getDate()} ${MONTHS[dias[0].getMonth()]} – ${dias[5].getDate()} ${MONTHS[dias[5].getMonth()]}`;
+  let html = `<div class="ps-nav">
+      <button onclick="psMover(-1)" aria-label="Semana anterior">‹</button>
+      <span class="lbl">${rango}${psOffset===0?' · esta semana':''}</span>
+      <button onclick="psMover(1)" aria-label="Semana siguiente">›</button>
+    </div>
+    <p class="hint" style="margin:-6px 4px 14px">Lo que cambies acá vale solo para ese día.
+      El horario de siempre no se toca.</p>`;
+
+  dias.forEach(d=>{
+    const f = dateKey(d);
+    const je = jornadasEspeciales.find(j => j.doctor===pfActual && j.fecha===f);
+    let fr = [];
+    try { fr = franjasEfectivas(pfActual, f) || []; } catch(_){}
+    const cerrado = !fr.length;
+    const bloqueoDia = events.some(e => e.date===f && e.doctor===pfActual && e.type==='blocked' && !e.time);
+
+    const prev = fr.length
+      ? fr.sort((a,b)=>a.ini-b.ini).map(x=>
+          `<b>${esc(dSedeNombre(x.clinica))}</b> ${tFmt(x.ini)}–${tFmt(x.fin)}`).join('<br>')
+      : 'No atiende';
+    const total = fr.reduce((n,x)=>n+(x.fin-x.ini),0);
+
+    html += `<div class="ps-dia ${je?'tocado':''} ${cerrado?'cerrado':''}">
+      <div class="ps-h">
+        <span class="ps-n">${etq[d.getDay()]||'domingo'}</span>
+        <span class="ps-f">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
+        <span class="ps-est ${je?'esp':cerrado?'cer':''}">${
+          je ? 'Ajustado' : cerrado ? 'Cerrado' : (total/60).toFixed(1).replace('.0','')+' h'}</span>
+      </div>
+      <div class="ps-prev ${cerrado?'nada':''}">${prev}</div>
+      ${je?`<p class="hint" style="margin:0 0 8px">${esc(je.motivo||'Jornada especial')} ·
+        <button type="button" class="link" onclick="psQuitar('${f}')">volver al horario de siempre</button></p>`:''}
+      <div class="ps-ops">
+        <button onclick="psHasta('${f}',900)">Hasta las 15:00</button>
+        <button onclick="psHasta('${f}',1020)">Hasta las 17:00</button>
+        <button onclick="psOtraHora('${f}')">Otra hora…</button>
+        <button class="quitar" onclick="psCerrar('${f}')">Cerrar el día</button>
+      </div>
+    </div>`;
+  });
+
+  host.innerHTML = html;
+}
+
+const dSedeNombre = clave => (SEDE_POR_CLAVE[clave]||{}).nombre || '';
+
+// Recortar el día a una hora tope: se guarda una jornada especial por sede con
+// lo que queda, y las sedes que se caen del tope quedan cerradas ese día.
+async function psHasta(fecha, tope){
+  let fr = [];
+  try { fr = franjasEfectivas(pfActual, fecha) || []; } catch(_){}
+  if(!fr.length){ alert('Ese día no hay jornada que recortar.'); return; }
+
+  const citas = events.filter(e => e.date===fecha && e.doctor===pfActual &&
+    !e.blocked && e.type!=='blocked' && e.time && tMin(e.time) >= tope);
+  if(citas.length && !confirm(
+      `Hay ${citas.length} cita${citas.length>1?'s':''} agendada${citas.length>1?'s':''} después de las ${tFmt(tope)}.\n\n` +
+      `Recortar el día no las borra, pero quedan fuera del horario. ¿Continuar?`)) return;
+
+  await psGuardar(fecha, fr.map(f=>({...f, fin:Math.min(f.fin,tope)}))
+                          .filter(f => f.fin - f.ini >= 20), `Hasta las ${tFmt(tope)}`);
+}
+window.psHasta = psHasta;
+
+function psOtraHora(fecha){
+  const v = prompt('¿Hasta qué hora ese día?\n\nEscribí la hora en formato 24 h, por ejemplo 16:30', '17:00');
+  if(!v) return;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(v.trim());
+  if(!m){ alert('No entendí la hora. Usá el formato 16:30'); return; }
+  psHasta(fecha, Number(m[1])*60 + Number(m[2]));
+}
+window.psOtraHora = psOtraHora;
+
+async function psCerrar(fecha){
+  if(!confirm('¿Cerrar ese día por completo?\n\nDejará de publicarse en las páginas de citas.')) return;
+  await psGuardar(fecha, [], 'Cerrado');
+}
+window.psCerrar = psCerrar;
+
+async function psQuitar(fecha){
+  for(const sede of Object.values(SEDES)){
+    const id = `je_${pfActual}_${sede.clave}_${fecha}`;
+    jornadasEspeciales = jornadasEspeciales.filter(j => j.id !== id);
+    if(_db) try{ await _db.collection('jornadas_especiales').doc(id).delete(); }catch(_){}
+  }
+  render(); psRender();
+  await psPublicar(fecha);
+}
+window.psQuitar = psQuitar;
+
+async function psGuardar(fecha, franjas, motivo){
+  for(const sede of Object.values(SEDES)){
+    const id = `je_${pfActual}_${sede.clave}_${fecha}`;
+    const mias = franjas.filter(f => f.clinica === sede.clave);
+    jornadasEspeciales = jornadasEspeciales.filter(j => j.id !== id);
+    if(mias.length){
+      const j = { id, doctor:pfActual, clinica:sede.clave, fecha,
+        ini: tFmt(Math.min(...mias.map(x=>x.ini))),
+        fin: tFmt(Math.max(...mias.map(x=>x.fin))),
+        motivo, creadoEn: new Date().toISOString() };
+      jornadasEspeciales.push(j);
+      if(_db) try{ await _db.collection('jornadas_especiales').doc(id).set(j); }catch(e){ console.warn('js', e.message); }
+    } else if(_db){
+      try{ await _db.collection('jornadas_especiales').doc(id).delete(); }catch(_){}
+    }
+  }
+  render(); psRender();
+  await psPublicar(fecha);
+}
+
+async function psPublicar(fecha){
+  try{
+    await publicarSlotsDisponibles({ fechas:[fecha] });
+    await publicarSlotsSanCristobal({ fechas:[fecha] });
+    mostrarAvisoBreve('Publicado · los pacientes ya lo ven');
+  }catch(e){ console.warn('publicar día:', e.message); }
+}
 
 function pfRender(){
   const P = PROFESIONALES[pfActual] || {};
@@ -5659,8 +5757,34 @@ function render(){
   document.getElementById('pending-count').textContent=pCount;
 
   const root=document.getElementById('cal-root'); root.innerHTML='';
+
+  // Las casillas mandan en TODOS los modos, no solo en el día. Antes había
+  // una pantalla aparte para elegir médico o clínica; ahora se elige acá y
+  // vale igual para la semana y el mes. Con uno marcado se ve su agenda; con
+  // varios, la vista comparada que ya existía.
+  try {
+    const marcados = Object.keys(PROFESIONALES).filter(id => nvVisibles.has(id));
+    if(calMode !== 'day'){
+      currentView = marcados.length === 1 ? marcados[0] : 'compare';
+      root.insertAdjacentHTML('beforeend', `<div class="nv">${nvCasillas()}</div>`);
+    }
+  } catch(e){ console.warn('filtro de la agenda:', e.message); }
+
   if(calMode==='month')      renderMonth(root);
-  else if(calMode==='day')   renderDay(root);
+  else if(calMode==='day'){
+    // El modo Día ES la vista nueva. Antes había dos pantallas que mostraban
+    // el mismo día con distinta cara: «Ver agenda» y «El día». Una sola.
+    // Quién se ve lo deciden las casillas: con uno marcado, su día en detalle;
+    // con dos o más, las columnas comparadas.
+    try {
+      nvFecha = dateKey(new Date(Date.now() + currentDayOffset*86400000));
+      const cuantos = Object.keys(PROFESIONALES).filter(id => nvVisibles.has(id)).length;
+      root.innerHTML = `<div class="nv">${cuantos===1 ? nvHTMLMiDia() : nvHTMLPanorama()}</div>`;
+    } catch(err){
+      console.warn('vista del día:', err.message);
+      renderDay(root);
+    }
+  }
   else                        renderWeek(root);
   refreshControlBar();
   try { refreshReconsultaBanner(); } catch(_){}
@@ -5691,202 +5815,34 @@ function renderWeek(root){
 // ── DAY VIEW (lienzo a escala, tipo Google Calendar) ──
 const PX_PER_MIN = 1.1;   // altura en píxeles por minuto
 function renderDay(root){
-  const base=new Date(); base.setHours(0,0,0,0); base.setDate(base.getDate()+currentDayOffset);
-  const dayName=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][base.getDay()];
-  document.getElementById('week-label').textContent=`${dayName} ${base.getDate()} ${MONTHS[base.getMonth()]} ${base.getFullYear()}`;
+  const base = new Date(); base.setHours(0,0,0,0);
+  base.setDate(base.getDate() + currentDayOffset);
+  const key = dateKey(base);
+  const dayName = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][base.getDay()];
+  document.getElementById('week-label').textContent =
+    `${dayName} ${base.getDate()} ${MONTHS[base.getMonth()]} ${base.getFullYear()}`;
 
-  const docs = currentView==='compare' ? ['denis','majo'] : [currentView];
-  const key=dateKey(base);
+  // La vista de día ES la pantalla «El día»: mismo código, misma apariencia.
+  // Antes eran dos lecturas del mismo día en dos pantallas distintas, con dos
+  // formas de elegir a quién mirar. Ahora hay una sola puerta.
+  nvFecha = key;
 
-  // Resumen de ocupación por médico (se mantiene)
-  docs.forEach(dc=>{
-    const occHours=new Set();
-    events.filter(e=>e.date===key&&e.status!=='cancelled'&&e.type!=='blocked'&&(e.doctor===dc))
-      .forEach(e=>{ if(e.time) occHours.add(e.time); });
-    const blocked=events.filter(e=>e.date===key&&e.type==='blocked'&&!e.ocultarEnAgenda&&e.time).length;
-    const occ=occHours.size;
-    const d=CONFIG.DOCTORS[dc]||{};
-    const bar=document.createElement('div'); bar.className='occ-summary';
-    const free = occ===0 && blocked===0;
-    bar.innerHTML=`
-      <span class="occ-dot" style="background:${d.color||'#888'}"></span>
-      <strong>${d.name||dc}</strong>
-      <span class="occ-stat">${occ} ${occ===1?'cita':'citas'}${blocked?` · ${blocked} bloqueo${blocked>1?'s':''}`:''}</span>
-      <span class="occ-pill ${free?'free':'busy'}">${free?'Día libre':'Hay ocupación'}</span>`;
-    root.appendChild(bar);
-  });
+  // El selector de médico de la agenda y las casillas decían lo mismo. Manda
+  // el de la agenda al entrar; de ahí en adelante, las casillas.
+  if(!nvVisibles || !nvVisibles.size){
+    nvVisibles = new Set(currentView === 'compare'
+      ? Object.keys(PROFESIONALES).filter(id => PROFESIONALES[id].publica !== false)
+      : [currentView]);
+  }
 
-  // Lienzo a escala por médico
-  const legend=document.createElement('div'); legend.className='tl-legend';
-  legend.innerHTML=`<span class="tl-leg-item"><span class="tl-leg-bar" style="background:var(--mixco)"></span>Mixco</span><span class="tl-leg-item"><span class="tl-leg-bar" style="background:var(--sanc)"></span>San Cristóbal</span>`;
-  root.appendChild(legend);
-  const cols=document.createElement('div'); cols.className='tl-cols'+(docs.length>1?' tl-2':'');
-  root.appendChild(cols);
-  docs.forEach(dc=> cols.appendChild(buildDayTimeline(dc, key, base.getDay())));
+  const cuantos = Object.keys(PROFESIONALES).filter(id => nvVisibles.has(id)).length;
+  const caja = document.createElement('div');
+  caja.className = 'nv';
+  caja.innerHTML = `<div class="nv-wrap" style="padding-top:0">
+    ${cuantos === 1 ? nvHTMLMiDia() : nvHTMLPanorama()}</div>`;
+  root.appendChild(caja);
 }
 
-// Construye la columna-lienzo de un médico para un día.
-function buildDayTimeline(doctorId, dateStr, dow){
-  const d=CONFIG.DOCTORS[doctorId]||{};
-  const col=document.createElement('div'); col.className='tl-col';
-
-  // Encabezado del médico
-  const hdr=document.createElement('div'); hdr.className='tl-hdr';
-  hdr.innerHTML=`<span style="width:9px;height:9px;border-radius:50%;background:${d.color};display:inline-block"></span>${d.name||doctorId}`;
-  col.appendChild(hdr);
-
-  // Ventana de tiempo del lienzo: jornada del médico, o un rango por defecto
-  const j = JORNADA[doctorId] ? JORNADA[doctorId](dow) : null;
-  // Eventos del día (citas + bloqueos), con duración real
-  const evs = events
-    .filter(e => e.date===dateStr && e.status!=='cancelled' && !e.ocultarEnAgenda && (e.doctor===doctorId || e.type==='blocked') && e.time)
-    .map(e => { const s=tMin(e.time); const dur=e.durMin || ((e.duration||1)*(e.source==='medicloud'?30:60)); return {ev:e, s, e:s+dur, dur}; })
-    .sort((a,b)=>a.s-b.s);
-
-  if(!j && !evs.length){
-    const empty=document.createElement('div'); empty.className='tl-empty'; empty.textContent='No atiende este día';
-    col.appendChild(empty); return col;
-  }
-
-  // Ventana visible: día completo 6:00–19:00 para tener contexto, aunque la
-  // jornada sea más corta. Se expande si hay eventos fuera de ese rango.
-  let winIni = 6*60;   // 06:00
-  let winFin = 19*60;  // 19:00
-  if(evs.length){ winIni=Math.min(winIni, evs[0].s); winFin=Math.max(winFin, evs[evs.length-1].e); }
-  winIni = Math.floor(winIni/60)*60;
-  winFin = Math.ceil(winFin/60)*60;
-
-  const canvas=document.createElement('div'); canvas.className='tl-canvas';
-  canvas.style.height = ((winFin-winIni)*PX_PER_MIN)+'px';
-  // Clic en área vacía del lienzo → abrir modal de agendar con la hora aproximada
-  canvas.onclick = e => {
-    if(e.target !== canvas) return; // solo si tocó el fondo, no un evento encima
-    const rect = canvas.getBoundingClientRect();
-    const relY = e.clientY - rect.top;
-    const minutos = Math.round(relY / PX_PER_MIN + winIni);
-    // Redondear al cuarto de hora más cercano
-    const redondeado = Math.round(minutos/15)*15;
-    const horaStr = tFmt(Math.max(winIni, Math.min(winFin-30, redondeado)));
-    openModal(null, dateStr, horaStr, doctorId);
-  };
-  col.appendChild(canvas);
-
-  // Sombrear la franja de jornada laboral (fuera de ella el fondo va más tenue)
-  if(j){
-    const jy=(j.ini-winIni)*PX_PER_MIN; const jh=(j.fin-j.ini)*PX_PER_MIN;
-    const band=document.createElement('div'); band.className='tl-jornada'; band.style.top=jy+'px'; band.style.height=jh+'px';
-    canvas.appendChild(band);
-  }
-
-  // Líneas guía cada hora con etiqueta
-  for(let m=winIni; m<=winFin; m+=60){
-    const y=(m-winIni)*PX_PER_MIN;
-    const line=document.createElement('div'); line.className='tl-hour'; line.style.top=y+'px';
-    line.innerHTML=`<span class="tl-hour-lbl">${tFmt(m)}</span>`;
-    canvas.appendChild(line);
-  }
-
-  // Verificar si hay franja de 30 min activa para este día
-  const slots30Key = `slots30_${doctorId}_${dateStr}`;
-  let slots30Override = null;
-  try{
-    const overrides = JSON.parse(localStorage.getItem('slots30_overrides')||'{}');
-    slots30Override = overrides[slots30Key] || null;
-  }catch(_){}
-
-  // Mostrar banner si hay franja de 30 min programada
-  if(slots30Override){
-    const banner = document.createElement('div');
-    banner.style.cssText='background:#EDE9FE;border:1.5px solid #C4B5FD;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#4C1D95;font-weight:600;display:flex;align-items:center;gap:8px';
-    banner.innerHTML=`⏱ Slots de 30 min: ${slots30Override.desde}–${slots30Override.hasta} <span style="font-weight:400;opacity:.7">(publicados en el sistema de citas)</span>`;
-    col.insertBefore(banner, canvas);
-  }
-
-  // Huecos libres del día COMPLETO de la persona (ambas sedes), con su clínica.
-  const huecos = calcularHuecosFranja(doctorId, dateStr);
-  huecos.forEach(h=>{
-    const s=tMin(h.ini); const y=(s-winIni)*PX_PER_MIN; const ht=h.durMin*PX_PER_MIN;
-
-    // ¿Este hueco cae dentro de la franja de 30 min?
-    const en30 = slots30Override &&
-      s >= tMin(slots30Override.desde) &&
-      s < tMin(slots30Override.hasta);
-
-    const clsExtra = h.extendido ? ' tl-hueco-ext' : en30 ? ' tl-hueco-30' : '';
-    const clsEsp = h.especial ? ' tl-hueco-especial' : '';
-    const g=document.createElement('button');
-    g.className='tl-hueco'+clsExtra+clsEsp;
-    g.style.top=y+'px'; g.style.height=ht+'px';
-
-    let etiqueta;
-    if(h.especial){
-      etiqueta=`<strong>Libre ${h.ini}</strong> · ${durLabel(h.durMin)} <span class="tl-hueco-esp-tag">✦ jornada especial</span><span class="tl-hueco-add">+ agendar</span>`;
-    } else if(h.extendido){
-      etiqueta=`<strong>Libre ${h.ini}</strong> · ${durLabel(h.durMin)} <span class="tl-hueco-ext-tag">⏱ extendido</span><span class="tl-hueco-add">+ agendar</span>`;
-    } else if(en30){
-      etiqueta=`<strong>Libre ${h.ini}</strong> · <span class="tl-hueco-30-tag">⏱ 30 min</span><span class="tl-hueco-add">+ agendar</span>`;
-    } else {
-      etiqueta=`<strong>Libre ${h.ini}</strong> · ${durLabel(h.durMin)}<span class="tl-hueco-add">+ agendar</span>`;
-    }
-    // Etiqueta de la clínica a la que pertenece este hueco
-    const cl = CONFIG.CLINICS[h.clinica];
-    const pillHueco = cl ? `<span class="cpill ${cl.cls||''}">${cl.short||''}</span>` : '';
-    g.innerHTML=`<span class="tl-hueco-in">${etiqueta}${pillHueco}</span>`;
-    g.onclick=()=>openModal(null, dateStr, h.ini, doctorId);
-    canvas.appendChild(g);
-  });
-
-  // Detectar pares de posible duplicado: una reserva virtual y una cita de
-  // MediCloud que se solapan en la misma franja. Se muestran lado a lado.
-  const dupPairs = new Set(); // ids que forman parte de un par duplicado
-  for(let a=0;a<evs.length;a++){
-    for(let b=a+1;b<evs.length;b++){
-      const A=evs[a], B=evs[b];
-      const solapan = A.s < B.e && B.s < A.e;
-      if(!solapan) continue;
-      const unaVirtual = (A.ev.reservaVirtual && !A.ev.expediente) || (B.ev.reservaVirtual && !B.ev.expediente);
-      const unaMedic = A.ev.source==='medicloud' || B.ev.source==='medicloud' || A.ev.posibleDuplicado || B.ev.posibleDuplicado;
-      if(unaVirtual && unaMedic && !esNoDuplicado(A.ev.id, B.ev.id)){ dupPairs.add(A.ev.id); dupPairs.add(B.ev.id); A._dupWith=B.ev; B._dupWith=A.ev; }
-    }
-  }
-
-  // Citas y bloqueos como barras a escala
-  evs.forEach(({ev,s,dur,_dupWith})=>{
-    const y=(s-winIni)*PX_PER_MIN; const ht=Math.max(dur*PX_PER_MIN, 22);
-    const isPend=ev.status==='pending';
-    const isVirtual=ev.reservaVirtual && !ev.expediente;
-    const isReservaEv=ev.status==='reserva'||ev.esReserva;
-    const cls=isReservaEv?'reserva':isPend?'pend':isVirtual?'virtual':ev.type==='blocked'?'blocked':ev.readonly?'medic':(ev.doctor||'denis');
-    const clinCls = ev.type==='clinic2' ? 'in-sanc' : ev.type==='clinic1' ? 'in-mixco' : '';
-    const isDup = dupPairs.has(ev.id);
-    const el=document.createElement('div'); el.className=`tl-ev ${cls} ${clinCls}${isDup?' tl-dup':''}`;
-    el.style.top=y+'px'; el.style.height=ht+'px';
-    if(isDup){
-      // Lado a lado: virtual a la izquierda, MediCloud a la derecha
-      const esMedic = ev.source==='medicloud';
-      if(esMedic){ el.style.left='52%'; el.style.right='6px'; }
-      else { el.style.left='52px'; el.style.right='52%'; }
-    }
-    const clin=CONFIG.CLINICS[ev.type];
-    const pill=ev.type!=='blocked'&&clin?`<span class="cpill ${clin.cls||''}">${clin.short||''}</span>`:'';
-    const endStr=tFmt(s+dur);
-    const dupTag = isDup ? `<span class="tl-dup-tag">${ev.source==='medicloud'?'MediCloud':'Reserva web'}</span>` : '';
-    el.innerHTML=`<div class="tl-ev-top"><span class="tl-ev-time">${ev.time}–${endStr}</span>${pill}</div><div class="tl-ev-name">${isPend?'🔔 ':''}${ev.name}</div>${dupTag||`<div class="tl-ev-dur">${durLabel(dur)}</div>`}`;
-    el.onclick=e=>{e.stopPropagation(); if(isDup){ resolverDuplicadoVisual(ev, _dupWith); } else { handleClick(ev); }};
-    canvas.appendChild(el);
-  });
-
-  // Aviso de duplicado encima si hay pares
-  if(dupPairs.size){
-    const warn=document.createElement('div'); warn.className='tl-dup-warn';
-    warn.textContent='⚠ Posible duplicado — tocá una cita para resolver';
-    col.insertBefore(warn, canvas);
-  }
-
-  return col;
-}
-
-// ── MONTH VIEW ──
 function renderMonth(root){
   const base=new Date(); base.setDate(1); base.setMonth(base.getMonth()+currentMonthOffset);
   const year=base.getFullYear(), month=base.getMonth();
@@ -6183,6 +6139,12 @@ const DOC_LABELS = { denis:'Dr. Denis', majo:'Dra. María José', compare:'Ambos
 const DOC_COLORS = { denis:'var(--denis)', majo:'var(--majo)', compare:'var(--mixco)' };
 function setView(v){
   currentView=v;
+  // El selector de la agenda manda sobre las casillas del día: si no, se
+  // elegía médico arriba y la vista seguía mostrando a otro.
+  nvVisibles = new Set(v === 'compare'
+    ? Object.keys(PROFESIONALES).filter(id => PROFESIONALES[id].publica !== false)
+    : [v]);
+  try{ localStorage.setItem('nv_vis', JSON.stringify([...nvVisibles])); }catch(_){}
   const lbl=document.getElementById('ag-doc-label'); if(lbl) lbl.textContent=DOC_LABELS[v]||v;
   const dot=document.getElementById('ag-doc-dot'); if(dot) dot.style.background=DOC_COLORS[v]||'var(--denis)';
 }
