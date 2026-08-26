@@ -369,6 +369,21 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   padding:8px 12px;display:flex;align-items:center;gap:8px;overflow:hidden}
 .nv-bloq b{color:var(--n-danger);font-weight:650;font-size:13px}
 .nv-bloq .d{font-size:11px;color:var(--n-danger);opacity:.8;margin-left:auto}
+.nvh-caja{max-width:380px;width:100%;background:#fff;border-radius:18px;padding:22px;
+  box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.nvh-caja h3{margin:0 0 3px;font-size:18px;color:#123F73}
+.nvh-caja p{margin:0 0 16px;font-size:12.5px;color:#54718A}
+.nvh-op{width:100%;text-align:left;border:1.5px solid #A9C4D8;background:#fff;border-radius:11px;
+  padding:11px 13px;margin-bottom:8px;cursor:pointer;font-family:var(--font)}
+.nvh-op:hover{border-color:#1B72B8;background:#F7FBFE}
+.nvh-op b{display:block;font-size:14px;font-weight:700;color:#123F73}
+.nvh-op span{display:block;font-size:11.5px;color:#54718A;margin-top:2px;line-height:1.35}
+.nvh-op.on{border-color:#6BB745;background:#EAF5E3}
+.nvh-op.on b,.nvh-op.on span{color:#3F8A2E}
+.nvh-nota{background:#FDF0DC;border:1px solid #EBD3AC;border-radius:10px;
+  padding:10px 12px;margin-bottom:8px;font-size:11.5px;color:#B36A05;line-height:1.5}
+.nvh-cerrar{width:100%;padding:11px;border:none;border-radius:11px;background:#F1F5F9;
+  color:#54718A;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:4px}
 .nv-pal{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px;padding-top:12px;
   border-top:1px dashed #CBD5E1}
 .nv-pal button{flex:1 1 150px;border:1.5px solid #A9C4D8;background:#fff;border-radius:10px;
@@ -1666,6 +1681,23 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 <!-- VISTAS DE DÍA -->
 </div>
 
+<div id="nvh-panel" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)nvCerrarHueco()">
+  <div class="nvh-caja"><h3 id="nvh-titulo"></h3><p id="nvh-sub"></p>
+    <div id="nvh-ops"></div>
+    <button class="nvh-cerrar" onclick="nvCerrarHueco()">Cerrar</button></div>
+</div>
+
+<div id="nvf-panel" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1001;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)nvCerrarFj()">
+  <div class="nvh-caja"><h3 id="nvf-titulo"></h3><p id="nvf-sub"></p>
+    <div id="nvf-ops"></div></div>
+</div>
+
+<div id="nvt-panel" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)nvCerrarTerm()">
+  <div class="nvh-caja"><h3 id="nvt-titulo"></h3><p id="nvt-sub"></p>
+    <div id="nvt-ops"></div>
+    <button class="nvh-cerrar" onclick="nvCerrarTerm()">Cancelar</button></div>
+</div>
+
 <!-- PROFESIONALES Y HORARIOS -->
 <div id="s-profs" class="screen">
   <div class="pick-hero" style="--accent:var(--denis)">
@@ -2120,7 +2152,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 40;
+const APP_VERSION = 43;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -4667,7 +4699,7 @@ function nvHTMLPanorama(){
         else if(b.t==='bl') txt = esc(b.nombre);
         else if(b.t==='tr') txt = holgado ? `traslado · ${b.fin-b.ini} min` : 'traslado';
         const tag = b.t==='li' ? 'button' : 'div';
-        const act = b.t==='li' ? ` onclick="nvAbrirHueco('${id}','${b.ini}')"` : '';
+        const act = b.t==='li' ? ` onclick="nvTocarHueco('${id}',${b.ini},${b.fin})"` : '';
         return `<${tag} class="nv-blk ${cls}" style="top:${top}px;height:${h}px"${act}>${txt}</${tag}>`;
       }).join('')}</div>`;
     }).join('');
@@ -4745,21 +4777,375 @@ function nvPalancas(profId, m, libre, caben){
   const enJornada = hoy && ahora > m.ini && ahora < m.fin;
 
   return `<div class="nv-pal">
-    <button class="${en30?'on':''}" onclick="nvToggle30('${profId}')">
-      <b>Citas de 30 min</b>
-      <span>${en30 ? 'Activado para este día · tocá para volver a '+min+' min'
-                   : (gana>0 ? `Cabrían ${con30} en vez de ${caben}` : 'Partir los huecos a la mitad')}</span>
-    </button>
     <button onclick="nvCambiarFin('${profId}')">
       <b>Termina ${tFmt(m.fin)}</b>
-      <span>Alargar o recortar este día</span>
+      <span>Tocá para alargar o acortar</span>
     </button>
-    ${enJornada ? `<button class="urg" onclick="nvTerminarAhora('${profId}')">
-      <b>Terminar ahora</b><span>Cerrar desde las ${tFmt(Math.ceil(ahora/15)*15)}</span></button>` : ''}
+    ${enJornada ? `<button class="urg" onclick="nvTerminarJornada('${profId}')">
+      <b>Terminar jornada</b><span>Cerrar desde las ${tFmt(Math.ceil(ahora/15)*15)}</span></button>` : ''}
   </div>`;
 }
 
 // ── Partir el día en citas de 30 ─────────────────────────────────────────
+// ── CITAS FUERA DE LA JORNADA ─────────────────────────────────────────────
+// El sistema republica los horarios solo al guardar una cita. Lo que no puede
+// deducir solo es que el profesional se quedó más tiempo del previsto: eso hay
+// que preguntarlo, porque estirar una sede puede comerse el traslado y dejar
+// a la otra sin tiempo. La regla que se aplica: si no interfiere, se alarga.
+
+function nvSedeDeCita(ev){
+  if(ev.type === 'clinic1' || ev.type === 'clinic2') return SEDE_POR_CLAVE[ev.type];
+  if(ev.blockClinica) return SEDE_POR_CLAVE[ev.blockClinica];
+  return null;
+}
+
+// ¿Qué haría falta para que esta cita quede dentro del horario publicado?
+function nvAnalizarCita(ev){
+  const sede = nvSedeDeCita(ev);
+  if(!sede) return null;
+  const ini = tMin(ev.time);
+  const fin = ini + (ev.durMin || ((ev.duration||1)*60));
+
+  let fr = [];
+  try{ fr = franjasEfectivas(ev.doctor, ev.date) || []; }catch(_){ return null; }
+  if(!fr.length) return null;
+
+  const mias = fr.filter(f => f.clinica === sede.clave);
+  // ¿Ya cabe entera en alguna franja de esa sede?
+  if(mias.some(f => ini >= f.ini && fin <= f.fin)) return null;
+
+  // La franja de esa sede más cercana, para estirarla en vez de inventar otra
+  const cerca = mias.slice().sort((a,b) =>
+    Math.min(Math.abs(a.fin-ini), Math.abs(a.ini-fin)) -
+    Math.min(Math.abs(b.fin-ini), Math.abs(b.ini-fin)))[0];
+
+  const nuevoIni = cerca ? Math.min(cerca.ini, ini) : ini;
+  const nuevoFin = cerca ? Math.max(cerca.fin, fin) : fin;
+
+  // ¿Estirar interfiere con la otra sede?
+  //
+  // El horario publicado es el PISO, no el techo: es lo mínimo que el paciente
+  // puede dar por seguro. Un día sin pacientes se cumple el horario y se cierra;
+  // un día con demanda se alarga. Por eso el conflicto NO se mide contra la
+  // franja publicada de la otra sede — se mide contra sus CITAS REALES. Si allá
+  // no hay nadie agendado, no hay a quién dejar plantado: esa sede simplemente
+  // se corre más tarde, o ese día no se abre.
+  const otras = fr.filter(f => f.clinica !== sede.clave && f.ini >= nuevoIni);
+  let choque = null, correr = null;
+
+  for(const o of otras){
+    const oSede = SEDE_POR_CLAVE[o.clinica];
+    const traslado = TRASLADOS[`${sede.id}>${oSede.id}`] || 0;
+    const puedeEmpezar = nuevoFin + traslado;
+    if(o.ini >= puedeEmpezar) continue;          // cabe sin tocar nada
+
+    // ¿Hay gente agendada allá que quedaría fuera de alcance?
+    const enRiesgo = events.filter(e =>
+      e.date === ev.date && e.doctor === ev.doctor && e.id !== ev.id &&
+      e.status !== 'cancelled' && e.type !== 'blocked' && e.time &&
+      e.type === o.clinica && tMin(e.time) < puedeEmpezar);
+
+    if(enRiesgo.length){
+      choque = { franja:o, sede:oSede, necesita:traslado, citas:enRiesgo,
+                 puedeEmpezar };
+      break;
+    }
+    // Nadie agendado: la otra sede se corre, conservando su duración.
+    const dura = o.fin - o.ini;
+    correr = { franja:o, sede:oSede, traslado,
+               ini: puedeEmpezar, fin: puedeEmpezar + dura };
+  }
+
+  return { ev, sede, ini, fin, cerca, nuevoIni, nuevoFin, choque, correr,
+           minutos: (nuevoFin - nuevoIni) - (cerca ? cerca.fin - cerca.ini : 0) };
+}
+
+let _fjDatos = null;
+
+function nvRevisarFueraDeJornada(ev){
+  const a = nvAnalizarCita(ev);
+  if(!a) return;                       // está dentro: nada que preguntar
+  _fjDatos = a;
+  const q = esc(ev.name || 'La cita');
+
+  document.getElementById('nvf-titulo').textContent = 'Esta cita queda fuera del horario';
+  document.getElementById('nvf-sub').innerHTML =
+    `<b>${q}</b> a las ${tFmt(a.ini)} en ${esc(a.sede.nombre)}. ` +
+    (a.cerca
+      ? `Ahí atendés hasta las ${tFmt(a.cerca.fin)}.`
+      : `Ese día no tenés horario en ${esc(a.sede.nombre)}.`);
+
+  const ops = [];
+  if(!a.choque && !a.correr){
+    // Nada en el medio: alargar y listo.
+    ops.push(`<button class="nvh-op on" onclick="nvFjExtender()">
+      <b>Alargar ${esc(a.sede.nombre)} hasta ${tFmt(a.nuevoFin)}</b>
+      <span>No interfiere con nada · se publican ${a.minutos} min más</span></button>`);
+  } else if(a.correr){
+    // La otra sede está publicada pero VACÍA. No hay a quién dejar plantado:
+    // se corre y se sigue atendiendo en las dos.
+    const c = a.correr;
+    ops.push(`<button class="nvh-op on" onclick="nvFjExtender()">
+      <b>Alargar ${esc(a.sede.nombre)} hasta ${tFmt(a.nuevoFin)}</b>
+      <span>${esc(c.sede.nombre)} no tiene a nadie agendado hoy: se corre a
+        ${tFmt(c.ini)}–${tFmt(c.fin)}, descontando los ${c.traslado} min de traslado.</span></button>`);
+    ops.push(`<button class="nvh-op" onclick="nvFjExtender(${a.nuevoFin},true)">
+      <b>Alargar y cerrar ${esc(c.sede.nombre)} hoy</b>
+      <span>Si igual no pensabas ir · deja de publicarse ese horario</span></button>`);
+  } else {
+    const c = a.choque;
+    const quienes = c.citas.slice(0,3).map(x=>esc(x.name||'una cita')).join(', ');
+    ops.push(`<div class="nvh-nota">En ${esc(c.sede.nombre)} ya hay
+      ${c.citas.length} ${c.citas.length===1?'cita':'citas'} antes de las ${tFmt(c.puedeEmpezar)}
+      (${quienes}). Alargar acá te deja sin llegar.</div>`);
+    ops.push(`<button class="nvh-op" onclick="nvFjExtender()">
+      <b>Alargar igual hasta ${tFmt(a.nuevoFin)}</b>
+      <span>Habría que mover ${c.citas.length===1?'esa cita':'esas citas'} a mano</span></button>`);
+  }
+  ops.push(`<button class="nvh-op" onclick="nvCerrarFj()">
+    <b>Dejarlo así</b>
+    <span>La cita queda agendada, pero ese rato no se le ofrece a nadie más</span></button>`);
+
+  document.getElementById('nvf-ops').innerHTML = ops.join('');
+  document.getElementById('nvf-panel').style.display = 'flex';
+}
+window.nvRevisarFueraDeJornada = nvRevisarFueraDeJornada;
+function nvCerrarFj(){ document.getElementById('nvf-panel').style.display='none'; _fjDatos=null; }
+window.nvCerrarFj = nvCerrarFj;
+
+async function nvFjExtender(topeManual, cerrarOtra){
+  const a = _fjDatos; if(!a) return;
+  nvCerrarFj();
+  const fin = topeManual || a.nuevoFin;
+  const ini = a.nuevoIni;
+
+  let fr = [];
+  try{ fr = franjasEfectivas(a.ev.doctor, a.ev.date) || []; }catch(_){}
+
+  for(const [sid, sx] of Object.entries(SEDES)){
+    const idJe = `je_${a.ev.doctor}_${sx.clave}_${a.ev.date}`;
+    jornadasEspeciales = jornadasEspeciales.filter(j => j.id !== idJe);
+    let ri = null, rf = null;
+
+    if(sid === a.sede.id){
+      ri = ini; rf = fin;
+    } else if(a.correr && a.correr.sede.id === sid){
+      // La otra sede no se cierra: se corre. Cerrarla sería tirar capacidad de
+      // un día que quizá sí tenga demanda más tarde.
+      if(cerrarOtra){ ri = null; }
+      else { ri = a.correr.ini; rf = a.correr.fin; }
+    } else {
+      const mias = fr.filter(f => f.clinica === sx.clave);
+      if(mias.length){ ri = Math.min(...mias.map(x=>x.ini)); rf = Math.max(...mias.map(x=>x.fin)); }
+    }
+
+    if(ri !== null && rf - ri >= 20){
+      const j = { id:idJe, doctor:a.ev.doctor, clinica:sx.clave, fecha:a.ev.date,
+        ini:tFmt(ri), fin:tFmt(rf),
+        motivo:`Alargado por cita de ${tFmt(a.ini)}`, creadoEn:new Date().toISOString() };
+      jornadasEspeciales.push(j);
+      if(_db) try{ await _db.collection('jornadas_especiales').doc(idJe).set(j); }catch(e){}
+    } else if(_db){
+      try{ await _db.collection('jornadas_especiales').doc(idJe).delete(); }catch(_){}
+    }
+  }
+  render();
+  try{
+    await publicarSlotsDisponibles({ fechas:[a.ev.date] });
+    await publicarSlotsSanCristobal({ fechas:[a.ev.date] });
+  }catch(e){ console.warn('publicar:', e.message); }
+  mostrarAvisoBreve(`${a.sede.nombre} hasta ${tFmt(fin)} · publicado`);
+}
+window.nvFjExtender = nvFjExtender;
+
+// ── Tocar un hueco ────────────────────────────────────────────────────────
+// Es como funcionan las cosas: se toca el espacio y se decide ahí. Antes,
+// partir en 30 minutos era un interruptor del día entero, cuando lo que se
+// quiere casi siempre es partir ESE hueco, el que se está mirando.
+let _huecoAbierto = null;
+
+function nvTocarHueco(profId, ini, fin){
+  _huecoAbierto = { profId, ini:Number(ini), fin:Number(fin) };
+  const largo = fin - ini;
+  const en45 = Math.floor(largo / NV_MIN_CONSULTA);
+  const en30 = Math.floor(largo / 30);
+  const ya30 = nvHueco30(profId, nvFecha, ini);
+
+  document.getElementById('nvh-titulo').textContent = `${tFmt(ini)} – ${tFmt(fin)}`;
+  document.getElementById('nvh-sub').textContent =
+    `${nvDur(largo)} libres · ${nombreProf(profId)}`;
+
+  const ops = [];
+  ops.push(`<button class="nvh-op" onclick="nvHuecoAgendar()">
+      <b>Agendar una cita acá</b><span>Se abre el formulario con la hora puesta</span></button>`);
+  if(ya30){
+    ops.push(`<button class="nvh-op on" onclick="nvHueco30Toggle()">
+      <b>Volver a citas de ${NV_MIN_CONSULTA} min</b>
+      <span>Ahora está partido en ${en30} espacios de 30</span></button>`);
+  } else if(en30 > en45){
+    ops.push(`<button class="nvh-op" onclick="nvHueco30Toggle()">
+      <b>Partir en citas de 30 min</b>
+      <span>${en30} espacios en vez de ${en45}</span></button>`);
+  }
+  ops.push(`<button class="nvh-op" onclick="nvHuecoBloquear()">
+      <b>Bloquear este rato</b><span>Deja de ofrecerse a los pacientes</span></button>`);
+
+  document.getElementById('nvh-ops').innerHTML = ops.join('');
+  document.getElementById('nvh-panel').style.display = 'flex';
+}
+window.nvTocarHueco = nvTocarHueco;
+function nvCerrarHueco(){ document.getElementById('nvh-panel').style.display = 'none'; }
+window.nvCerrarHueco = nvCerrarHueco;
+
+// Los huecos partidos se guardan por hueco, no por día: la clave lleva la hora.
+const nvClave30 = (profId, fecha, ini) =>
+  `slots30_${MEDICO_TO_CITAS[profId]||profId}_${fecha}_${tFmt(ini).replace(':','')}`;
+
+function nvHueco30(profId, fecha, ini){
+  try{
+    const o = JSON.parse(localStorage.getItem('slots30_overrides')||'{}');
+    return !!o[nvClave30(profId, fecha, ini)];
+  }catch(_){ return false; }
+}
+
+async function nvHueco30Toggle(){
+  const h = _huecoAbierto; if(!h) return;
+  nvCerrarHueco();
+  const clave = nvClave30(h.profId, nvFecha, h.ini);
+  const activo = nvHueco30(h.profId, nvFecha, h.ini);
+  let prev = {};
+  try{ prev = JSON.parse(localStorage.getItem('slots30_overrides')||'{}'); }catch(_){}
+
+  if(activo){
+    delete prev[clave];
+    if(_db) try{ await _db.collection('slots30_overrides').doc(clave).delete(); }catch(_){}
+  } else {
+    const dato = { desde: tFmt(h.ini), hasta: tFmt(h.fin), fecha: nvFecha,
+                   doctor: MEDICO_TO_CITAS[h.profId]||h.profId, creadoEn: new Date().toISOString() };
+    prev[clave] = dato;
+    if(_db) try{ await _db.collection('slots30_overrides').doc(clave).set(dato); }
+      catch(e){ console.warn('slots30:', e.message); }
+  }
+  try{ localStorage.setItem('slots30_overrides', JSON.stringify(prev)); }catch(_){}
+  render();
+  await nvPublicarDia();
+  mostrarAvisoBreve(activo ? 'Vuelve a la duración normal' : 'Partido en 30 min · publicado');
+}
+window.nvHueco30Toggle = nvHueco30Toggle;
+
+function nvHuecoAgendar(){
+  const h = _huecoAbierto; if(!h) return;
+  nvCerrarHueco();
+  openModal(null, nvFecha, tFmt(h.ini), h.profId);
+}
+window.nvHuecoAgendar = nvHuecoAgendar;
+
+async function nvHuecoBloquear(){
+  const h = _huecoAbierto; if(!h) return;
+  nvCerrarHueco();
+  const motivo = prompt('¿Por qué se bloquea este rato?', 'Ocupado') || 'Ocupado';
+  const ev = { id:'blk_'+Date.now().toString(36), date:nvFecha, doctor:h.profId,
+    time:tFmt(h.ini), durMin:h.fin-h.ini, duration:Math.max(1,Math.round((h.fin-h.ini)/60)),
+    name:motivo, type:'blocked', blocked:true, status:'confirmed', source:'manual' };
+  try{ await DB.save(ev); }catch(e){ console.warn('bloquear:', e.message); }
+  render();
+  await nvPublicarDia();
+  mostrarAvisoBreve('Bloqueado · ya no se ofrece');
+}
+window.nvHuecoBloquear = nvHuecoBloquear;
+
+// ── Terminar la jornada: la pregunta que faltaba era la sede ─────────────
+// Cerrar en una sede no siempre es cerrar el día. Muchas veces el tiempo que
+// queda se traslada a la otra: eso antes había que armarlo a mano con dos
+// jornadas especiales, y por eso no se hacía.
+async function nvTerminarJornada(profId){
+  const m = nvModeloDia(profId, nvFecha);
+  if(!m || !m.bloques.length) return;
+  const ahora = new Date().getHours()*60 + new Date().getMinutes();
+  const corte = Math.ceil(ahora/15)*15;
+
+  let fr = [];
+  try{ fr = franjasEfectivas(profId, nvFecha) || []; }catch(_){}
+  const activa = fr.find(f => corte >= f.ini && corte < f.fin) || fr[fr.length-1];
+  if(!activa){ alert('Ese día no hay jornada activa que cerrar.'); return; }
+
+  const sedeAhora = SEDE_POR_CLAVE[activa.clinica];
+  const otras = Object.entries(SEDES).filter(([id]) => id !== (sedeAhora||{}).id);
+
+  document.getElementById('nvt-titulo').textContent = `Terminar en ${(sedeAhora||{}).nombre||'la sede actual'}`;
+  document.getElementById('nvt-sub').textContent =
+    `Son las ${tFmt(ahora)}. Se cierra desde las ${tFmt(corte)}.`;
+  document.getElementById('nvt-ops').innerHTML = `
+    <button class="nvh-op" onclick="nvTermSolo('${profId}',${corte})">
+      <b>Cerrar el día completo</b>
+      <span>No se atiende en ninguna sede desde las ${tFmt(corte)}</span></button>
+    ${otras.map(([sid,sx])=>`
+    <button class="nvh-op" onclick="nvTermPasar('${profId}',${corte},'${sid}')">
+      <b>Pasar a ${esc(sx.nombre)}</b>
+      <span>El tiempo que queda se atiende allá</span></button>`).join('')}`;
+  document.getElementById('nvt-panel').style.display = 'flex';
+}
+window.nvTerminarJornada = nvTerminarJornada;
+function nvCerrarTerm(){ document.getElementById('nvt-panel').style.display='none'; }
+window.nvCerrarTerm = nvCerrarTerm;
+
+async function nvTermSolo(profId, corte){
+  nvCerrarTerm();
+  await nvAplicarFin(profId, corte);
+}
+window.nvTermSolo = nvTermSolo;
+
+// Cerrar acá y abrir allá: se pregunta desde qué hora, porque entre una sede
+// y otra hay un traslado que nadie puede saltarse.
+async function nvTermPasar(profId, corte, sedeId){
+  nvCerrarTerm();
+  const sede = SEDES[sedeId];
+  let fr = [];
+  try{ fr = franjasEfectivas(profId, nvFecha) || []; }catch(_){}
+  const finDia = Math.max(...fr.map(f=>f.fin));
+  const actual = fr.find(f => corte >= f.ini && corte < f.fin);
+  const traslado = actual
+    ? (TRASLADOS[`${SEDE_POR_CLAVE[actual.clinica].id}>${sedeId}`] || 0) : 0;
+  const sugerido = Math.min(finDia, Math.ceil((corte + traslado)/15)*15);
+
+  const v = prompt(
+    `¿Desde qué hora atendés en ${sede.nombre}?\n\n` +
+    `Se cierra a las ${tFmt(corte)} y el traslado toma ${traslado} min, ` +
+    `así que lo más pronto sería ${tFmt(sugerido)}.`, tFmt(sugerido));
+  if(!v) return;
+  const mm = /^(\d{1,2}):(\d{2})$/.exec(v.trim());
+  if(!mm){ alert('No entendí la hora. Usá el formato 16:30'); return; }
+  const desde = Number(mm[1])*60 + Number(mm[2]);
+  if(desde >= finDia){ alert('Esa hora ya es después del final del día.'); return; }
+
+  // Cada sede queda con lo suyo: la actual hasta el corte, la otra desde la
+  // hora elegida hasta el final del día.
+  for(const [sid, sx] of Object.entries(SEDES)){
+    const idJe = `je_${profId}_${sx.clave}_${nvFecha}`;
+    jornadasEspeciales = jornadasEspeciales.filter(j => j.id !== idJe);
+    let ini = null, fin = null;
+    if(sid === sedeId){ ini = desde; fin = finDia; }
+    else {
+      const mias = fr.filter(f => f.clinica === sx.clave && f.ini < corte);
+      if(mias.length){ ini = Math.min(...mias.map(x=>x.ini)); fin = corte; }
+    }
+    if(ini !== null && fin - ini >= 20){
+      const j = { id:idJe, doctor:profId, clinica:sx.clave, fecha:nvFecha,
+        ini:tFmt(ini), fin:tFmt(fin),
+        motivo:`Cierre a las ${tFmt(corte)} · sigue en ${sede.nombre}`,
+        creadoEn:new Date().toISOString() };
+      jornadasEspeciales.push(j);
+      if(_db) try{ await _db.collection('jornadas_especiales').doc(idJe).set(j); }catch(e){}
+    } else if(_db){
+      try{ await _db.collection('jornadas_especiales').doc(idJe).delete(); }catch(_){}
+    }
+  }
+  render();
+  await nvPublicarDia();
+  mostrarAvisoBreve(`Desde ${tFmt(desde)} en ${sede.nombre} · publicado`);
+}
+window.nvTermPasar = nvTermPasar;
+
 async function nvToggle30(profId){
   const idCitas = MEDICO_TO_CITAS[profId] || profId;
   const clave = `slots30_${idCitas}_${nvFecha}`;
@@ -4901,7 +5287,7 @@ function nvHTMLMiDia(){
       <span class="q">no cabe una consulta</span></div></div>`;
     const n = Math.floor((b.fin-b.ini)/NV_MIN_CONSULTA);
     return `<div class="nv-fr">${hora}
-      <button class="nv-libre" style="height:${alto}px" onclick="nvAbrirHueco('${id}','${b.ini}')">
+      <button class="nv-libre" style="height:${alto}px" onclick="nvTocarHueco('${id}',${b.ini},${b.fin})">
       <b class="num">${nvDur(b.fin-b.ini)}</b>
       <span class="q">${n>1?`caben ${n} consultas`:'cabe una consulta'} · ${b.sede}</span>
       <span class="cta">Agendar →</span></button></div>`;
@@ -4932,8 +5318,8 @@ function nvHTMLMiDia(){
       <div class="nv-fr"><span class="h num">${tFmt(m.fin)}</span>
         <span class="nv-sub">Fin de la jornada</span></div></div>
     <div class="nv-acc">
-      <button onclick="pfDesdeDia('${id}')"><b>Cambiar este día</b><span>Se abre en el planificador de la semana</span></button>
       <button onclick="openEspera()"><b>Lista de espera</b><span>Ofrecer estos huecos</span></button>
+      <button onclick="pfDesdeDia('${id}')"><b>Planificar la semana</b><span>Varios días de una vez</span></button>
     </div>`;
 }
 
@@ -5928,8 +6314,24 @@ function render(){
   try {
     const marcados = Object.keys(PROFESIONALES).filter(id => nvVisibles.has(id));
     if(calMode !== 'day'){
-      currentView = marcados.length === 1 ? marcados[0] : 'compare';
+      // La cuadrícula de semana y mes solo sabe dibujar a quien tiene horario
+      // publicado. Pamela no lo tiene, así que si es la única marcada no hay
+      // nada que cuadricular: se dice, en vez de dejar la pantalla vacía.
+      const conHorario = marcados.filter(id => PROFESIONALES[id]?.publica !== false);
       root.insertAdjacentHTML('beforeend', `<div class="nv">${nvCasillas()}</div>`);
+      if(!conHorario.length){
+        root.insertAdjacentHTML('beforeend', `<div class="nv"><div class="nv-card nv-vacio">
+          <b>${marcados.length ? 'Sin horario que mostrar' : 'Nadie seleccionado'}</b>
+          ${marcados.length
+            ? esc(marcados.map(id=>PROFESIONALES[id].corto||id).join(' y ')) +
+              ' no publica horarios: sus citas se coordinan una por una.'
+            : 'Marcá arriba a quién querés ver.'}
+          <div style="margin-top:10px"><button class="wb-sync" onclick="calMode='day';render()">
+            Ver el día</button></div></div></div>`);
+        refreshControlBar();
+        return;
+      }
+      currentView = conHorario.length === 1 ? conHorario[0] : 'compare';
     }
   } catch(e){ console.warn('filtro de la agenda:', e.message); }
 
@@ -5965,7 +6367,10 @@ function renderWeek(root){
   document.getElementById('week-label').textContent=`${ws.getDate()} ${MONTHS[ws.getMonth()]} – ${we.getDate()} ${MONTHS[we.getMonth()]} ${we.getFullYear()}`;
   if(currentView==='compare'){
     const wrap=document.createElement('div'); wrap.className='compare-wrap'; root.appendChild(wrap);
-    ['denis','majo'].forEach(doc2=>{
+    // Antes decía ['denis','majo'] a mano: un profesional nuevo no aparecía.
+    const aComparar = Object.keys(PROFESIONALES)
+      .filter(id => nvVisibles.has(id) && PROFESIONALES[id].publica !== false);
+    (aComparar.length ? aComparar : ['denis','majo']).forEach(doc2=>{
       const sec=document.createElement('div'); sec.className='compare-col';
       const d=CONFIG.DOCTORS[doc2];
       const hdr=document.createElement('div'); hdr.className='compare-hdr';
@@ -6818,6 +7223,13 @@ async function saveEvent(){
     .then(() => publicarSlotsSanCristobal({ fechas:[date] }))
     .then(() => publicarSlotsDisponibles())   // repaso completo, sin prisa
     .catch(e=>console.warn('auto-publish slots:', e.message));
+
+  // Una cita puede caer fuera del horario publicado — típicamente al final
+  // del día, cuando alguien se queda un rato más. La cita se guarda igual,
+  // pero el horario no se estira solo: hay que preguntarlo, porque estirar
+  // una sede puede dejar sin tiempo a la otra.
+  if(isRealAppt) setTimeout(()=>{ try{ nvRevisarFueraDeJornada(ev); }catch(e){
+    console.warn('revisar jornada:', e.message); } }, 400);
   if(isRealAppt && isMixco) openControlModal(ev);
 }
 
