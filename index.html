@@ -2106,7 +2106,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 38;
+const APP_VERSION = 39;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -4769,7 +4769,7 @@ function nvHTMLMiDia(){
       <div class="nv-fr"><span class="h num">${tFmt(m.fin)}</span>
         <span class="nv-sub">Fin de la jornada</span></div></div>
     <div class="nv-acc">
-      <button onclick="pfDesdeDia('${profId}')"><b>Cambiar este día</b><span>Se abre en el planificador de la semana</span></button>
+      <button onclick="pfDesdeDia('${id}')"><b>Cambiar este día</b><span>Se abre en el planificador de la semana</span></button>
       <button onclick="openEspera()"><b>Lista de espera</b><span>Ofrecer estos huecos</span></button>
     </div>`;
 }
@@ -5781,8 +5781,14 @@ function render(){
       const cuantos = Object.keys(PROFESIONALES).filter(id => nvVisibles.has(id)).length;
       root.innerHTML = `<div class="nv">${cuantos===1 ? nvHTMLMiDia() : nvHTMLPanorama()}</div>`;
     } catch(err){
-      console.warn('vista del día:', err.message);
-      renderDay(root);
+      console.error('vista del día:', err);
+      // Un error acá dejaba la pantalla en blanco y no había forma de saber
+      // por qué. Ahora se muestra el motivo y se ofrece la vista de siempre.
+      root.innerHTML = `<div class="nv"><div class="nv-card nv-vacio">
+        <b>No se pudo dibujar el día</b>
+        ${esc(err.message||'error desconocido')}
+        <div style="margin-top:10px"><button class="wb-sync" onclick="calMode='week';render()">
+          Ver la semana</button></div></div></div>`;
     }
   }
   else                        renderWeek(root);
