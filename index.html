@@ -241,10 +241,6 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .nv-wrap{max-width:640px;margin:0 auto;padding:14px 14px 40px}
 .nv .num{font-variant-numeric:tabular-nums}
 
-.nv-rol{display:flex;gap:2px;background:var(--n-surface2);padding:3px;border-radius:99px;margin-bottom:14px}
-.nv-rol button{flex:1;background:none;border:0;color:var(--navy);padding:9px 8px;border-radius:99px;
-  font-size:13px;cursor:pointer;font-family:var(--round);font-weight:600}
-.nv-rol button.on{background:var(--n-brand);color:#fff;font-weight:700}
 
 .nv-fecha{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .nv-fecha button{border:1px solid var(--n-line2);background:var(--n-surface);border-radius:9px;
@@ -383,173 +379,6 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   .nv-libre::after{content:"\203A";margin-left:auto;font-size:17px;color:var(--n-ok);font-weight:700}
   .nv-libre.corto::after{display:none}
   .nv-cas label{flex:1 1 auto;justify-content:center}
-}
-
-/* ══════════════════════════════════════════════════════════════════════
-   EL DÍA — sistema visual propio, tomado del carné de Neo Pediatrics.
-   Todo va bajo #s-dia para no pelearse con el resto de la agenda mientras
-   las demás pantallas siguen con la piel vieja.
-   ══════════════════════════════════════════════════════════════════════ */
-#s-dia{
-  --d-navy:#123F73; --d-blue:#1B72B8; --d-sky:#2C9CCB; --d-green:#6BB745; --d-orange:#F59120;
-  --d-bg:#EEF5FA; --d-surf:#FFFFFF; --d-surf2:#E7F0F7;
-  --d-ink:#14304F; --d-mut:#54718A; --d-line:#D4E3EE; --d-line2:#A9C4D8;
-  --d-ok:#3F8A2E; --d-ok-s:#EAF5E3;
-  --d-warn:#B36A05; --d-warn-s:#FDF0DC;
-  --d-dang:#B02A20; --d-dang-s:#FBE8E6;
-  --d-round:ui-rounded,"SF Pro Rounded","Segoe UI Variable Display",var(--font),system-ui,sans-serif;
-  --d-sh:0 1px 2px rgba(18,63,115,.06), 0 4px 14px rgba(18,63,115,.07);
-  background:var(--d-bg); color:var(--d-ink);
-}
-#s-dia .num{font-variant-numeric:tabular-nums}
-.d-top{background:var(--d-surf);border-bottom:1px solid var(--d-line);position:relative;
-  display:flex;align-items:center;gap:8px;padding:11px 14px;position:sticky;top:0;z-index:20}
-.d-top::after{content:"";position:absolute;left:0;right:0;bottom:-4px;height:4px;
-  background:linear-gradient(90deg,var(--d-green) 0%,var(--d-sky) 45%,var(--d-blue) 100%)}
-.d-nav{border:1px solid var(--d-line2);background:var(--d-surf);color:var(--d-navy);
-  width:36px;height:36px;border-radius:50%;font-size:19px;line-height:1;cursor:pointer;
-  font-family:var(--font);flex:none}
-.d-fecha{flex:1;text-align:center;min-width:0}
-.d-dow{display:block;font-family:var(--d-round);font-size:16px;font-weight:700;
-  color:var(--d-navy);letter-spacing:-.01em;text-transform:capitalize}
-.d-hoy{display:block;font-size:11px;color:var(--d-mut)}
-.d-wrap{max-width:640px;margin:0 auto;padding:16px 14px 40px}
-
-.d-modo{display:flex;gap:2px;background:var(--d-surf2);padding:3px;border-radius:99px;margin-bottom:12px}
-.d-modo button{flex:1;background:none;border:0;color:var(--d-navy);padding:9px 8px;border-radius:99px;
-  font-size:13px;cursor:pointer;font-family:var(--d-round);font-weight:600}
-.d-modo button.on{background:var(--d-blue);color:#fff;font-weight:700}
-
-.d-filtro{background:var(--d-surf);border:1px solid var(--d-line);border-radius:10px;
-  padding:12px;margin-bottom:12px;box-shadow:var(--d-sh)}
-.d-filtro-t{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--d-mut);
-  font-weight:700;margin-bottom:8px;display:flex;align-items:baseline}
-.d-filtro-t button{margin-left:auto;background:none;border:0;color:var(--d-blue);font-size:11px;
-  font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;font-family:var(--font)}
-.d-casillas{display:flex;flex-wrap:wrap;gap:8px}
-.d-cas{display:flex;align-items:center;gap:7px;padding:8px 13px;border:1.5px solid var(--d-line2);
-  border-radius:99px;cursor:pointer;font-size:13px;font-weight:600;color:var(--d-mut);
-  background:var(--d-surf);user-select:none;transition:border-color .14s,background .14s,color .14s}
-.d-cas input{width:16px;height:16px;margin:0;cursor:pointer}
-.d-cas.on{border-color:var(--d-blue);background:#E2F1F7;color:var(--d-navy)}
-.d-cas .pt{width:8px;height:8px;border-radius:50%;display:block;flex:none}
-
-.d-pronto{background:var(--d-surf);border:1px solid var(--d-line);border-left:5px solid var(--d-green);
-  border-radius:10px;padding:12px 16px;box-shadow:var(--d-sh);margin-bottom:16px}
-.d-pronto .t{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--d-mut);
-  font-weight:700;margin-bottom:8px}
-.d-pronto .f{display:flex;align-items:baseline;gap:8px;padding:6px 0;
-  border-bottom:1px solid var(--d-line);font-size:13px}
-.d-pronto .f:last-child{border-bottom:none}
-.d-pronto .esp{flex:1;font-weight:650}
-.d-pronto .esp small{display:block;font-weight:400;font-size:11px;color:var(--d-mut)}
-.d-pronto .cuando{font-family:var(--d-round);font-weight:700;color:var(--d-ok);white-space:nowrap;
-  font-variant-numeric:tabular-nums}
-.d-pronto .cuando.nada{color:var(--d-mut);font-weight:600}
-
-/* ── Panorama ── */
-.d-pan{background:var(--d-surf);border:1px solid var(--d-line);border-radius:10px;
-  padding:12px 12px 8px;box-shadow:var(--d-sh)}
-.d-cab{display:flex;gap:3px;margin-left:34px;margin-bottom:8px}
-.d-cab div{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--d-navy);
-  font-family:var(--d-round);line-height:1.25;min-width:0}
-.d-cab small{display:block;font-weight:400;font-size:9px;color:var(--d-mut);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.d-cuerpo{position:relative;display:flex;gap:3px;margin-left:34px}
-.d-horas{position:absolute;left:-34px;top:0;bottom:0;width:30px}
-.d-horas span{position:absolute;right:0;transform:translateY(-50%);font-size:10px;
-  color:var(--d-mut);font-variant-numeric:tabular-nums}
-.d-raya{position:absolute;left:0;right:0;height:1px;background:var(--d-line)}
-.d-col{flex:1;position:relative;background:var(--d-surf2);border-radius:6px;overflow:hidden;min-width:0}
-.d-blk{position:absolute;left:2px;right:2px;border-radius:4px;overflow:hidden;
-  font-size:9px;line-height:1.15;padding:2px 4px}
-.d-oc{background:#CFE0EC;color:var(--d-navy);font-weight:600}
-.d-li{background:var(--d-ok-s);border:1.5px solid var(--d-green);color:var(--d-ok);
-  font-weight:800;font-family:var(--d-round);font-variant-numeric:tabular-nums;cursor:pointer}
-.d-co{background:transparent;border:1px dashed var(--d-line2);color:var(--d-mut)}
-.d-bl{background:var(--d-dang-s);color:var(--d-dang);font-weight:700}
-.d-tr{background:repeating-linear-gradient(45deg,#DCE7F0,#DCE7F0 3px,#EEF5FA 3px,#EEF5FA 6px);
-  color:var(--d-mut)}
-.d-cuerpo.holgado .d-blk{font-size:11px;padding:3px 7px;line-height:1.25}
-.d-cuerpo.holgado .d-li{font-size:13px}
-.d-col.sinhorario{display:flex;align-items:center;justify-content:center;text-align:center;
-  background:var(--d-warn-s);border:1px dashed #EBD3AC;color:var(--d-warn);
-  font-size:10px;font-weight:600;padding:8px;line-height:1.35}
-.d-col.noatiende{display:flex;align-items:center;justify-content:center;text-align:center;
-  color:var(--d-mut);font-size:10px;padding:8px}
-.d-vacio{padding:26px;text-align:center;color:var(--d-mut);font-size:13px;line-height:1.55}
-.d-vacio b{display:block;color:var(--d-ink);font-size:15px;margin-bottom:4px}
-.d-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:10px;color:var(--d-mut);
-  margin-top:12px;padding-top:8px;border-top:1px solid var(--d-line)}
-.d-leg span{display:flex;align-items:center;gap:5px}
-.d-leg i{width:9px;height:9px;border-radius:3px;display:block;flex:none}
-
-/* ── Un día ── */
-.d-cap{background:var(--d-surf);border:1px solid var(--d-line);border-left:5px solid var(--d-blue);
-  border-radius:10px;padding:16px;box-shadow:var(--d-sh);margin-bottom:20px}
-.d-cap .quien{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--d-mut);font-weight:700}
-.d-cap .tt{font-family:var(--d-round);font-size:22px;font-weight:700;color:var(--d-navy);
-  letter-spacing:-.02em;margin-top:2px;line-height:1.2}
-.d-barra{display:flex;height:10px;border-radius:6px;overflow:hidden;margin:12px 0 8px;background:var(--d-surf2)}
-.d-barra i{display:block;height:100%}
-.bb-oc{background:var(--d-blue)} .bb-ut{background:var(--d-green)} .bb-fr{background:#C9D9E6}
-.bb-tr{background:repeating-linear-gradient(45deg,#DCE7F0,#DCE7F0 3px,#EEF5FA 3px,#EEF5FA 6px)}
-.d-cap .leg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--d-mut)}
-.d-cap .leg span{display:flex;align-items:center;gap:5px}
-.d-cap .leg i{width:9px;height:9px;border-radius:3px;display:block;flex:none}
-.d-cap .res{font-size:13px;color:var(--d-ink);line-height:1.55;margin:12px 0 0}
-.d-cap .res b{color:var(--d-navy)}
-
-.d-sec{font-family:var(--d-round);font-size:11px;text-transform:uppercase;letter-spacing:.1em;
-  color:var(--d-blue);font-weight:700;margin:20px 4px 8px;padding-bottom:5px;
-  border-bottom:1px solid var(--d-line)}
-.d-linea{position:relative;padding-left:52px}
-.d-linea::before{content:"";position:absolute;left:52px;top:0;bottom:0;width:1px;background:var(--d-line)}
-.d-fr{position:relative;margin-bottom:3px}
-.d-fr .h{position:absolute;left:-52px;top:-1px;width:44px;text-align:right;font-size:11px;
-  color:var(--d-mut);font-variant-numeric:tabular-nums;font-weight:600}
-.d-sub{font-size:11px;color:var(--d-mut);display:block}
-.dl-oc{background:var(--d-surf);border:1px solid var(--d-line);border-radius:10px;
-  padding:8px 12px;display:flex;align-items:center;gap:8px;overflow:hidden}
-.dl-oc b{font-weight:650;font-size:13px}
-.dl-oc .d{font-size:11px;color:var(--d-mut);margin-left:auto;white-space:nowrap}
-.dl-sede{font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px;
-  background:var(--d-surf2);color:var(--d-navy);white-space:nowrap;flex:none}
-.dl-li{width:100%;text-align:left;border:1.5px solid var(--d-green);background:var(--d-ok-s);
-  border-radius:10px;padding:8px 12px;cursor:pointer;font-family:var(--font);
-  display:flex;align-items:center;gap:8px;overflow:hidden}
-.dl-li b{font-family:var(--d-round);font-weight:700;color:var(--d-ok);font-size:15px;
-  font-variant-numeric:tabular-nums;flex:none}
-.dl-li .q{font-size:11px;color:var(--d-ok);opacity:.85}
-.dl-li .cta{margin-left:auto;font-size:11px;font-weight:700;color:var(--d-ok);white-space:nowrap}
-.dl-li.corto{border-style:dashed;border-color:var(--d-line2);background:transparent;cursor:default}
-.dl-li.corto b,.dl-li.corto .q{color:var(--d-mut);opacity:1}
-.dl-tr{background:repeating-linear-gradient(45deg,#E4EDF4,#E4EDF4 4px,#EEF5FA 4px,#EEF5FA 8px);
-  border:1px dashed var(--d-line2);border-radius:10px;padding:4px 12px;display:flex;
-  align-items:center;gap:6px;font-size:11px;color:var(--d-mut);overflow:hidden}
-.dl-tr b{font-weight:700}
-.dl-bl{background:var(--d-dang-s);border:1px solid #EFC3BE;border-radius:10px;padding:8px 12px;
-  display:flex;align-items:center;gap:8px;overflow:hidden}
-.dl-bl b{color:var(--d-dang);font-weight:650;font-size:13px}
-.dl-bl .d{font-size:11px;color:var(--d-dang);opacity:.8;margin-left:auto}
-
-.d-esp{background:var(--d-warn-s);border:1px solid #EBD3AC;border-left:5px solid var(--d-orange);
-  border-radius:10px;padding:12px 16px;margin-top:16px}
-.d-esp .tt{color:var(--d-navy);font-weight:700;font-size:13px}
-.d-esp .fila{display:flex;align-items:center;gap:8px;padding:7px 0;font-size:13px}
-.d-esp .fila + .fila{border-top:1px solid #EBD3AC}
-.d-esp .n{flex:1;min-width:0}
-.d-esp .n small{display:block;font-size:11px;color:var(--d-mut)}
-.d-esp .wa{background:var(--d-green);color:#fff;border:0;border-radius:99px;padding:6px 13px;
-  font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:var(--font);
-  text-decoration:none;flex:none}
-.d-esp .wa.sin{background:var(--d-mut)}
-
-@media (max-width:420px){
-  .dl-li .cta{display:none}
-  .dl-li::after{content:"›";margin-left:auto;font-size:17px;color:var(--d-ok);font-weight:700}
-  .dl-li.corto::after{display:none}
-  .d-cas{flex:1 1 auto;justify-content:center}
 }
 
 /* ── PROFESIONALES ── */
@@ -1472,15 +1301,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
         <span class="home-btn-sub">Panorama de todos · o solo el tuyo</span>
       </div>
     </button>
-    <button class="home-btn" style="background:#EAF5E3;border-color:#BFDECB" onclick="openDia()">
-      <div class="home-btn-icon-wrap" style="background:#DCEFD2">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3F8A2E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 15h3"/></svg>
-      </div>
-      <div class="home-btn-text">
-        <span class="home-btn-title">El día</span>
-        <span class="home-btn-sub">Quién está libre y dónde hay espacio</span>
-      </div>
-    </button>
     <button class="home-btn home-btn-purple" onclick="goScreen('s-gestion'); espActualizarBadge()">
       <div class="home-btn-icon-wrap home-btn-icon-purple">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6D28D9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1893,7 +1713,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
 <!-- VISTAS DE DÍA -->
 <div id="s-vistas" class="screen">
   <div class="nv"><div class="nv-wrap">
-    <div class="nv-rol" id="nv-rol"></div>
     <div class="nv-fecha">
       <button onclick="nvDia(-1)" aria-label="Día anterior">‹</button>
       <span class="d" id="nv-fecha-lbl"></span>
@@ -1902,35 +1721,6 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </div>
     <div id="nv-host"></div>
   </div></div>
-</div>
-
-<!-- EL DÍA -->
-<div id="s-dia" class="screen">
-  <div class="d-top">
-    <button class="d-nav" onclick="diaMover(-1)" aria-label="Día anterior">‹</button>
-    <div class="d-fecha">
-      <span class="d-dow" id="d-dow"></span>
-      <span class="d-hoy" id="d-hoy"></span>
-    </div>
-    <button class="d-nav" onclick="diaMover(1)" aria-label="Día siguiente">›</button>
-  </div>
-
-  <div class="d-wrap">
-    <div class="d-modo" role="group" aria-label="Vista">
-      <button type="button" data-modo="panorama" onclick="diaModo('panorama')">Panorama</button>
-      <button type="button" data-modo="mio" onclick="diaModo('mio')">Un día</button>
-    </div>
-
-    <div class="d-filtro">
-      <div class="d-filtro-t">A quién estoy viendo
-        <button type="button" onclick="diaTodos()">Ver a todos</button></div>
-      <div class="d-casillas" id="d-casillas"></div>
-    </div>
-
-    <div id="d-pronto" class="d-pronto"></div>
-    <div id="d-cuerpo"></div>
-    <div id="d-espera"></div>
-  </div>
 </div>
 
 <!-- PROFESIONALES Y HORARIOS -->
@@ -2404,7 +2194,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 35;
+const APP_VERSION = 36;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -4061,7 +3851,16 @@ async function saveWithDupCheck(ev){
 }
 
 // ═══ SCREEN NAV ════════════════════════════════════════════════════════════
-const ALL_SCREENS=['s-home','s-agendar','s-consultar','s-agenda','s-recordatorios','s-anuncios','s-jornada','s-gestion','s-vistas','s-espera','s-profs','s-dia'];
+const ALL_SCREENS=['s-home','s-agendar','s-consultar','s-agenda','s-recordatorios','s-anuncios','s-jornada','s-gestion','s-vistas','s-espera','s-profs'];
+
+// Escapa texto que va dentro de HTML. Estaba en uso en 26 lugares y NUNCA
+// se había definido: cada llamada lanzaba «esc is not defined» y dejaba la
+// pantalla del día en blanco. Es el motivo de que no funcionara.
+function esc(x){
+  return String(x ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+window.esc = esc;
 
 function goScreen(id){
   ALL_SCREENS.forEach(s=>{
@@ -4760,7 +4559,6 @@ const NV_FIN    = 19*60;
 // cambia acá y cambian la capacidad, lo que se ofrece y lo que se descarta.
 let NV_MIN_CONSULTA = 45;
 
-let nvVista = localStorage.getItem('nv_vista') || 'panorama';
 let nvFecha = todayKey();
 let nvVisibles = new Set(
   (localStorage.getItem('nv_visibles') || '').split(',').filter(Boolean)
@@ -4781,23 +4579,12 @@ function nvModeloDia(profId, fecha){
   const P = PROFESIONALES[profId];
   if(!P || P.publica === false) return { publica:false, bloques:[] };
 
-  const [Y,Mo,D] = fecha.split('-').map(Number);
-  const dow = new Date(Y,Mo-1,D).getDay();
-  let franjas = (FRANJAS[profId] ? FRANJAS[profId](dow) : []).map(f=>({...f}));
-
-  // Jornada especial del día, si la hay
-  const je = jornadasEspeciales.find(j => j.doctor===profId && j.fecha===fecha);
-  if(je){
-    if(P.sedeResto && je.clinica === SEDES[Object.keys(P.bloques||{})[0]]?.clave){
-      franjas = franjasDe(profId, dow, {
-        sede: Object.keys(P.bloques)[0], ini: tMin(je.ini), fin: tMin(je.fin)
-      }).map(f=>({...f}));
-    } else {
-      franjas = franjas.filter(f => f.clinica !== je.clinica);
-      franjas.push({ clinica:je.clinica, ini:tMin(je.ini), fin:tMin(je.fin) });
-    }
-  }
-  franjas.sort((a,b)=>a.ini-b.ini);
+  // Las franjas salen de franjasEfectivas, que es la MISMA función que usa la
+  // publicación de horarios a los pacientes. Antes esta pantalla repetía por
+  // su cuenta la lógica de jornada especial: dos copias que se iban a
+  // desincronizar a la primera, y lo que se veía aquí podía no ser lo que el
+  // paciente encontraba al reservar.
+  const franjas = franjasEfectivas(profId, fecha).map(f=>({...f}));
   if(!franjas.length) return { publica:true, bloques:[], sinJornada:true };
 
   // Citas y bloqueos reales de esa persona ese día
@@ -4849,17 +4636,12 @@ function nvPrimerHueco(profId, fecha){
 }
 
 // ── Pintado ─────────────────────────────────────────────────────────────
-function abrirVistas(vista){
-  if(vista) nvVista = vista;
+function abrirVistas(){
   goScreen('s-vistas');
   nvPintar();
 }
 window.abrirVistas = abrirVistas;
 
-function nvSetVista(v){
-  nvVista = v; localStorage.setItem('nv_vista', v); nvPintar();
-}
-window.nvSetVista = nvSetVista;
 
 function nvDia(d){
   const [Y,M,D] = nvFecha.split('-').map(Number);
@@ -4884,12 +4666,13 @@ function nvTodos(){
 window.nvTodos = nvTodos;
 
 function nvPintar(){
-  document.getElementById('nv-rol').innerHTML =
-    `<button class="${nvVista==='panorama'?'on':''}" onclick="nvSetVista('panorama')">Panorama</button>
-     <button class="${nvVista==='mi-dia'?'on':''}" onclick="nvSetVista('mi-dia')">Mi día</button>`;
   document.getElementById('nv-fecha-lbl').textContent = nvFechaLarga(nvFecha);
+  // Ya no hay interruptor «Panorama / Mi día»: era una segunda forma de decir
+  // lo mismo que las casillas. Con UNO marcado se muestra su día en detalle;
+  // con dos o más, las columnas comparadas. Un control en vez de dos.
+  const cuantos = Object.keys(PROFESIONALES).filter(id => nvVisibles.has(id)).length;
   document.getElementById('nv-host').innerHTML =
-    nvVista==='panorama' ? nvHTMLPanorama() : nvHTMLMiDia();
+    cuantos === 1 ? nvHTMLMiDia() : nvHTMLPanorama();
 }
 
 function nvCasillas(){
@@ -5077,385 +4860,6 @@ function nvAbrirHueco(profId, ini){
   openModal(null, nvFecha, tFmt(Number(ini)), profId);
 }
 window.nvAbrirHueco = nvAbrirHueco;
-
-// ═══ EL DÍA ═══════════════════════════════════════════════════════════════
-// Dos lecturas del mismo día. La asistente contesta el teléfono y necesita
-// ver a todos a la vez para responder «¿tienen campo?». El médico necesita su
-// propio día. Antes había una sola vista, pensada para el segundo caso, y la
-// asistente tenía que abrir tres agendas y comparar a ojo.
-//
-// El modo y a quién se mira se guardan POR DISPOSITIVO: la tablet del
-// mostrador se queda en panorama, el teléfono del médico en su día, y nadie
-// tiene que volver a elegir cada mañana.
-
-const D_ESCALA = 0.55;        // píxeles por minuto en el panorama
-const D_DESDE  = 7*60;        // el panorama arranca a las 07:00
-const D_HASTA  = 20*60;       // y cierra a las 20:00
-
-// Cuántos minutos hace falta que un hueco tenga para que valga la pena
-// ofrecerlo. Por debajo de esto existe, pero no cabe una consulta.
-function minConsulta(profId){
-  const P = PROFESIONALES[profId];
-  return (P && P.minConsulta) || 45;
-}
-
-let dDia    = todayKey();
-let dModo   = localStorage.getItem('ag_dia_modo') || 'panorama';
-let dVisibles = null;   // Set de ids; se inicializa en openDia
-
-function dGuardarPrefs(){
-  try{
-    localStorage.setItem('ag_dia_modo', dModo);
-    localStorage.setItem('ag_dia_vis', JSON.stringify([...dVisibles]));
-  }catch(_){}
-}
-
-const dHHMM = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-const dDur  = m => m>=60 ? (m%60 ? `${Math.floor(m/60)} h ${m%60}` : `${Math.floor(m/60)} h`) : `${m} min`;
-const dSede = clave => (SEDE_POR_CLAVE[clave] || {}).nombre || '';
-
-// ── El día de una persona, como una sola tira de bloques ordenados ────────
-// Reutiliza el motor que ya existe: franjasEfectivas para el horario y
-// calcularHuecosFranja para los huecos. No recalcula nada por su cuenta, para
-// que lo que se ve acá sea exactamente lo que se publica a los pacientes.
-function dArmarDia(profId, fecha){
-  const P = PROFESIONALES[profId];
-  if(!P) return {vacio:'no-existe'};
-  if(P.publica === false) return {vacio:'sin-horario'};
-
-  let franjas = [];
-  try { franjas = franjasEfectivas(profId, fecha) || []; } catch(e){ franjas = []; }
-  if(!franjas.length) return {vacio:'no-atiende'};
-
-  const bloques = [];
-  const min = minConsulta(profId);
-
-  // Ocupado: sus citas y sus bloqueos
-  events.filter(e => e.date===fecha && e.doctor===profId && e.status!=='cancelled' && e.time)
-    .forEach(e => {
-      const ini = tMin(e.time);
-      const fin = ini + (e.durMin || ((e.duration||1) * (e.source==='medicloud' ? 30 : 60)));
-      bloques.push({
-        t: (e.type==='blocked' || e.blocked) ? 'bl' : 'oc',
-        ini, fin, id:e.id,
-        quien: e.name || (e.type==='blocked' ? 'Bloqueado' : 'Cita'),
-        detalle: e.notes || '',
-        sede: e.blockClinica ? dSede(e.blockClinica) : '',
-      });
-    });
-
-  // Libre: exactamente lo que se le ofrece al paciente
-  try {
-    (calcularHuecosFranja(profId, fecha) || []).forEach(h => {
-      const largo = h.fin - h.ini;
-      if(largo < 10) return;
-      bloques.push({ t: largo >= min ? 'li' : 'co', ini:h.ini, fin:h.fin,
-                     sede: dSede(h.clinica), clinica:h.clinica });
-    });
-  } catch(e){ console.warn('huecos del día:', e.message); }
-
-  // Traslado: el espacio entre dos franjas de sedes distintas. No es hueco.
-  const orden = franjas.slice().sort((a,b)=>a.ini-b.ini);
-  for(let i=0; i<orden.length-1; i++){
-    const a = orden[i], b = orden[i+1];
-    if(a.clinica !== b.clinica && b.ini > a.fin){
-      bloques.push({ t:'tr', ini:a.fin, fin:b.ini, de:dSede(a.clinica), a:dSede(b.clinica) });
-    }
-  }
-
-  bloques.sort((a,b) => a.ini - b.ini || a.fin - b.fin);
-
-  const suma = t => bloques.filter(b=>b.t===t).reduce((n,b)=>n + (b.fin-b.ini), 0);
-  return {
-    bloques, franjas,
-    ini: Math.min(...orden.map(f=>f.ini)),
-    fin: Math.max(...orden.map(f=>f.fin)),
-    ocupado: suma('oc') + suma('bl'),
-    util: suma('li'),
-    frag: suma('co'),
-    traslado: suma('tr'),
-    caben: bloques.filter(b=>b.t==='li').reduce((n,b)=>n + Math.floor((b.fin-b.ini)/min), 0),
-  };
-}
-
-function dPrimerHueco(profId, fecha){
-  const d = dArmarDia(profId, fecha);
-  if(d.vacio) return null;
-  const ahora = (fecha === todayKey()) ? (new Date().getHours()*60 + new Date().getMinutes()) : -1;
-  return d.bloques.find(b => b.t==='li' && b.fin > ahora) || null;
-}
-
-// ── Pantalla ──────────────────────────────────────────────────────────────
-function openDia(){
-  if(!dVisibles){
-    let guardado = null;
-    try { guardado = JSON.parse(localStorage.getItem('ag_dia_vis') || 'null'); } catch(_){}
-    const validos = (guardado || []).filter(id => PROFESIONALES[id]);
-    dVisibles = new Set(validos.length ? validos : Object.keys(PROFESIONALES));
-  }
-  goScreen('s-dia');
-  dPintar();
-  // La lista de espera se cruza con los huecos del día. Si todavía no se
-  // cargó, se trae y se repinta: sin esto el bloque de espera aparecería
-  // vacío la primera vez y lleno la segunda, sin motivo aparente.
-  if(!_espCache.length) espCargar().then(dPintarEspera).catch(()=>{});
-}
-window.openDia = openDia;
-
-function diaMover(n){
-  const [Y,M,D] = dDia.split('-').map(Number);
-  const f = new Date(Y, M-1, D); f.setDate(f.getDate()+n);
-  dDia = dateKey(f);
-  dPintar();
-}
-window.diaMover = diaMover;
-
-function diaModo(m){ dModo = m; dGuardarPrefs(); dPintar(); }
-window.diaModo = diaModo;
-
-function diaAlternar(id){
-  dVisibles.has(id) ? dVisibles.delete(id) : dVisibles.add(id);
-  dGuardarPrefs(); dPintar();
-}
-window.diaAlternar = diaAlternar;
-
-function diaTodos(){ dVisibles = new Set(Object.keys(PROFESIONALES)); dGuardarPrefs(); dPintar(); }
-window.diaTodos = diaTodos;
-
-const D_COLORES = ['#1B72B8','#6BB745','#F59120','#2C9CCB','#B02A20'];
-const dColor = id => D_COLORES[Object.keys(PROFESIONALES).indexOf(id) % D_COLORES.length];
-
-function dPintar(){
-  const [Y,M,D] = dDia.split('-').map(Number);
-  const f = new Date(Y, M-1, D);
-  document.getElementById('d-dow').textContent =
-    f.toLocaleDateString('es-GT', { weekday:'long', day:'numeric', month:'long' });
-  document.getElementById('d-hoy').textContent =
-    dDia === todayKey() ? 'Hoy' : (dDia < todayKey() ? 'Día pasado' : '');
-
-  document.querySelectorAll('.d-modo button').forEach(b =>
-    b.classList.toggle('on', b.dataset.modo === dModo));
-
-  document.getElementById('d-casillas').innerHTML = Object.entries(PROFESIONALES).map(([id,P])=>`
-    <label class="d-cas ${dVisibles.has(id)?'on':''}">
-      <input type="checkbox" ${dVisibles.has(id)?'checked':''} onchange="diaAlternar('${id}')">
-      <span class="pt" style="background:${dColor(id)}"></span>${esc(P.corto || P.nombre || id)}
-    </label>`).join('');
-
-  dPintarPronto();
-  if(dModo === 'panorama') dPintarPanorama(); else dPintarMio();
-  dPintarEspera();
-}
-
-function dPintarPronto(){
-  const host = document.getElementById('d-pronto');
-  const ids = Object.keys(PROFESIONALES).filter(id => dVisibles.has(id));
-  if(!ids.length){ host.innerHTML = ''; host.style.display='none'; return; }
-  host.style.display = '';
-  host.innerHTML = `<div class="t">Lo más pronto disponible</div>` + ids.map(id=>{
-    const P = PROFESIONALES[id];
-    const esp = (P.especialidades||[]).join(' · ') || '—';
-    if(P.publica === false)
-      return `<div class="f"><span class="esp">${esc(esp)}<small>${esc(P.corto||id)}</small></span>
-              <span class="cuando nada">Se coordina con ${esc((P.nombre||'').split(' ')[0])}</span></div>`;
-    const h = dPrimerHueco(id, dDia);
-    return `<div class="f"><span class="esp">${esc(esp)}<small>${esc(P.corto||id)}</small></span>
-      <span class="cuando num">${h ? dHHMM(h.ini) : 'Sin cupo este día'}</span></div>`;
-  }).join('');
-}
-
-function dPintarPanorama(){
-  const ids = Object.keys(PROFESIONALES).filter(id => dVisibles.has(id));
-  const host = document.getElementById('d-cuerpo');
-
-  if(!ids.length){
-    host.innerHTML = `<div class="d-pan"><div class="d-vacio"><b>Nadie seleccionado</b>
-      Marque arriba a quién quiere ver.</div></div>`;
-    return;
-  }
-
-  const dias = ids.map(id => ({ id, P:PROFESIONALES[id], d:dArmarDia(id, dDia) }));
-
-  // El eje se ajusta a lo que realmente hay ese día: si nadie empieza antes de
-  // las nueve, no se dibujan dos horas vacías arriba.
-  let ini = D_HASTA, fin = D_DESDE;
-  dias.forEach(x => { if(!x.d.vacio){ ini = Math.min(ini, x.d.ini); fin = Math.max(fin, x.d.fin); } });
-  if(ini >= fin){ ini = 8*60; fin = 18*60; }
-  ini = Math.max(D_DESDE, Math.floor(ini/60)*60);
-  fin = Math.min(D_HASTA, Math.ceil(fin/60)*60);
-  const alto = (fin - ini) * D_ESCALA;
-  const holgado = ids.length <= 2;
-
-  const horas = [], rayas = [];
-  for(let h = Math.ceil(ini/60); h*60 <= fin; h += (fin-ini > 600 ? 2 : 1)){
-    const y = (h*60 - ini) * D_ESCALA;
-    horas.push(`<span style="top:${y}px">${String(h).padStart(2,'0')}</span>`);
-    rayas.push(`<div class="d-raya" style="top:${y}px"></div>`);
-  }
-
-  const cols = dias.map(x=>{
-    if(x.d.vacio === 'sin-horario')
-      return `<div class="d-col sinhorario">Sin horario fijo<br>cada cita se coordina</div>`;
-    if(x.d.vacio)
-      return `<div class="d-col noatiende">No atiende<br>este día</div>`;
-    const bs = x.d.bloques.map(b=>{
-      const top = (b.ini - ini) * D_ESCALA;
-      const h   = Math.max(6, (b.fin - b.ini) * D_ESCALA);
-      const cls = { oc:'d-oc', li:'d-li', co:'d-co', bl:'d-bl', tr:'d-tr' }[b.t];
-      let txt = '';
-      if(b.t==='oc') txt = holgado ? `${dHHMM(b.ini)} · ${esc(b.quien)}${b.sede?'<br>'+esc(b.sede):''}` : esc(b.quien);
-      else if(b.t==='li') txt = holgado ? `${dHHMM(b.ini)} · ${dDur(b.fin-b.ini)} libre` : dDur(b.fin-b.ini);
-      else if(b.t==='co') txt = holgado ? `${dDur(b.fin-b.ini)}` : '';
-      else if(b.t==='bl') txt = esc(b.quien);
-      else if(b.t==='tr') txt = holgado ? `traslado · ${b.fin-b.ini} min` : 'traslado';
-      const click = b.t==='li' ? ` onclick="dIrAHueco('${x.id}','${dHHMM(b.ini)}')"` : '';
-      return `<div class="d-blk ${cls}" style="top:${top}px;height:${h}px"${click}>${txt}</div>`;
-    }).join('');
-    return `<div class="d-col">${bs}</div>`;
-  }).join('');
-
-  host.innerHTML = `<div class="d-pan">
-    <div class="d-cab">${dias.map(x=>`<div>${esc(x.P.corto||x.id)}
-      <small>${esc((x.P.especialidades||[])[0]||'')}</small></div>`).join('')}</div>
-    <div class="d-cuerpo ${holgado?'holgado':''}" style="height:${alto}px">
-      <div class="d-horas">${horas.join('')}</div>${rayas.join('')}${cols}
-    </div>
-    <div class="d-leg">
-      <span><i style="background:#CFE0EC"></i>Ocupado</span>
-      <span><i style="background:#EAF5E3;border:1.5px solid #6BB745"></i>Libre</span>
-      <span><i class="d-tr"></i>Traslado</span>
-      <span><i style="background:#FBE8E6"></i>Bloqueado</span>
-    </div></div>`;
-}
-
-function dPintarMio(){
-  const ids = Object.keys(PROFESIONALES).filter(id => dVisibles.has(id));
-  const host = document.getElementById('d-cuerpo');
-  if(!ids.length){
-    host.innerHTML = `<div class="d-vacio"><b>Nadie seleccionado</b>
-      Marque arriba a quién quiere ver.</div>`;
-    return;
-  }
-  host.innerHTML = ids.map(id => dTarjetaDia(id)).join('');
-}
-
-function dTarjetaDia(profId){
-  const P = PROFESIONALES[profId];
-  const d = dArmarDia(profId, dDia);
-  const nom = esc(P.corto || P.nombre || profId);
-
-  if(d.vacio === 'sin-horario') return `<div class="d-cap">
-    <div class="quien">${nom}</div><div class="tt">Sin horario fijo</div>
-    <p class="res">Sus citas se coordinan una por una. Las solicitudes entran por lista de espera.</p></div>`;
-  if(d.vacio) return `<div class="d-cap">
-    <div class="quien">${nom}</div><div class="tt">No atiende este día</div></div>`;
-
-  const total = d.ocupado + d.util + d.frag + d.traslado || 1;
-  const pct = n => Math.round(n/total*100);
-  const min = minConsulta(profId);
-
-  const barras = `<div class="d-barra">
-    <i class="bb-oc" style="width:${pct(d.ocupado)}%"></i>
-    <i class="bb-ut" style="width:${pct(d.util)}%"></i>
-    <i class="bb-fr" style="width:${pct(d.frag)}%"></i>
-    <i class="bb-tr" style="width:${pct(d.traslado)}%"></i></div>
-    <div class="leg">
-      <span><i class="bb-oc"></i>Ocupado ${dDur(d.ocupado)}</span>
-      <span><i class="bb-ut"></i>Aprovechable ${dDur(d.util)}</span>
-      ${d.frag?`<span><i class="bb-fr"></i>Fragmentado ${dDur(d.frag)}</span>`:''}
-      ${d.traslado?`<span><i class="bb-tr"></i>Traslados ${dDur(d.traslado)}</span>`:''}
-    </div>`;
-
-  const alerta = d.traslado > d.util
-    ? `<p class="res">Caben <b>${d.caben}</b> ${d.caben===1?'consulta':'consultas'} más.
-       Los traslados se llevan <b>${dDur(d.traslado)}</b>: más que todo el espacio libre del día.</p>`
-    : `<p class="res">${d.caben ? `Caben <b>${d.caben}</b> ${d.caben===1?'consulta':'consultas'} más.`
-        : 'El día está lleno.'}${d.traslado?` Traslados: ${dDur(d.traslado)}.`:''}</p>`;
-
-  const linea = d.bloques.map(b=>{
-    const alto = Math.max(26, (b.fin-b.ini) * 0.9);
-    const hora = `<span class="h num">${dHHMM(b.ini)}</span>`;
-    if(b.t==='oc') return `<div class="d-fr">${hora}
-      <div class="dl-oc" style="min-height:${alto}px"><span><b>${esc(b.quien)}</b>
-        ${b.detalle?`<span class="d-sub">${esc(String(b.detalle).slice(0,60))}</span>`:''}</span>
-        ${b.sede?`<span class="dl-sede">${esc(b.sede)}</span>`:''}
-        <span class="d num">${dDur(b.fin-b.ini)}</span></div></div>`;
-    if(b.t==='bl') return `<div class="d-fr">${hora}
-      <div class="dl-bl" style="min-height:${alto}px"><span><b>${esc(b.quien)}</b>
-        ${b.sede?`<span class="d-sub" style="color:inherit;opacity:.85">Solo ${esc(b.sede)}</span>`:''}</span>
-        <span class="d num">${dDur(b.fin-b.ini)}</span></div></div>`;
-    if(b.t==='tr') return `<div class="d-fr">${hora}
-      <div class="dl-tr" style="min-height:${Math.max(22,alto)}px">
-        <b>Traslado</b> ${esc(b.de)} → ${esc(b.a)} · ${b.fin-b.ini} min</div></div>`;
-    if(b.t==='co') return `<div class="d-fr">${hora}
-      <div class="dl-li corto" style="min-height:26px"><b class="num">${dDur(b.fin-b.ini)}</b>
-        <span class="q">no cabe una consulta</span></div></div>`;
-    const caben = Math.floor((b.fin-b.ini)/min);
-    return `<div class="d-fr">${hora}
-      <button class="dl-li" style="min-height:${alto}px"
-        onclick="dIrAHueco('${profId}','${dHHMM(b.ini)}')">
-        <b class="num">${dDur(b.fin-b.ini)}</b>
-        <span class="q">${caben>1?`caben ${caben} consultas`:'cabe una consulta'}${b.sede?' · '+esc(b.sede):''}</span>
-        <span class="cta">Abrir cupo →</span></button></div>`;
-  }).join('');
-
-  return `<div class="d-cap">
-      <div class="quien">${nom}</div>
-      <div class="tt">${d.util ? dDur(d.util)+' de espacio aprovechable' : 'Sin espacio libre'}</div>
-      ${barras}${alerta}
-    </div>
-    <div class="d-sec">El día, hora por hora</div>
-    <div class="d-linea">${linea}
-      <div class="d-fr"><span class="h num">${dHHMM(d.fin)}</span>
-        <span class="d-sub">Fin de la jornada</span></div></div>`;
-}
-
-// Tocar un hueco abre el formulario de siempre, con el médico, la fecha y la
-// hora ya puestos. La pantalla nueva no reimplementa el agendado.
-function dIrAHueco(profId, hora){
-  currentDoc = profId;
-  const f = document.getElementById('f-date');
-  goScreen('s-agenda');
-  setTimeout(()=>{
-    try{
-      openModal();
-      if(f) f.value = dDia;
-      buildTimes(hora);
-      const t = document.getElementById('f-time'); if(t) t.value = hora;
-    }catch(e){ console.warn('abrir hueco:', e.message); }
-  }, 60);
-}
-window.dIrAHueco = dIrAHueco;
-
-function dPintarEspera(){
-  const host = document.getElementById('d-espera');
-  if(!_espCache.length){ host.innerHTML = ''; return; }
-  const pend = _espCache.filter(it => (it.estado||'pendiente')==='pendiente')
-    .filter(it => { const pid = _espMedico(it); return pid && dVisibles.has(pid); });
-  if(!pend.length){ host.innerHTML = ''; return; }
-
-  host.innerHTML = `<div class="d-esp">
-    <div class="tt">${pend.length} ${pend.length===1?'persona esperando':'personas esperando'} cupo</div>
-    ${pend.slice(0,4).map(it=>{
-      const pid = _espMedico(it);
-      const h = dPrimerHueco(pid, dDia);
-      const tel = (it.tel||'').replace(/\D/g,'');
-      const nom = esc(it.nombre || '(sin nombre)');
-      const msg = h
-        ? `Hola ${(it.nombre||'').split(' ')[0]}, le escribimos de la clínica. Se liberó un espacio con ${nombreProf(pid)} el ${dDia} a las ${dHHMM(h.ini)}. ¿Le sirve?`
-        : '';
-      return `<div class="fila"><span class="n">${nom}
-        <small>${esc(it.especialidad||'')} · ${nombreProf(pid)}</small></span>
-        ${h && tel
-          ? `<a class="wa" href="https://wa.me/502${tel}?text=${encodeURIComponent(msg)}"
-               target="_blank" rel="noopener">Ofrecer ${dHHMM(h.ini)}</a>`
-          : `<span class="wa sin">${h?'Sin teléfono':'Sin cupo este día'}</span>`}
-      </div>`;
-    }).join('')}
-    <div style="margin-top:8px"><button type="button" class="d-filtro-t" style="padding:0;border:0;background:none"
-      onclick="openEspera()">Ver la lista completa →</button></div>
-  </div>`;
-}
 
 // ═══ PROFESIONALES Y HORARIOS ═════════════════════════════════════════════
 // Hasta acá los horarios vivían en el código: para mover una hora había que
