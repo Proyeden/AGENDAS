@@ -508,6 +508,17 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .pf-prev b { color:#15803D; }
 .pf-prev.nada { background:#F8FAFC; border-color:var(--line); color:var(--muted); }
 .pf-choque { margin-top:7px; padding:9px 10px; border-radius:9px; background:#FEF2F2; border:1px solid #FECACA; font-size:12px; color:#B91C1C; font-weight:600; line-height:1.6; }
+.pf-horizonte{background:#fff;border:1px solid var(--line);border-left:5px solid #1B72B8;
+  border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.pf-h-t{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+  font-weight:700;margin-bottom:8px}
+.pf-h-c{display:flex;align-items:center;gap:10px}
+.pf-h-c button{width:38px;height:38px;border:1.5px solid #CBD5E1;background:#fff;border-radius:9px;
+  font-size:19px;line-height:1;color:#123F73;cursor:pointer;font-family:var(--font);flex:none}
+.pf-h-c button:active{background:#E2F1F7;border-color:#1B72B8}
+.pf-h-c b{font-size:17px;font-weight:800;color:#123F73;min-width:78px;text-align:center;
+  font-variant-numeric:tabular-nums}
+.pf-h-n{font-size:11.5px;color:var(--muted);line-height:1.5;margin:8px 0 0}
 .pf-modo { display:flex; gap:2px; background:#E7F0F7; padding:3px; border-radius:99px; margin-bottom:14px; }
 .pf-modo button { flex:1; background:none; border:0; color:#123F73; padding:9px 8px; border-radius:99px;
   font-size:13px; cursor:pointer; font-family:var(--font); font-weight:600; }
@@ -1799,6 +1810,16 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     </div>
   </div>
   <div style="padding:0 20px 40px;max-width:620px;margin:0 auto">
+    <div class="pf-horizonte">
+      <div class="pf-h-t">Hasta cuántos días adelante se calculan horarios</div>
+      <div class="pf-h-c">
+        <button onclick="pfHorizonte(-7)" aria-label="Una semana menos">−</button>
+        <b><span id="pf-h-dias">14</span> días</b>
+        <button onclick="pfHorizonte(7)" aria-label="Una semana más">+</button>
+      </div>
+      <p class="pf-h-n" id="pf-h-nota"></p>
+    </div>
+
     <div class="pf-modo" role="group" aria-label="Qué edito">
       <button type="button" id="pf-m-base" class="on" onclick="pfSetModo('base')">Horario base</button>
       <button type="button" id="pf-m-sem" onclick="pfSetModo('semana')">Esta semana</button>
@@ -2244,7 +2265,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 49;
+const APP_VERSION = 52;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3751,6 +3772,10 @@ async function loadIcalFeedsWithDupCheck(){
   // PUBLICAR_CADA_MIN que no se publica. Así, si algo falla en silencio (una
   // firma mal calculada, una escritura perdida, la app dormida en el bolsillo),
   // los sistemas de citas se refrescan solos igual.
+  // Las citas ya pasaron por acá: desde ahora la publicación tiene con qué
+  // calcular la ocupación real.
+  _citasListas = true;
+
   let huecosHash;
   try { huecosHash = calcularHashHuecos(); }
   catch(e){ console.warn('calcularHashHuecos falló:', e.message); huecosHash = 'err_'+Date.now(); }
@@ -4094,6 +4119,20 @@ function openJornadaEspecial(){
 let jdDoc = 'denis', jdCli = 'clinic1';
 let jornadasEspeciales = [];
 let _jornadasListas = false; // true cuando las jornadas especiales están cargadas y listas
+
+// true cuando las CITAS ya se cargaron al menos una vez.
+//
+// La publicación esperaba solo a las jornadas especiales, nunca a las citas.
+// Si corría antes de que llegaran, calcularHuecos miraba un arreglo vacío,
+// concluía que no hay nada agendado y publicaba TODOS los días completamente
+// libres. Eso es peor que no publicar: el paciente reserva una hora que ya
+// está ocupada y nadie se entera hasta que llegan dos personas a la vez.
+let _citasListas = false;
+
+// Cuántas citas había la última vez que se publicó. Si de un momento a otro
+// el arreglo se vacía —una carga fallida, una sesión que expiró—, publicar
+// borraría la ocupación de todo el mes. Se detecta y se aborta.
+let _citasAlPublicar = 0;
 
 function jdSetDoc(doc){
   jdDoc = doc;
@@ -5585,7 +5624,32 @@ function pfDesdeDia(profId){
 }
 window.pfDesdeDia = pfDesdeDia;
 
+function pfHorizonteRender(){
+  const el = document.getElementById('pf-h-dias');
+  if(el) el.textContent = DIAS_PUBLICACION;
+  const n = document.getElementById('pf-h-nota');
+  if(n){
+    const t = new Date(); t.setDate(t.getDate() + DIAS_PUBLICACION);
+    n.innerHTML = `Se calculan horarios hasta el <b>${t.getDate()} de ${MONTHS[t.getMonth()]}</b>. ` +
+      `Al paciente no se le abre todo eso: las páginas de citas le muestran <b>1 día</b> ` +
+      `cuando hay holgura y <b>3</b> cuando la agenda está apretada.`;
+  }
+}
+
+async function pfHorizonte(delta){
+  await guardarHorizonte(DIAS_PUBLICACION + delta);
+  pfHorizonteRender();
+  mostrarAvisoBreve(`Reservas hasta ${DIAS_PUBLICACION} días · publicando…`);
+  try{
+    await publicarSlotsDisponibles();
+    await publicarSlotsSanCristobal();
+    mostrarAvisoBreve(`Listo · reservas hasta ${DIAS_PUBLICACION} días`);
+  }catch(e){ console.warn('republicar:', e.message); }
+}
+window.pfHorizonte = pfHorizonte;
+
 function pfSetModo(m){
+  pfHorizonteRender();
   pfModo = m;
   document.getElementById('pf-m-base').classList.toggle('on', m==='base');
   document.getElementById('pf-m-sem').classList.toggle('on', m==='semana');
@@ -8014,6 +8078,10 @@ async function publicarSlotsSanCristobal(opciones){
   if(!_citasDb || _publicandoSC) return false;
   _publicandoSC = true;
   try {
+    if(!_citasListas){
+      console.warn('publicar SC: las citas todavía no cargaron — no se publica nada');
+      return false;
+    }
     if(!_jornadasListas){
       let i=0; while(!_jornadasListas && i<30){ await new Promise(r=>setTimeout(r,100)); i++; }
     }
@@ -8034,7 +8102,7 @@ async function publicarSlotsSanCristobal(opciones){
     // Modo dirigido: solo los días pedidos (para reflejar al instante un cambio).
     const soloFechasSC = opciones && opciones.fechas && opciones.fechas.length
       ? opciones.fechas.filter(f => f >= hoy) : null;
-    const diasSC = soloFechasSC || Array.from({length:31}, (_,i)=>{
+    const diasSC = soloFechasSC || Array.from({length:DIAS_PUBLICACION+1}, (_,i)=>{
       const d = new Date(); d.setDate(d.getDate()+i); return dateKey(d);
     });
 
@@ -8198,6 +8266,38 @@ async function _slotsPublicados(desdeOFechas){
 // opciones.fechas → publicar SOLO esos días (modo rápido, para reflejar al
 // instante un bloqueo o una cita recién guardada). Sin opciones, publica los
 // 30 días completos.
+// Compara lo que la agenda CALCULA con lo que hay PUBLICADO para una fecha.
+// Cuando el sistema de citas dice una cosa y la agenda otra, esto dice cuál
+// de las dos está equivocada, en vez de tener que adivinar.
+async function revisarPublicado(fecha){
+  fecha = fecha || nvFecha || todayKey();
+  console.log(`\n═══ ${fecha} ═══`);
+  for(const [id, P] of Object.entries(PROFESIONALES)){
+    if(P.publica === false) continue;
+    let hu = [];
+    try{ hu = calcularHuecosFranja(id, fecha) || []; }catch(e){ console.warn(id, e.message); }
+    console.log(`\n${P.corto||id} — la AGENDA calcula:`);
+    if(!hu.length) console.log('   (ningún hueco)');
+    hu.forEach(h => console.log(`   ${h.ini} · ${h.durMin} min · ${SEDE_POR_CLAVE[h.clinica]?.nombre}`));
+  }
+  if(!_citasDb){ console.log('\nSin conexión al sistema de citas.'); return; }
+  try{
+    const snap = await _citasDb.collection('slots_disponibles').where('fecha','==',fecha).get();
+    console.log(`\nPUBLICADO en el sistema de citas: ${snap.size} horarios`);
+    const porSede = {};
+    snap.forEach(d => {
+      const v = d.data();
+      const k = `${v.medicoId} · ${v.clinica}`;
+      (porSede[k] = porSede[k] || []).push(`${v.hora}(${v.durMin})`);
+    });
+    Object.entries(porSede).forEach(([k, v]) =>
+      console.log(`   ${k}: ${v.sort().join(' ')}`));
+    if(!snap.size) console.log('   ⚠️ NADA publicado para esa fecha.');
+  }catch(e){ console.warn('leer publicado:', e.message); }
+  console.log(`\nCitas cargadas en memoria: ${events.length} · listas: ${_citasListas}`);
+}
+window.revisarPublicado = revisarPublicado;
+
 async function publicarSlotsDisponibles(opciones){
   if(!_citasDb || _publicando) return false;
   // El candado se cierra ANTES de esperar. Si se cerraba después, dos llamadas
@@ -8205,6 +8305,21 @@ async function publicarSlotsDisponibles(opciones){
   // espera y escribían los mismos horarios dos veces.
   _publicando = true;
   try {
+    // ── Guarda: no publicar a ciegas ──────────────────────────────────────
+    // Publicar sin las citas cargadas equivale a decirle a los pacientes que
+    // todo el mes está libre. Ante la duda se prefiere no tocar nada: los
+    // horarios que ya están publicados siguen siendo los últimos buenos.
+    if(!_citasListas){
+      console.warn('publicar: las citas todavía no cargaron — no se publica nada');
+      return false;
+    }
+    const _hoyCitas = events.filter(e => e.date >= todayKey() && e.status !== 'cancelled').length;
+    if(_citasAlPublicar > 5 && _hoyCitas === 0){
+      console.warn(`publicar: había ${_citasAlPublicar} citas y ahora hay 0 — se aborta por seguridad`);
+      mostrarAvisoBreve('No se publicó: las citas no cargaron bien');
+      return false;
+    }
+    _citasAlPublicar = Math.max(_citasAlPublicar, _hoyCitas);
     // Esperar a que las jornadas especiales estén cargadas (máx 3 seg)
     // Esto evita que se publiquen slots con horario normal cuando hay jornada especial
     if(!_jornadasListas){
@@ -8258,7 +8373,7 @@ async function publicarSlotsDisponibles(opciones){
 
     // Recopilar fechas únicas con datos (desde hoy, hasta 30 días adelante)
     const fechas = new Set();
-    const limite = new Date(); limite.setDate(limite.getDate() + 30);
+    const limite = new Date(); limite.setDate(limite.getDate() + DIAS_PUBLICACION);
     const limiteStr = dateKey(limite);
 
     // Modo dirigido: solo los días que se piden (publicación instantánea).
@@ -8273,7 +8388,7 @@ async function publicarSlotsDisponibles(opciones){
         .forEach(e => fechas.add(e.date));
 
       // Incluir también los días laborables aunque estén vacíos (para mostrar disponibilidad)
-      for(let i=0; i<=30; i++){
+      for(let i=0; i<=DIAS_PUBLICACION; i++){
         const d = new Date(); d.setDate(d.getDate()+i);
         const dow = d.getDay();
         if(dow===0) continue; // domingo
@@ -8342,6 +8457,20 @@ async function publicarSlotsDisponibles(opciones){
       }
     }
 
+    // Retirar lo que quedó fuera de la ventana. Si el horizonte se acorta de
+    // 30 a 14 días, los horarios del día 15 en adelante siguen publicados y
+    // el paciente los sigue viendo: dejar de crearlos no basta.
+    if(!soloFechas){
+      const tope = new Date(); tope.setDate(tope.getDate() + DIAS_PUBLICACION);
+      const topeStr = dateKey(tope);
+      let fuera = 0;
+      for(const [f, docs] of yaPublicados){
+        if(f <= topeStr) continue;
+        for(const x of docs){ lote.borrar(x.ref); fuera++; }
+      }
+      if(fuera) console.log(`🗑️ ${fuera} horarios retirados por quedar fuera de los ${DIAS_PUBLICACION} días`);
+    }
+
     // Un solo viaje: borrados y altas se aplican juntos.
     await lote.cerrar();
 
@@ -8382,7 +8511,32 @@ async function publicarSlotsDisponibles(opciones){
 // Antes miraba solo 7 días: cualquier cambio del día 8 en adelante (que es
 // donde vive la mayoría de las citas) no alteraba la firma, la republicación
 // automática nunca se disparaba y había que tocar "Actualizar" a mano.
-const DIAS_PUBLICACION = 30;
+// Hasta cuántos días adelante se PUBLICAN horarios.
+//
+// No es lo mismo que hasta cuándo puede reservar el paciente: las páginas de
+// citas revelan solo 1 día si hay holgura y 3 si la agenda está apretada, y
+// ese es el freno de verdad. Publicar 30 días le da a ese revelado de dónde
+// elegir y permite que la lista de espera y «la cita más cercana» miren lejos.
+// Bajarlo solo tiene sentido si se quiere dejar de calcular tan adelante.
+let DIAS_PUBLICACION = 30;
+
+function cargarHorizonte(){
+  try{
+    const v = parseInt(localStorage.getItem('dias_publicacion'), 10);
+    if(v >= 1 && v <= 90) DIAS_PUBLICACION = v;
+  }catch(_){}
+}
+cargarHorizonte();
+
+async function guardarHorizonte(dias){
+  DIAS_PUBLICACION = Math.max(1, Math.min(90, dias));
+  try{ localStorage.setItem('dias_publicacion', String(DIAS_PUBLICACION)); }catch(_){}
+  if(_db){
+    try{ await _db.collection('config_app').doc('publicacion')
+      .set({ dias: DIAS_PUBLICACION, actualizado: new Date().toISOString() }, { merge:true }); }
+    catch(e){ console.warn('horizonte:', e.message); }
+  }
+}
 
 function calcularHashHuecos(){
   const hoy = todayKey();
