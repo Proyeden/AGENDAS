@@ -495,7 +495,12 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .ps-dia { background:#fff; border:1px solid var(--line); border-radius:13px; padding:12px 13px; margin-bottom:10px; }
 .ps-dia.tocado { border-color:#1B72B8; border-left:5px solid #1B72B8; }
 .ps-dia.cerrado { background:#FBE8E6; border-color:#EFC3BE; }
-.ps-h { display:flex; align-items:baseline; gap:8px; margin-bottom:8px; }
+.ps-h{display:flex;align-items:baseline;gap:8px;width:100%;background:none;border:none;
+  padding:0;cursor:pointer;font-family:var(--font);text-align:left;min-height:32px}
+.ps-flecha{margin-left:6px;color:var(--muted);font-size:15px;flex:none}
+.ps-resumen{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.45}
+.ps-cuerpo{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.ps-dia.abierto{box-shadow:0 3px 14px rgba(18,63,115,.10)}
 .ps-n { font-size:14px; font-weight:800; color:#123F73; text-transform:capitalize; }
 .ps-f { font-size:11px; color:var(--muted); }
 .ps-est { margin-left:auto; font-size:11px; font-weight:700; padding:2px 9px; border-radius:99px;
@@ -1771,8 +1776,8 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
   </div>
   <div style="padding:0 20px 40px;max-width:620px;margin:0 auto">
     <div class="pf-modo" role="group" aria-label="Qué edito">
-      <button type="button" id="pf-m-base" class="on" onclick="pfSetModo('base')">Horario de siempre</button>
-      <button type="button" id="pf-m-sem" onclick="pfSetModo('semana')">Planificar una semana</button>
+      <button type="button" id="pf-m-base" class="on" onclick="pfSetModo('base')">Horario base</button>
+      <button type="button" id="pf-m-sem" onclick="pfSetModo('semana')">Esta semana</button>
     </div>
     <div class="rec-doc-seg" id="pf-tabs"></div>
     <div id="pf-cuerpo"></div>
@@ -2215,7 +2220,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 46;
+const APP_VERSION = 47;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -5441,7 +5446,7 @@ function openProfesionales(){
   pfActual = pfActual && PROFESIONALES[pfActual] ? pfActual : Object.keys(PROFESIONALES)[0];
   pfRenderTabs();
   pfCargarBorrador();
-  pfRender();
+  pfSetModo(pfModo);
 }
 window.openProfesionales = openProfesionales;
 
@@ -5510,7 +5515,9 @@ window.pfSetResto = pfSetResto; window.pfSetTraslado = pfSetTraslado;
 // entera. Acá se planifica de corrido: se elige la semana, se ajusta cada día
 // y se ve al lado lo que queda.
 
-let pfModo = 'base';
+// Al entrar se abre el planificador, no el horario de siempre. El horario base
+// se toca dos veces al año; la semana, todas las semanas.
+let pfModo = 'semana';
 let psOffset = 0;   // semanas desde la actual
 
 // Desde la vista del día: abre el planificador ya parado en esa persona y en
@@ -5535,7 +5542,12 @@ function pfSetModo(m){
   document.getElementById('pf-cuerpo').style.display  = m==='base'   ? '' : 'none';
   document.getElementById('pf-tabs').style.display    = '';
   document.getElementById('pf-semana').style.display  = m==='semana' ? '' : 'none';
-  if(m==='semana') psRender(); else pfRender();
+  if(m==='semana'){
+    // Al entrar se despliega hoy, que es el día que casi siempre se viene a
+    // tocar. Si la semana que se mira no incluye hoy, no se abre ninguno.
+    if(psAbierto === null) psAbierto = psSemana().map(dateKey).includes(todayKey()) ? todayKey() : null;
+    psRender();
+  } else pfRender();
 }
 window.pfSetModo = pfSetModo;
 
@@ -5545,7 +5557,7 @@ function psSemana(){
   lun.setDate(lun.getDate() - ((lun.getDay()+6)%7) + psOffset*7);
   return Array.from({length:6}, (_,i)=>{ const d=new Date(lun); d.setDate(d.getDate()+i); return d; });
 }
-function psMover(n){ psOffset += n; psBorrador = {}; psRender(); }
+function psMover(n){ psOffset += n; psBorrador = {}; psAbierto = null; psRender(); }
 window.psMover = psMover;
 
 // Borrador de la semana: cada día es una lista de franjas sueltas
@@ -5555,6 +5567,13 @@ window.psMover = psMover;
 // cierro Mixco a las 14:00 pero Pinares sigue a las 15:00», que es justamente
 // el tipo de cambio que se hace todas las semanas.
 let psBorrador = {};   // fecha -> [{sede, ini, fin}]
+let psAbierto = null;  // qué día está desplegado
+
+function psAbrir(fecha){
+  psAbierto = (psAbierto === fecha) ? null : fecha;
+  psRender();
+}
+window.psAbrir = psAbrir;
 
 function psCargarDia(fecha){
   if(psBorrador[fecha]) return psBorrador[fecha];
@@ -5619,6 +5638,9 @@ function psRender(){
   dias.forEach(d=>{
     const f = dateKey(d);
     const filas = psCargarDia(f);
+    // Seis días abiertos a la vez son una pantalla larguísima en el teléfono.
+    // Se abre el que se toca; los demás muestran su resumen en una línea.
+    const abierto = psAbierto === f;
     const tocado = jornadasEspeciales.some(j => j.doctor===pfActual && j.fecha===f);
     const sucio = psSucio(f);
     const avisos = psProblemas(filas);
@@ -5627,13 +5649,23 @@ function psRender(){
       e.type!=='blocked' && e.time && e.status!=='cancelled');
     const horas = filas.reduce((n,x)=>n+Math.max(0,x.fin-x.ini),0);
 
-    html += `<div class="ps-dia ${tocado?'tocado':''} ${!filas.length?'cerrado':''}">
-      <div class="ps-h">
+    const resumen = filas.length
+      ? filas.slice().sort((a,b)=>a.ini-b.ini)
+          .map(x=>`${SEDES[x.sede].nombre.split(' ')[0]} ${tFmt(x.ini)}–${tFmt(x.fin)}`).join(' · ')
+      : 'No se atiende';
+
+    html += `<div class="ps-dia ${tocado?'tocado':''} ${!filas.length?'cerrado':''} ${abierto?'abierto':''}">
+      <button class="ps-h" onclick="psAbrir('${f}')" aria-expanded="${abierto}">
         <span class="ps-n">${etq[d.getDay()]}</span>
         <span class="ps-f">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
         <span class="ps-est ${tocado?'esp':!filas.length?'cer':''}">${
           !filas.length ? 'Cerrado' : (horas/60).toFixed(1).replace('.0','')+' h'}</span>
-      </div>
+        <span class="ps-flecha">${abierto?'⌃':'⌄'}</span>
+      </button>
+      ${abierto ? '' : `<div class="ps-resumen">${esc(resumen)}${
+        malos.length?' · <b style="color:#B02A20">revisar</b>':''}${
+        sucio?' · <b style="color:#1B72B8">sin guardar</b>':''}</div>`}
+      ${abierto ? `<div class="ps-cuerpo">` : '<div style="display:none">'}
 
       ${citas.length?`<div class="ps-citas">${citas.length} ${citas.length===1?'cita':'citas'} agendada${citas.length===1?'':'s'}:
         ${citas.sort((a,b)=>tMin(a.time)-tMin(b.time)).slice(0,4).map(c=>
@@ -5667,6 +5699,7 @@ function psRender(){
         ${tocado?`<button onclick="psQuitar('${f}')">Volver al horario de siempre</button>`:''}
         ${sucio?`<button class="ps-guardar" ${malos.length?'disabled':''}
           onclick="psGuardarDia('${f}')">${malos.length?'Corregí lo marcado':'Guardar y publicar'}</button>`:''}
+      </div>
       </div>
     </div>`;
   });
@@ -5734,6 +5767,8 @@ window.psVaciar = psVaciar;
 // rangos de ese día.
 async function psGuardarDia(fecha){
   const filas = (psBorrador[fecha]||[]).filter(x => x.fin - x.ini >= 15);
+  const fallos = [];
+  const respaldo = jornadasEspeciales.slice();   // por si hay que deshacer
   for(const [sid, sx] of Object.entries(SEDES)){
     const idJe = `je_${pfActual}_${sx.clave}_${fecha}`;
     jornadasEspeciales = jornadasEspeciales.filter(j => j.id !== idJe);
@@ -5744,12 +5779,29 @@ async function psGuardarDia(fecha){
         rangos: mias.map(x=>[x.ini, x.fin]),
         motivo: 'Planificado', creadoEn: new Date().toISOString() };
       jornadasEspeciales.push(j);
-      if(_db) try{ await _db.collection('jornadas_especiales').doc(idJe).set(j); }
-        catch(e){ console.warn('je:', e.message); }
+      if(_db){
+        try{ await _db.collection('jornadas_especiales').doc(idJe).set(j); }
+        catch(e){ fallos.push(`${sx.nombre}: ${e.message}`); }
+      }
     } else if(_db){
-      try{ await _db.collection('jornadas_especiales').doc(idJe).delete(); }catch(_){}
+      try{ await _db.collection('jornadas_especiales').doc(idJe).delete(); }
+      catch(e){ fallos.push(`${sx.nombre}: ${e.message}`); }
     }
   }
+
+  // Si la escritura falló, NO se sigue. Publicar recarga las jornadas desde
+  // Firebase, así que un fallo silencioso hacía que el cambio se viera un
+  // segundo en pantalla y después volviera solo al horario anterior, sin que
+  // nadie supiera por qué. Ese era el «ya lo publiqué y no se ve».
+  if(fallos.length){
+    jornadasEspeciales = respaldo;
+    alert('No se pudo guardar el horario de ese día.\n\n' + fallos.join('\n') +
+      '\n\nEl cambio no se aplicó. Revisá la conexión y volvé a intentar.');
+    render(); psRender();
+    return;
+  }
+
+  try{ localStorage.setItem('jornadas_especiales', JSON.stringify(jornadasEspeciales)); }catch(_){}
   delete psBorrador[fecha];
   render(); psRender();
   await psPublicar(fecha);
@@ -6686,10 +6738,7 @@ function renderMonth(root){
     // Tocar un día abre ESE día. Antes no llevaba a ningún lado: había que
     // volver al modo Día y navegar con las flechas hasta encontrarlo.
     div.style.cursor='pointer';
-    div.onclick=()=>{ nvFecha=key; calMode='day';
-      const hoy=parseISO(todayKey()), d=parseISO(key);
-      currentDayOffset=Math.round((d-hoy)/86400000);
-      render(); window.scrollTo({top:0,behavior:'instant'}); };
+    div.onclick=()=>irAlDia(key);
     const num=document.createElement('div'); num.className='mn-num'; num.textContent=cell.getDate();
     div.appendChild(num);
 
@@ -6718,11 +6767,27 @@ function renderMonth(root){
 
 function formatHM(t){ const [h,m]=t.split(':'); const hh=+h; const ap=hh>=12?'p':'a'; const h12=hh>12?hh-12:hh===0?12:hh; return `${h12}${m!=='00'?':'+m:''}${ap}`; }
 
+// Abrir un día concreto desde cualquier vista.
+function irAlDia(key){
+  nvFecha = key;
+  calMode = 'day';
+  const hoy = parseISO(todayKey()), d = parseISO(key);
+  currentDayOffset = Math.round((d - hoy) / 86400000);
+  render();
+  window.scrollTo({ top:0, behavior:'instant' });
+}
+window.irAlDia = irAlDia;
+
 function buildGrid(grid,days,doctor){
   const corner=document.createElement('div'); corner.className='time-corner'; grid.appendChild(corner);
   days.forEach((day,i)=>{
     const h=document.createElement('div'); h.className='day-hdr'+(dateKey(day)===todayKey()?' today':'');
-    h.innerHTML=`<div class="dn">${DAYS[i]}</div><div class="dd">${day.getDate()}</div>`; grid.appendChild(h);
+    h.innerHTML=`<div class="dn">${DAYS[i]}</div><div class="dd">${day.getDate()}</div>`;
+    // Tocar el encabezado abre ese día, igual que en el mes. Antes no llevaba
+    // a ningún lado y había que volver a Día y navegar con las flechas.
+    h.style.cursor='pointer';
+    h.onclick=()=>irAlDia(dateKey(day));
+    grid.appendChild(h);
   });
   // Fila de huecos libres por día (hora + duración)
   const corner2=document.createElement('div'); corner2.className='time-corner huecos-corner'; corner2.textContent='Libre'; grid.appendChild(corner2);
