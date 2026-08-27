@@ -178,30 +178,57 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   min-height:calc(100vh - 54px);
   display:none; flex-direction:column;
   align-items:center; justify-content:center;
-  padding:40px 24px 48px; background:var(--bg);
+  padding:32px 20px 44px; background:#EEF5FA;
 }
 #s-home.on { display:flex; }
-.home-hero { text-align:center; margin-bottom:36px; }
-.home-eyebrow { font-size:11px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
-.home-date { font-size:20px; font-weight:700; color:var(--text); letter-spacing:-.4px; line-height:1.25; }
-.home-btns { display:flex; flex-direction:column; gap:12px; width:100%; max-width:400px; margin-bottom:28px; }
-.home-btn { width:100%; padding:18px 20px; border-radius:16px; border:2px solid transparent; cursor:pointer; font-family:var(--font); display:flex; align-items:center; gap:16px; transition:opacity .15s, transform .1s; }
-.home-btn:active { transform:scale(.98); opacity:.9; }
-.home-btn-blue  { background:#DBEAFE; border-color:#93C5FD; }
-.home-btn-purple{ background:#EDE9FE; border-color:#C4B5FD; }
-.home-btn-icon-wrap { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.home-btn-icon-blue   { background:#BFDBFE; }
-.home-btn-icon-purple { background:#DDD6FE; }
-.home-btn-text { flex:1; text-align:left; }
-.home-btn-title { display:block; font-size:16px; font-weight:700; letter-spacing:-.3px; line-height:1.2; }
-.home-btn-sub   { display:block; font-size:12px; margin-top:3px; }
-.home-btn-blue  .home-btn-title { color:#1E3A8A; }
-.home-btn-blue  .home-btn-sub   { color:#2563EB; }
-.home-btn-purple .home-btn-title { color:#4C1D95; }
-.home-btn-purple .home-btn-sub   { color:#7C3AED; }
-.home-btn-arr { font-size:22px; flex-shrink:0; }
-.home-btn-blue   .home-btn-arr { color:#60A5FA; }
-.home-btn-purple .home-btn-arr { color:#A78BFA; }
+/* ── INICIO ────────────────────────────────────────────────────────────
+   Mismo sistema que la agenda: fondo azul claro, tarjetas blancas de un
+   solo borde, un acento a la vez. Antes cada botón traía su propio par de
+   colores saturados —azul con azul, morado con morado— y la pantalla que
+   más se ve era la que menos se parecía al resto. ── */
+.home-hero { text-align:center; margin-bottom:28px; }
+.home-eyebrow { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+  color:#54718A; margin-bottom:6px; }
+.home-date { font-family:var(--round); font-size:22px; font-weight:700; color:#123F73;
+  letter-spacing:-.02em; line-height:1.25; text-transform:capitalize; }
+.home-btns { display:flex; flex-direction:column; gap:10px; width:100%; max-width:420px; margin-bottom:24px; }
+.home-btn {
+  width:100%; padding:15px 16px; border-radius:13px; cursor:pointer; font-family:var(--font);
+  display:flex; align-items:center; gap:14px; background:#FFFFFF;
+  border:1px solid #D4E3EE; box-shadow:0 1px 2px rgba(18,63,115,.06), 0 4px 14px rgba(18,63,115,.07);
+  transition:border-color .14s, background .14s, transform .1s;
+}
+.home-btn:active { transform:scale(.985); }
+.home-btn:hover { border-color:#1B72B8; background:#FAFCFE; }
+/* El borde izquierdo lleva el color: identifica sin teñir la tarjeta entera. */
+.home-btn-blue   { border-left:5px solid #1B72B8; }
+.home-btn-purple { border-left:5px solid #6BB745; }
+.home-btn-icon-wrap { width:42px; height:42px; border-radius:11px; display:flex;
+  align-items:center; justify-content:center; flex-shrink:0; background:#E7F0F7; }
+.home-btn-icon-blue   { background:#E2F1F7; }
+.home-btn-icon-purple { background:#EAF5E3; }
+.home-btn-text { flex:1; text-align:left; min-width:0; }
+.home-btn-title { display:block; font-family:var(--round); font-size:16px; font-weight:700;
+  letter-spacing:-.01em; line-height:1.2; color:#123F73; }
+.home-btn-sub { display:block; font-size:12px; margin-top:2px; color:#54718A; line-height:1.35; }
+.home-btn-blue .home-btn-title, .home-btn-purple .home-btn-title { color:#123F73; }
+.home-btn-blue .home-btn-sub, .home-btn-purple .home-btn-sub { color:#54718A; }
+.home-btn-arr { font-size:20px; flex-shrink:0; color:#A9C4D8; }
+.home-btn-blue .home-btn-arr, .home-btn-purple .home-btn-arr { color:#A9C4D8; }
+/* Contadores: solo aparecen si hay algo que atender, y llevan color porque
+   ahí el color sí significa «esto te está esperando». */
+.home-counter { border-radius:12px; border:1px solid #D4E3EE; background:#fff; padding:13px 15px;
+  cursor:pointer; font-family:var(--font); text-align:left; display:flex; align-items:center;
+  gap:12px; box-shadow:0 1px 2px rgba(18,63,115,.06); }
+.home-counter-num { font-family:var(--round); font-size:24px; font-weight:800; line-height:1;
+  font-variant-numeric:tabular-nums; flex:none; }
+.home-counter-label { font-size:12.5px; font-weight:650; color:#14304F; line-height:1.3; }
+.home-counter.reservas   { border-left:5px solid #B36A05; }
+.home-counter.reservas   .home-counter-num { color:#B36A05; }
+.home-counter.online     { border-left:5px solid #1B72B8; }
+.home-counter.online     .home-counter-num { color:#1B72B8; }
+.home-counter.canceladas { border-left:5px solid #F59120; }
+.home-counter.canceladas .home-counter-num { color:#B36A05; }
 .home-sync-bar { font-size:11px; color:var(--muted); text-align:center; }
 
 /* ── GESTIÓN: seis botones iguales en fila se leían como una lista sin
@@ -237,7 +264,12 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
    Mismos datos, dos formas. La asistente contesta el teléfono y necesita
    ver a los tres a la vez; el médico necesita su propio día.
    ════════════════════════════════════════════════════════════════════ */
-.nv{background:var(--n-bg);min-height:100vh;font-family:var(--font);color:var(--n-ink)}
+/* `min-height:100vh` era para la pantalla del día, que ocupa todo. Cuando el
+   filtro de casillas se reutilizó en semana y mes, ese alto empujaba la
+   cuadrícula una pantalla hacia abajo: se veía el filtro y luego un vacío
+   enorme. Ahora el alto lo pone solo quien envuelve el día completo. */
+.nv{background:var(--n-bg);font-family:var(--font);color:var(--n-ink)}
+.nv-pantalla{min-height:100vh}
 .nv-wrap{max-width:640px;margin:0 auto;padding:14px 14px 40px}
 .nv .num{font-variant-numeric:tabular-nums}
 
@@ -384,6 +416,8 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   padding:10px 12px;margin-bottom:8px;font-size:11.5px;color:#B36A05;line-height:1.5}
 .nvh-cerrar{width:100%;padding:11px;border:none;border-radius:11px;background:#F1F5F9;
   color:#54718A;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:4px}
+.nv-ajustado{background:#E2F1F7;border:1px solid #A9C4D8;border-radius:8px;
+  padding:6px 10px;margin-bottom:10px;font-size:11.5px;color:#1B72B8;font-weight:700}
 .nv-pal{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px;padding-top:12px;
   border-top:1px dashed #CBD5E1}
 .nv-pal button{flex:1 1 150px;border:1.5px solid #A9C4D8;background:#fff;border-radius:10px;
@@ -471,19 +505,31 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .ps-prev { font-size:12px; color:#14532D; background:#F0FDF4; border:1px solid #BBF7D0;
   border-radius:9px; padding:8px 10px; line-height:1.6; margin-bottom:8px; }
 .ps-prev.nada { background:#F8FAFC; border-color:var(--line); color:var(--muted); }
-.ps-fila{display:flex;gap:6px;align-items:center;margin-bottom:7px}
-.ps-fila select{flex:1.5;min-width:0;padding:7px 5px;border:1px solid #CBD5E1;border-radius:7px;
-  font-family:var(--font);font-size:12.5px;background:#fff}
-.ps-fila input{flex:1;min-width:0;padding:7px 4px;border:1px solid #CBD5E1;border-radius:7px;
-  font-family:var(--font);font-size:12.5px;font-variant-numeric:tabular-nums}
-.ps-a{font-size:11px;color:var(--muted);flex:none}
-.ps-x{border:none;background:#FEF2F2;color:#B02A20;border-radius:7px;padding:7px 9px;
-  cursor:pointer;font-weight:700;font-size:12px;flex:none}
+.ps-fila{border:1px solid var(--line);border-radius:11px;padding:9px 10px;margin-bottom:8px;
+  background:#FBFDFE}
+.ps-sede{display:flex;gap:5px;align-items:center;margin-bottom:8px}
+.ps-sede button{flex:1;padding:8px 6px;border:1.5px solid #CBD5E1;background:#fff;border-radius:8px;
+  font-family:var(--font);font-size:12.5px;font-weight:650;color:var(--muted);cursor:pointer;
+  min-height:38px}
+.ps-sede button.on{border-color:#1B72B8;background:#E2F1F7;color:#123F73;font-weight:700}
+.ps-horas{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.ps-horas .ps-et{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  font-weight:700;margin-left:2px}
+.ps-horas .ps-et:first-child{margin-left:0}
+.ps-horas button{width:38px;height:38px;border:1.5px solid #CBD5E1;background:#fff;border-radius:9px;
+  font-size:19px;line-height:1;color:#123F73;cursor:pointer;font-family:var(--font);flex:none;
+  display:flex;align-items:center;justify-content:center}
+.ps-horas button:active{background:#E2F1F7;border-color:#1B72B8}
+.ps-horas b{font-size:15px;font-weight:800;color:#123F73;min-width:52px;text-align:center;
+  font-variant-numeric:tabular-nums}
+.ps-x{border:none;background:#FEF2F2;color:#B02A20;border-radius:8px;padding:0 12px;
+  cursor:pointer;font-weight:700;font-size:13px;flex:none;min-height:38px}
 .ps-vacio{font-size:12px;color:var(--muted);font-style:italic;padding:4px 0 8px}
 .ps-citas{font-size:11.5px;color:#123F73;background:#E7F0F7;border-radius:8px;
   padding:7px 10px;margin-bottom:9px;line-height:1.5}
 .ps-aviso{font-size:11.5px;border-radius:8px;padding:7px 10px;margin:6px 0;line-height:1.45}
 .ps-aviso.mal{background:#FBE8E6;border:1px solid #EFC3BE;color:#B02A20;font-weight:600}
+.ps-aviso.justo{background:#FDF0DC;border:1px solid #EBD3AC;color:#B36A05}
 .ps-aviso.ok{background:#EAF5E3;border:1px solid #BFDECB;color:#3F8A2E}
 .ps-guardar{background:#1B72B8 !important;color:#fff !important;border-color:#1B72B8 !important;
   font-weight:700 !important}
@@ -2169,7 +2215,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 44;
+const APP_VERSION = 46;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -4810,13 +4856,17 @@ function nvPalancas(profId, m, libre, caben){
   const ahora = new Date().getHours()*60 + new Date().getMinutes();
   const enJornada = hoy && ahora > m.ini && ahora < m.fin;
 
+  // Una sola palanca acá. «Termina 18:30» sonaba a dato y era un botón, y
+  // además duplicaba lo que hace el planificador — que además deja ver la
+  // semana entera mientras se decide.
   return `<div class="nv-pal">
-    <button onclick="nvCambiarFin('${profId}')">
-      <b>Termina ${tFmt(m.fin)}</b>
-      <span>Tocá para alargar o acortar</span>
-    </button>
     ${enJornada ? `<button class="urg" onclick="nvTerminarJornada('${profId}')">
-      <b>Terminar jornada</b><span>Cerrar desde las ${tFmt(Math.ceil(ahora/15)*15)}</span></button>` : ''}
+      <b>Terminar jornada</b>
+      <span>Cerrar desde las ${tFmt(Math.ceil(ahora/15)*15)} y decidir la otra sede</span></button>` : ''}
+    <button onclick="pfDesdeDia('${profId}')">
+      <b>Cambiar horarios</b>
+      <span>Termina ${tFmt(m.fin)} · alargar, acortar o mover de sede</span>
+    </button>
   </div>`;
 }
 
@@ -4995,7 +5045,7 @@ async function nvFjExtender(topeManual, cerrarOtra){
     await publicarSlotsDisponibles({ fechas:[a.ev.date] });
     await publicarSlotsSanCristobal({ fechas:[a.ev.date] });
   }catch(e){ console.warn('publicar:', e.message); }
-  mostrarAvisoBreve(`${a.sede.nombre} hasta ${tFmt(fin)} · publicado`);
+  mostrarAvisoBreve(`${a.sede.nombre} hasta ${tFmt(fin)} · ya se ve en la agenda`);
 }
 window.nvFjExtender = nvFjExtender;
 
@@ -5070,7 +5120,7 @@ async function nvHueco30Toggle(){
   try{ localStorage.setItem('slots30_overrides', JSON.stringify(prev)); }catch(_){}
   render();
   await nvPublicarDia();
-  mostrarAvisoBreve(activo ? 'Vuelve a la duración normal' : 'Partido en 30 min · publicado');
+  mostrarAvisoBreve(activo ? 'Vuelve a la duración normal' : 'Partido en 30 min · ya se ve en la agenda');
 }
 window.nvHueco30Toggle = nvHueco30Toggle;
 
@@ -5183,7 +5233,7 @@ async function nvTermPasar(profId, corte, sedeId){
   }
   render();
   await nvPublicarDia();
-  mostrarAvisoBreve(`Desde ${tFmt(desde)} en ${sede.nombre} · publicado`);
+  mostrarAvisoBreve(`Desde ${tFmt(desde)} en ${sede.nombre} · ya se ve en la agenda`);
 }
 window.nvTermPasar = nvTermPasar;
 
@@ -5336,6 +5386,8 @@ function nvHTMLMiDia(){
 
   return nvCasillas() + `
     <div class="nv-card nv-cap">
+      ${jornadasEspeciales.some(j=>j.doctor===id && j.fecha===nvFecha)
+        ? `<div class="nv-ajustado">Horario ajustado para este día · ya lo ven los pacientes</div>` : ''}
       <div class="f">${nvFechaLarga(nvFecha)}</div>
       <div class="t">${li?nvDur(li)+' de espacio aprovechable':'Sin espacio libre'}</div>
       <div class="nv-barra">
@@ -5534,6 +5586,8 @@ function psProblemas(filas){
       const hay = b.ini - a.fin;
       if(hay < need) avisos.push({t:'mal',
         txt:`De ${SEDES[a.sede].nombre} a ${SEDES[b.sede].nombre} el traslado toma ${need} min y solo quedan ${hay}.`});
+      else if(hay === need) avisos.push({t:'justo',
+        txt:`Justo: los ${need} min entre ${tFmt(a.fin)} y ${tFmt(b.ini)} son exactamente el traslado. Sin margen para un atraso.`});
       else if(hay > need + 60) avisos.push({t:'ok',
         txt:`Entre ${tFmt(a.fin)} y ${tFmt(b.ini)} quedan ${hay - need} min libres además del traslado.`});
     }
@@ -5587,14 +5641,21 @@ function psRender(){
 
       ${filas.length ? filas.map((x,k)=>`
         <div class="ps-fila">
-          <select onchange="psEditar('${f}',${k},'sede',this.value)">
+          <div class="ps-sede">
             ${Object.entries(SEDES).map(([sid,sx])=>
-              `<option value="${sid}" ${sid===x.sede?'selected':''}>${esc(sx.nombre)}</option>`).join('')}
-          </select>
-          <input type="time" step="900" value="${tFmt(x.ini)}" onchange="psEditar('${f}',${k},'ini',this.value)">
-          <span class="ps-a">a</span>
-          <input type="time" step="900" value="${tFmt(x.fin)}" onchange="psEditar('${f}',${k},'fin',this.value)">
-          <button class="ps-x" onclick="psQuitarFila('${f}',${k})" aria-label="Quitar">✕</button>
+              `<button class="${sid===x.sede?'on':''}" onclick="psEditar('${f}',${k},'sede','${sid}')">${esc(sx.nombre)}</button>`).join('')}
+            <button class="ps-x" onclick="psQuitarFila('${f}',${k})" aria-label="Quitar franja">✕</button>
+          </div>
+          <div class="ps-horas">
+            <span class="ps-et">Entra</span>
+            <button onclick="psMoverHora('${f}',${k},'ini',-15)" aria-label="15 minutos antes">−</button>
+            <b class="num">${tFmt(x.ini)}</b>
+            <button onclick="psMoverHora('${f}',${k},'ini',15)" aria-label="15 minutos después">+</button>
+            <span class="ps-et">Sale</span>
+            <button onclick="psMoverHora('${f}',${k},'fin',-15)" aria-label="15 minutos antes">−</button>
+            <b class="num">${tFmt(x.fin)}</b>
+            <button onclick="psMoverHora('${f}',${k},'fin',15)" aria-label="15 minutos después">+</button>
+          </div>
         </div>`).join('')
         : `<div class="ps-vacio">Ese día no se atiende.</div>`}
 
@@ -5627,6 +5688,22 @@ function psSucio(fecha){
 }
 
 const psMin = t => { const [h,m]=(t||'0:0').split(':').map(Number); return h*60+m; };
+
+// De a 15 minutos por toque. En tablet y teléfono el campo de hora abre el
+// reloj del sistema, que son tres toques y una rueda diminuta; y escribir la
+// hora obliga a sacar el teclado. Un botón es un toque y ya.
+function psMoverHora(fecha, k, campo, delta){
+  const x = psBorrador[fecha][k]; if(!x) return;
+  const v = Math.max(0, Math.min(23*60+45, x[campo] + delta));
+  if(campo === 'ini'){
+    x.ini = v;
+    if(x.fin <= x.ini) x.fin = x.ini + 15;   // nunca al revés
+  } else {
+    x.fin = Math.max(x.ini + 15, v);
+  }
+  psRender();
+}
+window.psMoverHora = psMoverHora;
 
 function psEditar(fecha, k, campo, valor){
   const x = psBorrador[fecha][k]; if(!x) return;
@@ -5751,7 +5828,7 @@ async function psPublicar(fecha){
   try{
     await publicarSlotsDisponibles({ fechas:[fecha] });
     await publicarSlotsSanCristobal({ fechas:[fecha] });
-    mostrarAvisoBreve('Publicado · los pacientes ya lo ven');
+    mostrarAvisoBreve('Guardado · lo ven los pacientes y el equipo en la agenda');
   }catch(e){ console.warn('publicar día:', e.message); }
 }
 
@@ -6513,7 +6590,7 @@ function render(){
     try {
       nvFecha = dateKey(new Date(Date.now() + currentDayOffset*86400000));
       const cuantos = Object.keys(PROFESIONALES).filter(id => nvVisibles.has(id)).length;
-      root.innerHTML = `<div class="nv">${cuantos===1 ? nvHTMLMiDia() : nvHTMLPanorama()}</div>`;
+      root.innerHTML = `<div class="nv nv-pantalla">${cuantos===1 ? nvHTMLMiDia() : nvHTMLPanorama()}</div>`;
     } catch(err){
       console.error('vista del día:', err);
       // Un error acá dejaba la pantalla en blanco y no había forma de saber
@@ -6606,6 +6683,13 @@ function renderMonth(root){
     const inMonth=cell.getMonth()===month;
     const div=document.createElement('div');
     div.className='mn-cell'+(inMonth?'':' other')+(key===todayKey()?' today':'');
+    // Tocar un día abre ESE día. Antes no llevaba a ningún lado: había que
+    // volver al modo Día y navegar con las flechas hasta encontrarlo.
+    div.style.cursor='pointer';
+    div.onclick=()=>{ nvFecha=key; calMode='day';
+      const hoy=parseISO(todayKey()), d=parseISO(key);
+      currentDayOffset=Math.round((d-hoy)/86400000);
+      render(); window.scrollTo({top:0,behavior:'instant'}); };
     const num=document.createElement('div'); num.className='mn-num'; num.textContent=cell.getDate();
     div.appendChild(num);
 
