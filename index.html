@@ -2268,7 +2268,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 55;
+const APP_VERSION = 56;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -8512,11 +8512,20 @@ async function publicarSlotsDisponibles(opciones){
       const huecos = calcularHuecos(medicoId, fecha, 'clinic1');
 
 
-      // Verificar si este día tiene configuración de 30 min activa
-      let slots30 = null;
+      // Rangos partidos en citas de 30 para este día.
+      //
+      // Antes se buscaba UNA sola clave por día — `slots30_denis_2026-08-27` —
+      // pero el menú del hueco guarda una por hueco, con la hora al final:
+      // `slots30_denis_2026-08-27_1345`. La clave nunca coincidía, así que
+      // partir un hueco no llegaba nunca a los sistemas de citas: no era que
+      // tardara, es que no salía.
+      let rangos30 = [];
       try{
         const overrides = JSON.parse(localStorage.getItem('slots30_overrides')||'{}');
-        slots30 = overrides[`slots30_${medicoId}_${fecha}`] || null;
+        const pref = `slots30_${medicoId}_${fecha}`;
+        for(const [k, v] of Object.entries(overrides)){
+          if(k === pref || k.startsWith(pref + '_')) rangos30.push(v);
+        }
       }catch(_){}
 
       // Escribir los huecos nuevos como slots individuales
@@ -8528,9 +8537,8 @@ async function publicarSlotsDisponibles(opciones){
           const rest = fin - cur;
           // Evaluar si el punto actual está dentro de la franja de 30 min
           // Se recalcula en cada iteración porque cur avanza dentro del while
-          const en30 = slots30 &&
-            cur >= tMin(slots30.desde) &&
-            cur < tMin(slots30.hasta);
+          const en30 = rangos30.some(r =>
+            cur >= tMin(r.desde) && cur < tMin(r.hasta));
 
           const durSlot = en30 ? (rest >= 30 ? 30 : rest) : (rest >= 45 ? 45 : rest);
           if(durSlot >= 20){
