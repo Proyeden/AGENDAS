@@ -231,6 +231,21 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .home-counter.canceladas .home-counter-num { color:#B36A05; }
 .home-sync-bar { font-size:11px; color:var(--muted); text-align:center; }
 
+/* ── FLECHAS LATERALES ── */
+.nav-lado{
+  position:fixed; top:50%; transform:translateY(-50%); z-index:40;
+  width:40px; height:64px; border:1px solid #D4E3EE; background:rgba(255,255,255,.92);
+  color:#123F73; font-size:26px; line-height:1; cursor:pointer; font-family:var(--font);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 2px 12px rgba(18,63,115,.14); backdrop-filter:blur(4px);
+}
+.nav-lado.izq{ left:0; border-left:none; border-radius:0 12px 12px 0; }
+.nav-lado.der{ right:0; border-right:none; border-radius:12px 0 0 12px; }
+.nav-lado:active{ background:#E2F1F7; }
+#s-agenda:not(.on) .nav-lado{ display:none; }
+@media (max-width:520px){ .nav-lado{ width:34px; height:56px; font-size:23px; opacity:.9; } }
+@media print{ .nav-lado{ display:none; } }
+
 /* ── GESTIÓN: seis botones iguales en fila se leían como una lista sin
    jerarquía. Agrupados por para-qué-sirve, se encuentra la cosa sin leer
    los seis subtítulos. ── */
@@ -391,6 +406,15 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   font-variant-numeric:tabular-nums}
 .nv-libre .q{font-size:11px;color:var(--n-ok);opacity:.85}
 .nv-libre .cta{margin-left:auto;font-size:11px;font-weight:700;color:var(--n-ok);white-space:nowrap}
+/* Las rayas marcan cada media hora: el bloque deja de parecer un rato suelto
+   y se lee como una serie de citas cortas, sin tener que leer la etiqueta. */
+.nv-libre.partido{
+  background:repeating-linear-gradient(to bottom,
+    var(--n-ok-soft) 0, var(--n-ok-soft) 27px,
+    rgba(107,183,69,.32) 27px, rgba(107,183,69,.32) 28px);
+  border-color:var(--n-ok);
+}
+.nv-libre.partido .q b{color:var(--n-ok);font-weight:800}
 .nv-libre.corto{border-style:dashed;border-color:var(--n-line2);background:transparent;cursor:default}
 .nv-libre.corto b,.nv-libre.corto .q{color:var(--n-muted);opacity:1}
 .nv-tras{background:repeating-linear-gradient(45deg,#E4EDF4,#E4EDF4 4px,#EEF5FA 4px,#EEF5FA 8px);
@@ -1858,10 +1882,10 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       🔁 <strong id="control-count">0</strong> controles tentativos programados
       <button class="btn-rev" onclick="openControlsPanel()" style="background:var(--mixco)">Ver controles</button>
     </div>
-    <div class="pending-notice reconsulta" id="reconsulta-bar" style="display:none">
-      <span id="reconsulta-text"></span>
-      <button class="btn-rev" id="reconsulta-btn" onclick="dismissReconsulta()">Ya lo hice</button>
-    </div>
+    <!-- Flechas fijas a los lados. Con el pulgar en el borde se cambia de día
+         sin volver arriba a la barra, que en la vista del día queda lejos. -->
+    <button class="nav-lado izq" onclick="navStep(-1)" aria-label="Anterior">‹</button>
+    <button class="nav-lado der" onclick="navStep(1)" aria-label="Siguiente">›</button>
     <div id="cal-root"></div>
   </div>
 </div>
@@ -2220,7 +2244,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 48;
+const APP_VERSION = 49;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -4672,19 +4696,23 @@ function nvModeloDia(profId, fecha){
     for(const o of ocup){
       if(o.fin <= f.ini || o.ini >= f.fin) continue;
       const oi = Math.max(o.ini, f.ini), of_ = Math.min(o.fin, f.fin);
-      if(oi > cur) out.push(nvHueco(cur, oi, sede));
+      if(oi > cur) out.push(nvHueco(cur, oi, sede, profId, fecha));
       out.push({ t: o.bloqueo ? 'bl' : 'oc', ini:oi, fin:of_,
                  nombre:o.nombre, sede, nota:o.nota });
       cur = Math.max(cur, of_);
     }
-    if(f.fin > cur) out.push(nvHueco(cur, f.fin, sede));
+    if(f.fin > cur) out.push(nvHueco(cur, f.fin, sede, profId, fecha));
     anterior = f;
   }
   return { publica:true, bloques: out.sort((a,b)=>a.ini-b.ini),
            ini: franjas[0].ini, fin: franjas[franjas.length-1].fin };
 }
-const nvHueco = (ini, fin, sede) => ({
-  t: (fin-ini) >= NV_MIN_CONSULTA ? 'li' : 'co', ini, fin, sede
+// El hueco recuerda si está partido en citas de 30. Sin esto, partirlo
+// cambiaba lo que el paciente puede reservar pero en la agenda se veía un
+// bloque igual al de siempre: el equipo no tenía cómo enterarse.
+const nvHueco = (ini, fin, sede, profId, fecha) => ({
+  t: (fin-ini) >= NV_MIN_CONSULTA ? 'li' : 'co', ini, fin, sede,
+  en30: !!(profId && fecha && nvHueco30(profId, fecha, ini))
 });
 
 function nvPrimerHueco(profId, fecha){
@@ -4796,7 +4824,9 @@ function nvHTMLPanorama(){
         const cls = {oc:'nv-oc', li:'nv-li', co:'nv-co', bl:'nv-bl', tr:'nv-tr'}[b.t];
         let txt = '';
         if(b.t==='oc') txt = holgado ? `${tFmt(b.ini)} · ${esc(b.nombre)}<br>${b.sede}` : esc(b.nombre);
-        else if(b.t==='li') txt = holgado ? `${tFmt(b.ini)} · ${nvDur(b.fin-b.ini)} libre` : nvDur(b.fin-b.ini);
+        else if(b.t==='li') txt = holgado
+        ? `${tFmt(b.ini)} · ${nvDur(b.fin-b.ini)} libre${b.en30?' · citas de 30':''}`
+        : nvDur(b.fin-b.ini) + (b.en30 ? ' · 30' : '');
         else if(b.t==='bl') txt = esc(b.nombre);
         else if(b.t==='tr') txt = holgado ? `traslado · ${b.fin-b.ini} min` : 'traslado';
         const tag = b.t==='li' ? 'button' : 'div';
@@ -5397,11 +5427,15 @@ function nvHTMLMiDia(){
     if(b.t==='co') return `<div class="nv-fr">${hora}
       <div class="nv-libre corto" style="height:${alto}px"><b class="num">${nvDur(b.fin-b.ini)}</b>
       <span class="q">no cabe una consulta</span></div></div>`;
-    const n = Math.floor((b.fin-b.ini)/NV_MIN_CONSULTA);
+    const paso = b.en30 ? 30 : NV_MIN_CONSULTA;
+    const n = Math.floor((b.fin-b.ini)/paso);
     return `<div class="nv-fr">${hora}
-      <button class="nv-libre" style="height:${alto}px" onclick="nvTocarHueco('${id}',${b.ini},${b.fin})">
+      <button class="nv-libre ${b.en30?'partido':''}" style="height:${alto}px"
+        onclick="nvTocarHueco('${id}',${b.ini},${b.fin})">
       <b class="num">${nvDur(b.fin-b.ini)}</b>
-      <span class="q">${n>1?`caben ${n} consultas`:'cabe una consulta'} · ${b.sede}</span>
+      <span class="q">${b.en30
+        ? `<b>partido en ${n} citas de 30 min</b> · ${b.sede}`
+        : `${n>1?`caben ${n} consultas`:'cabe una consulta'} · ${b.sede}`}</span>
       <span class="cta">Agendar →</span></button></div>`;
   }).join('');
 
