@@ -471,6 +471,23 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .ps-prev { font-size:12px; color:#14532D; background:#F0FDF4; border:1px solid #BBF7D0;
   border-radius:9px; padding:8px 10px; line-height:1.6; margin-bottom:8px; }
 .ps-prev.nada { background:#F8FAFC; border-color:var(--line); color:var(--muted); }
+.ps-fila{display:flex;gap:6px;align-items:center;margin-bottom:7px}
+.ps-fila select{flex:1.5;min-width:0;padding:7px 5px;border:1px solid #CBD5E1;border-radius:7px;
+  font-family:var(--font);font-size:12.5px;background:#fff}
+.ps-fila input{flex:1;min-width:0;padding:7px 4px;border:1px solid #CBD5E1;border-radius:7px;
+  font-family:var(--font);font-size:12.5px;font-variant-numeric:tabular-nums}
+.ps-a{font-size:11px;color:var(--muted);flex:none}
+.ps-x{border:none;background:#FEF2F2;color:#B02A20;border-radius:7px;padding:7px 9px;
+  cursor:pointer;font-weight:700;font-size:12px;flex:none}
+.ps-vacio{font-size:12px;color:var(--muted);font-style:italic;padding:4px 0 8px}
+.ps-citas{font-size:11.5px;color:#123F73;background:#E7F0F7;border-radius:8px;
+  padding:7px 10px;margin-bottom:9px;line-height:1.5}
+.ps-aviso{font-size:11.5px;border-radius:8px;padding:7px 10px;margin:6px 0;line-height:1.45}
+.ps-aviso.mal{background:#FBE8E6;border:1px solid #EFC3BE;color:#B02A20;font-weight:600}
+.ps-aviso.ok{background:#EAF5E3;border:1px solid #BFDECB;color:#3F8A2E}
+.ps-guardar{background:#1B72B8 !important;color:#fff !important;border-color:#1B72B8 !important;
+  font-weight:700 !important}
+.ps-guardar:disabled{background:#CBD5E1 !important;border-color:#CBD5E1 !important;cursor:default}
 .ps-ops { display:flex; gap:6px; flex-wrap:wrap; }
 .ps-ops button { border:1px solid #CBD5E1; background:#fff; border-radius:8px; padding:6px 11px;
   font-size:12px; font-weight:650; color:var(--text); cursor:pointer; font-family:var(--font); }
@@ -2152,7 +2169,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 43;
+const APP_VERSION = 44;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -2633,7 +2650,24 @@ function franjasEfectivas(doctorId, dateStr){
   let franjas = (FRANJAS[doctorId] ? FRANJAS[doctorId](dow) : []).map(f=>({...f}));
   if(!franjas.length) return [];
 
-  const je = jornadasEspeciales.find(j => j.doctor===doctorId && j.fecha===dateStr);
+  // Cada jornada especial puede traer varios rangos en la misma sede: un
+  // viernes de Mixco por la mañana y otra vez por la tarde es un caso normal,
+  // y con un solo par ini/fin no se podía expresar.
+  const jes = jornadasEspeciales.filter(j => j.doctor===doctorId && j.fecha===dateStr);
+  if(jes.length && jes.some(j => Array.isArray(j.rangos) && j.rangos.length)){
+    for(const j of jes){
+      franjas = franjas.filter(f => f.clinica !== j.clinica);
+      const rangos = Array.isArray(j.rangos) && j.rangos.length
+        ? j.rangos : [[tMin(j.ini), tMin(j.fin)]];
+      rangos.forEach(([ri,rf]) => {
+        if(rf - ri >= 15) franjas.push({ clinica:j.clinica, ini:ri, fin:rf, especial:true });
+      });
+    }
+    franjas.sort((a,b)=>a.ini-b.ini);
+    return franjas;
+  }
+
+  const je = jes[0];
   if(je){
     const P = PROFESIONALES[doctorId];
     const sedeJe = SEDE_POR_CLAVE[je.clinica];
@@ -4862,10 +4896,21 @@ function nvAnalizarCita(ev){
 
 let _fjDatos = null;
 
-function nvRevisarFueraDeJornada(ev){
+async function nvRevisarFueraDeJornada(ev){
   const a = nvAnalizarCita(ev);
   if(!a) return;                       // está dentro: nada que preguntar
   _fjDatos = a;
+
+  // Si no hay nadie a quien afectar, no se pregunta: se hace. Preguntar cada
+  // vez convierte una decisión obvia en un trámite, y estos cambios son
+  // demasiado frecuentes para andar confirmándolos uno por uno.
+  if(!a.choque){
+    await nvFjExtender();
+    mostrarAvisoBreve(a.correr
+      ? `${a.sede.nombre} hasta ${tFmt(a.nuevoFin)} · ${a.correr.sede.nombre} se corrió a ${tFmt(a.correr.ini)}`
+      : `${a.sede.nombre} alargado hasta ${tFmt(a.nuevoFin)}`);
+    return;
+  }
   const q = esc(ev.name || 'La cita');
 
   document.getElementById('nvf-titulo').textContent = 'Esta cita queda fuera del horario';
@@ -4875,36 +4920,22 @@ function nvRevisarFueraDeJornada(ev){
       ? `Ahí atendés hasta las ${tFmt(a.cerca.fin)}.`
       : `Ese día no tenés horario en ${esc(a.sede.nombre)}.`);
 
-  const ops = [];
-  if(!a.choque && !a.correr){
-    // Nada en el medio: alargar y listo.
-    ops.push(`<button class="nvh-op on" onclick="nvFjExtender()">
-      <b>Alargar ${esc(a.sede.nombre)} hasta ${tFmt(a.nuevoFin)}</b>
-      <span>No interfiere con nada · se publican ${a.minutos} min más</span></button>`);
-  } else if(a.correr){
-    // La otra sede está publicada pero VACÍA. No hay a quién dejar plantado:
-    // se corre y se sigue atendiendo en las dos.
-    const c = a.correr;
-    ops.push(`<button class="nvh-op on" onclick="nvFjExtender()">
-      <b>Alargar ${esc(a.sede.nombre)} hasta ${tFmt(a.nuevoFin)}</b>
-      <span>${esc(c.sede.nombre)} no tiene a nadie agendado hoy: se corre a
-        ${tFmt(c.ini)}–${tFmt(c.fin)}, descontando los ${c.traslado} min de traslado.</span></button>`);
-    ops.push(`<button class="nvh-op" onclick="nvFjExtender(${a.nuevoFin},true)">
-      <b>Alargar y cerrar ${esc(c.sede.nombre)} hoy</b>
-      <span>Si igual no pensabas ir · deja de publicarse ese horario</span></button>`);
-  } else {
-    const c = a.choque;
-    const quienes = c.citas.slice(0,3).map(x=>esc(x.name||'una cita')).join(', ');
-    ops.push(`<div class="nvh-nota">En ${esc(c.sede.nombre)} ya hay
-      ${c.citas.length} ${c.citas.length===1?'cita':'citas'} antes de las ${tFmt(c.puedeEmpezar)}
-      (${quienes}). Alargar acá te deja sin llegar.</div>`);
-    ops.push(`<button class="nvh-op" onclick="nvFjExtender()">
-      <b>Alargar igual hasta ${tFmt(a.nuevoFin)}</b>
-      <span>Habría que mover ${c.citas.length===1?'esa cita':'esas citas'} a mano</span></button>`);
-  }
-  ops.push(`<button class="nvh-op" onclick="nvCerrarFj()">
-    <b>Dejarlo así</b>
-    <span>La cita queda agendada, pero ese rato no se le ofrece a nadie más</span></button>`);
+  // Solo se llega acá si hay conflicto real: gente agendada en la otra sede
+  // que quedaría sin alcance. Esa sí es una decisión que hay que tomar.
+  const c = a.choque;
+  const quienes = c.citas.slice(0,3).map(x=>`${esc(x.name||'una cita')} ${tFmt(tMin(x.time))}`).join(', ');
+  const ops = [`<div class="nvh-nota">En ${esc(c.sede.nombre)} tenés
+      ${c.citas.length} ${c.citas.length===1?'cita':'citas'} antes de las ${tFmt(c.puedeEmpezar)}:
+      ${quienes}. Con el traslado de ${c.necesita} min no llegás.</div>`,
+    `<button class="nvh-op" onclick="nvCerrarFj()">
+      <b>Dejar la cita fuera de horario</b>
+      <span>Se atiende igual, pero ese rato no se le ofrece a nadie más. Nada se mueve.</span></button>`,
+    `<button class="nvh-op" onclick="nvFjExtender()">
+      <b>Alargar ${esc(a.sede.nombre)} igual</b>
+      <span>Habría que reprogramar ${c.citas.length===1?'esa cita':'esas citas'} a mano</span></button>`,
+    `<button class="nvh-op" onclick="nvFjBorrarCita()">
+      <b>No agendar esta cita</b>
+      <span>Se borra la que acabás de crear y todo queda como estaba</span></button>`];
 
   document.getElementById('nvf-ops').innerHTML = ops.join('');
   document.getElementById('nvf-panel').style.display = 'flex';
@@ -4912,6 +4943,16 @@ function nvRevisarFueraDeJornada(ev){
 window.nvRevisarFueraDeJornada = nvRevisarFueraDeJornada;
 function nvCerrarFj(){ document.getElementById('nvf-panel').style.display='none'; _fjDatos=null; }
 window.nvCerrarFj = nvCerrarFj;
+
+// Deshacer: la cita recién creada se borra y el día queda intacto.
+async function nvFjBorrarCita(){
+  const a = _fjDatos; if(!a) return;
+  nvCerrarFj();
+  try{ await deleteEventById(a.ev.id); }catch(e){ console.warn('borrar:', e.message); }
+  render();
+  mostrarAvisoBreve('Cita descartada · el día quedó igual');
+}
+window.nvFjBorrarCita = nvFjBorrarCita;
 
 async function nvFjExtender(topeManual, cerrarOtra){
   const a = _fjDatos; if(!a) return;
@@ -5452,14 +5493,59 @@ function psSemana(){
   lun.setDate(lun.getDate() - ((lun.getDay()+6)%7) + psOffset*7);
   return Array.from({length:6}, (_,i)=>{ const d=new Date(lun); d.setDate(d.getDate()+i); return d; });
 }
-function psMover(n){ psOffset += n; psRender(); }
+function psMover(n){ psOffset += n; psBorrador = {}; psRender(); }
 window.psMover = psMover;
+
+// Borrador de la semana: cada día es una lista de franjas sueltas
+// {sede, ini, fin}. Se edita libre y se guarda día por día. Antes eran cuatro
+// botones fijos —hasta las 15, hasta las 17, otra hora, cerrar— que solo
+// sabían recortar el día entero por igual. No había forma de decir «el viernes
+// cierro Mixco a las 14:00 pero Pinares sigue a las 15:00», que es justamente
+// el tipo de cambio que se hace todas las semanas.
+let psBorrador = {};   // fecha -> [{sede, ini, fin}]
+
+function psCargarDia(fecha){
+  if(psBorrador[fecha]) return psBorrador[fecha];
+  let fr = [];
+  try{ fr = franjasEfectivas(pfActual, fecha) || []; }catch(_){}
+  psBorrador[fecha] = fr.sort((a,b)=>a.ini-b.ini).map(f => ({
+    sede: (SEDE_POR_CLAVE[f.clinica]||{}).id || Object.keys(SEDES)[0],
+    ini: f.ini, fin: f.fin
+  }));
+  return psBorrador[fecha];
+}
+
+// Qué problemas tiene el día tal como está en el borrador: franjas encimadas
+// y traslados que no alcanzan. Se calcula al vuelo para avisar mientras se
+// edita, no al guardar.
+function psProblemas(filas){
+  const orden = filas.slice().sort((a,b)=>a.ini-b.ini);
+  const avisos = [];
+  for(let k=0; k<orden.length; k++){
+    if(orden[k].fin <= orden[k].ini) avisos.push({t:'mal', txt:`${SEDES[orden[k].sede].nombre}: la hora de fin es anterior a la de inicio.`});
+    if(k === orden.length-1) break;
+    const a = orden[k], b = orden[k+1];
+    if(b.ini < a.fin){
+      avisos.push({t:'mal', txt:`${SEDES[a.sede].nombre} y ${SEDES[b.sede].nombre} se enciman entre ${tFmt(b.ini)} y ${tFmt(a.fin)}.`});
+      continue;
+    }
+    if(a.sede !== b.sede){
+      const need = TRASLADOS[`${a.sede}>${b.sede}`] || 0;
+      const hay = b.ini - a.fin;
+      if(hay < need) avisos.push({t:'mal',
+        txt:`De ${SEDES[a.sede].nombre} a ${SEDES[b.sede].nombre} el traslado toma ${need} min y solo quedan ${hay}.`});
+      else if(hay > need + 60) avisos.push({t:'ok',
+        txt:`Entre ${tFmt(a.fin)} y ${tFmt(b.ini)} quedan ${hay - need} min libres además del traslado.`});
+    }
+  }
+  return avisos;
+}
 
 function psRender(){
   const host = document.getElementById('pf-semana');
   const dias = psSemana();
   const P = PROFESIONALES[pfActual] || {};
-  const etq = ['','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const etq = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 
   if(P.publica === false){
     host.innerHTML = `<div class="pf-info">${esc(P.corto||pfActual)} no tiene horario publicado:
@@ -5473,44 +5559,126 @@ function psRender(){
       <span class="lbl">${rango}${psOffset===0?' · esta semana':''}</span>
       <button onclick="psMover(1)" aria-label="Semana siguiente">›</button>
     </div>
-    <p class="hint" style="margin:-6px 4px 14px">Lo que cambies acá vale solo para ese día.
-      El horario de siempre no se toca.</p>`;
+    <p class="hint" style="margin:-6px 4px 14px">Escribí las horas directo. Lo que cambies
+      vale solo para ese día; el horario de siempre no se toca.</p>`;
 
   dias.forEach(d=>{
     const f = dateKey(d);
-    const je = jornadasEspeciales.find(j => j.doctor===pfActual && j.fecha===f);
-    let fr = [];
-    try { fr = franjasEfectivas(pfActual, f) || []; } catch(_){}
-    const cerrado = !fr.length;
-    const bloqueoDia = events.some(e => e.date===f && e.doctor===pfActual && e.type==='blocked' && !e.time);
+    const filas = psCargarDia(f);
+    const tocado = jornadasEspeciales.some(j => j.doctor===pfActual && j.fecha===f);
+    const sucio = psSucio(f);
+    const avisos = psProblemas(filas);
+    const malos = avisos.filter(a=>a.t==='mal');
+    const citas = events.filter(e => e.date===f && e.doctor===pfActual &&
+      e.type!=='blocked' && e.time && e.status!=='cancelled');
+    const horas = filas.reduce((n,x)=>n+Math.max(0,x.fin-x.ini),0);
 
-    const prev = fr.length
-      ? fr.sort((a,b)=>a.ini-b.ini).map(x=>
-          `<b>${esc(dSedeNombre(x.clinica))}</b> ${tFmt(x.ini)}–${tFmt(x.fin)}`).join('<br>')
-      : 'No atiende';
-    const total = fr.reduce((n,x)=>n+(x.fin-x.ini),0);
-
-    html += `<div class="ps-dia ${je?'tocado':''} ${cerrado?'cerrado':''}">
+    html += `<div class="ps-dia ${tocado?'tocado':''} ${!filas.length?'cerrado':''}">
       <div class="ps-h">
-        <span class="ps-n">${etq[d.getDay()]||'domingo'}</span>
+        <span class="ps-n">${etq[d.getDay()]}</span>
         <span class="ps-f">${d.getDate()} ${MONTHS[d.getMonth()]}</span>
-        <span class="ps-est ${je?'esp':cerrado?'cer':''}">${
-          je ? 'Ajustado' : cerrado ? 'Cerrado' : (total/60).toFixed(1).replace('.0','')+' h'}</span>
+        <span class="ps-est ${tocado?'esp':!filas.length?'cer':''}">${
+          !filas.length ? 'Cerrado' : (horas/60).toFixed(1).replace('.0','')+' h'}</span>
       </div>
-      <div class="ps-prev ${cerrado?'nada':''}">${prev}</div>
-      ${je?`<p class="hint" style="margin:0 0 8px">${esc(je.motivo||'Jornada especial')} ·
-        <button type="button" class="link" onclick="psQuitar('${f}')">volver al horario de siempre</button></p>`:''}
+
+      ${citas.length?`<div class="ps-citas">${citas.length} ${citas.length===1?'cita':'citas'} agendada${citas.length===1?'':'s'}:
+        ${citas.sort((a,b)=>tMin(a.time)-tMin(b.time)).slice(0,4).map(c=>
+          `<b>${tFmt(tMin(c.time))}</b> ${esc((c.name||'').split(' ')[0])}`).join(' · ')}</div>`:''}
+
+      ${filas.length ? filas.map((x,k)=>`
+        <div class="ps-fila">
+          <select onchange="psEditar('${f}',${k},'sede',this.value)">
+            ${Object.entries(SEDES).map(([sid,sx])=>
+              `<option value="${sid}" ${sid===x.sede?'selected':''}>${esc(sx.nombre)}</option>`).join('')}
+          </select>
+          <input type="time" step="900" value="${tFmt(x.ini)}" onchange="psEditar('${f}',${k},'ini',this.value)">
+          <span class="ps-a">a</span>
+          <input type="time" step="900" value="${tFmt(x.fin)}" onchange="psEditar('${f}',${k},'fin',this.value)">
+          <button class="ps-x" onclick="psQuitarFila('${f}',${k})" aria-label="Quitar">✕</button>
+        </div>`).join('')
+        : `<div class="ps-vacio">Ese día no se atiende.</div>`}
+
+      ${avisos.map(a=>`<div class="ps-aviso ${a.t}">${esc(a.txt)}</div>`).join('')}
+
       <div class="ps-ops">
-        <button onclick="psHasta('${f}',900)">Hasta las 15:00</button>
-        <button onclick="psHasta('${f}',1020)">Hasta las 17:00</button>
-        <button onclick="psOtraHora('${f}')">Otra hora…</button>
-        <button class="quitar" onclick="psCerrar('${f}')">Cerrar el día</button>
+        <button onclick="psAgregarFila('${f}')">+ Franja</button>
+        ${filas.length?`<button onclick="psVaciar('${f}')">Cerrar el día</button>`:''}
+        ${tocado?`<button onclick="psQuitar('${f}')">Volver al horario de siempre</button>`:''}
+        ${sucio?`<button class="ps-guardar" ${malos.length?'disabled':''}
+          onclick="psGuardarDia('${f}')">${malos.length?'Corregí lo marcado':'Guardar y publicar'}</button>`:''}
       </div>
     </div>`;
   });
 
   host.innerHTML = html;
 }
+
+// ¿El borrador de ese día difiere de lo que hay publicado?
+function psSucio(fecha){
+  const filas = psBorrador[fecha];
+  if(!filas) return false;
+  let fr = [];
+  try{ fr = franjasEfectivas(pfActual, fecha) || []; }catch(_){}
+  const real = fr.sort((a,b)=>a.ini-b.ini)
+    .map(x=>`${(SEDE_POR_CLAVE[x.clinica]||{}).id}${x.ini}${x.fin}`).join('|');
+  const borr = filas.slice().sort((a,b)=>a.ini-b.ini)
+    .map(x=>`${x.sede}${x.ini}${x.fin}`).join('|');
+  return real !== borr;
+}
+
+const psMin = t => { const [h,m]=(t||'0:0').split(':').map(Number); return h*60+m; };
+
+function psEditar(fecha, k, campo, valor){
+  const x = psBorrador[fecha][k]; if(!x) return;
+  x[campo] = campo==='sede' ? valor : psMin(valor);
+  psRender();
+}
+window.psEditar = psEditar;
+
+function psAgregarFila(fecha){
+  const filas = psCargarDia(fecha);
+  const ultimo = filas.length ? Math.max(...filas.map(x=>x.fin)) : 9*60;
+  const sede = filas.length
+    ? (Object.keys(SEDES).find(sid => sid !== filas[filas.length-1].sede) || Object.keys(SEDES)[0])
+    : Object.keys(SEDES)[0];
+  const traslado = filas.length ? (TRASLADOS[`${filas[filas.length-1].sede}>${sede}`] || 0) : 0;
+  filas.push({ sede, ini: Math.min(21*60, ultimo + traslado), fin: Math.min(22*60, ultimo + traslado + 120) });
+  psRender();
+}
+window.psAgregarFila = psAgregarFila;
+
+function psQuitarFila(fecha, k){ psBorrador[fecha].splice(k,1); psRender(); }
+window.psQuitarFila = psQuitarFila;
+
+function psVaciar(fecha){ psBorrador[fecha] = []; psRender(); }
+window.psVaciar = psVaciar;
+
+// Guardar: se agrupan las franjas por sede y cada sede queda con TODOS sus
+// rangos de ese día.
+async function psGuardarDia(fecha){
+  const filas = (psBorrador[fecha]||[]).filter(x => x.fin - x.ini >= 15);
+  for(const [sid, sx] of Object.entries(SEDES)){
+    const idJe = `je_${pfActual}_${sx.clave}_${fecha}`;
+    jornadasEspeciales = jornadasEspeciales.filter(j => j.id !== idJe);
+    const mias = filas.filter(x => x.sede === sid).sort((a,b)=>a.ini-b.ini);
+    if(mias.length){
+      const j = { id:idJe, doctor:pfActual, clinica:sx.clave, fecha,
+        ini: tFmt(mias[0].ini), fin: tFmt(mias[mias.length-1].fin),
+        rangos: mias.map(x=>[x.ini, x.fin]),
+        motivo: 'Planificado', creadoEn: new Date().toISOString() };
+      jornadasEspeciales.push(j);
+      if(_db) try{ await _db.collection('jornadas_especiales').doc(idJe).set(j); }
+        catch(e){ console.warn('je:', e.message); }
+    } else if(_db){
+      try{ await _db.collection('jornadas_especiales').doc(idJe).delete(); }catch(_){}
+    }
+  }
+  delete psBorrador[fecha];
+  render(); psRender();
+  await psPublicar(fecha);
+}
+window.psGuardarDia = psGuardarDia;
+
 
 const dSedeNombre = clave => (SEDE_POR_CLAVE[clave]||{}).nombre || '';
 
@@ -5553,6 +5721,7 @@ async function psQuitar(fecha){
     jornadasEspeciales = jornadasEspeciales.filter(j => j.id !== id);
     if(_db) try{ await _db.collection('jornadas_especiales').doc(id).delete(); }catch(_){}
   }
+  delete psBorrador[fecha];
   render(); psRender();
   await psPublicar(fecha);
 }
