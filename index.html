@@ -2265,7 +2265,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 52;
+const APP_VERSION = 53;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -8107,6 +8107,7 @@ async function publicarSlotsSanCristobal(opciones){
     });
 
     // Una sola lectura y un solo lote para toda la publicación.
+    const _deseadosSC = [];
     let yaPublicadosSC;
     try { yaPublicadosSC = await _slotsPublicados(soloFechasSC || hoy); }
     catch(e){ console.warn('SC leer slots:', e.message); yaPublicadosSC = new Map(); }
@@ -8120,15 +8121,6 @@ async function publicarSlotsSanCristobal(opciones){
         const huecosSC = calcularHuecosFranja(doctorId, fecha)
           .filter(h => h.clinica === 'clinic2');
 
-        // Borrar lo publicado antes para ese día+médico (idempotente).
-        // Solo los slots de San Cristóbal: los de Mixco viven en la misma
-        // colección y no se deben tocar.
-        for(const x of (yaPublicadosSC.get(fecha) || [])){
-          if(x.data.medicoId === medicoSC && x.data.clinica === 'sancristobal'){
-            loteSC.borrar(x.ref);
-          }
-        }
-
         if(!huecosSC.length) continue;
 
         // Partir cada hueco en consultas de 45 min (mínimo 30)
@@ -8140,7 +8132,7 @@ async function publicarSlotsSanCristobal(opciones){
             const dur = rest >= 45 ? 45 : rest;
             if(dur >= 30){
               _slotsSC++;
-              loteSC.crear('slots_disponibles', {
+              _deseadosSC.push({
                 fecha,
                 hora: tFmt(cur),
                 durMin: dur,
@@ -8155,6 +8147,15 @@ async function publicarSlotsSanCristobal(opciones){
         }
       }
     }
+
+    const _mioSC = d => d.clinica === 'sancristobal' &&
+      Object.values(DOCTORES_SC).includes(d.medicoId);
+    const _difSC = _aplicarDiferencias(loteSC, _deseadosSC, yaPublicadosSC, _mioSC,
+                                       soloFechasSC ? new Set(soloFechasSC) : null);
+    if(_difSC.creados || _difSC.borrados)
+      console.log(`San Cristóbal: +${_difSC.creados} −${_difSC.borrados} · ${_difSC.iguales} sin cambio`);
+    else
+      console.log(`San Cristóbal: sin cambios (${_difSC.iguales} horarios) · 0 escrituras`);
 
     await loteSC.cerrar();
 
@@ -8223,6 +8224,45 @@ let _publicando = false;
 // 30 días × ~8 horarios × 2 sedes = más de 400 viajes de ida y vuelta a
 // Firebase, uno detrás de otro. Por eso un bloqueo tardaba tanto en verse en
 // el sistema de citas. Un lote manda hasta 450 operaciones en un solo viaje.
+// ── PUBLICAR SOLO LO QUE CAMBIÓ ───────────────────────────────────────────
+// Antes cada publicación borraba los ~320 horarios y los volvía a escribir
+// idénticos: 640 escrituras cada vez. Con la red de seguridad cada 15 minutos
+// eso son unas 60.000 al día, el triple de la cuota gratuita de Firestore —
+// que al agotarse empieza a rechazar TODO y los horarios dejan de publicarse.
+//
+// Ahora se compara lo calculado con lo que ya está publicado y solo se escribe
+// la diferencia. Un día sin cambios cuesta cero escrituras.
+const _claveSlot = d => `${d.fecha}|${d.hora}|${d.medicoId}|${d.clinica}`;
+const _igualSlot = (a, b) =>
+  a.durMin === b.durMin &&
+  !!a.extendido === !!b.extendido &&
+  !!a.reducido30 === !!b.reducido30;
+
+// deseados: array de documentos que DEBERÍAN existir.
+// publicados: Map fecha -> [{ref, data}] de lo que hay hoy.
+// mio: qué documentos de los publicados le corresponden a esta publicación.
+function _aplicarDiferencias(lote, deseados, publicados, mio, fechasTocadas){
+  const quiero = new Map(deseados.map(d => [_claveSlot(d), d]));
+  const hay = new Map();
+  for(const [f, docs] of publicados){
+    if(fechasTocadas && !fechasTocadas.has(f)) continue;
+    for(const x of docs){ if(mio(x.data)) hay.set(_claveSlot(x.data), x); }
+  }
+
+  let creados = 0, borrados = 0, iguales = 0;
+  for(const [k, d] of quiero){
+    const ya = hay.get(k);
+    if(ya && _igualSlot(ya.data, d)){ iguales++; continue; }
+    if(ya) lote.borrar(ya.ref);          // cambió la duración: se reemplaza
+    lote.crear('slots_disponibles', d);
+    creados++;
+  }
+  for(const [k, x] of hay){
+    if(!quiero.has(k)){ lote.borrar(x.ref); borrados++; }
+  }
+  return { creados, borrados, iguales };
+}
+
 function _lote(){
   let batch = _citasDb.batch(), n = 0;
   const enVuelo = [];
@@ -8398,6 +8438,7 @@ async function publicarSlotsDisponibles(opciones){
     }
 
     // Una sola lectura para TODOS los días, y un solo lote de escritura.
+    const _deseados = [];
     let yaPublicados;
     try { yaPublicados = await _slotsPublicados(soloFechas || hoy); }
     catch(e){ console.warn('leer slots publicados:', e.message); yaPublicados = new Map(); }
@@ -8409,13 +8450,6 @@ async function publicarSlotsDisponibles(opciones){
       // Calcular huecos libres reales para ese día
       const huecos = calcularHuecos(medicoId, fecha, 'clinic1');
 
-      // Borrar slots anteriores de este día (idempotente).
-      // No tocar los de San Cristóbal: comparten la colección.
-      for(const x of (yaPublicados.get(fecha) || [])){
-        if(x.data.medicoId === MEDICO_CITAS_ID && x.data.clinica !== 'sancristobal'){
-          lote.borrar(x.ref);
-        }
-      }
 
       // Verificar si este día tiene configuración de 30 min activa
       let slots30 = null;
@@ -8440,7 +8474,7 @@ async function publicarSlotsDisponibles(opciones){
           const durSlot = en30 ? (rest >= 30 ? 30 : rest) : (rest >= 45 ? 45 : rest);
           if(durSlot >= 20){
             _slotsEscritos++;
-            lote.crear('slots_disponibles', {
+            _deseados.push({
               fecha,
               hora: tFmt(cur),
               durMin: durSlot,
@@ -8457,19 +8491,16 @@ async function publicarSlotsDisponibles(opciones){
       }
     }
 
-    // Retirar lo que quedó fuera de la ventana. Si el horizonte se acorta de
-    // 30 a 14 días, los horarios del día 15 en adelante siguen publicados y
-    // el paciente los sigue viendo: dejar de crearlos no basta.
-    if(!soloFechas){
-      const tope = new Date(); tope.setDate(tope.getDate() + DIAS_PUBLICACION);
-      const topeStr = dateKey(tope);
-      let fuera = 0;
-      for(const [f, docs] of yaPublicados){
-        if(f <= topeStr) continue;
-        for(const x of docs){ lote.borrar(x.ref); fuera++; }
-      }
-      if(fuera) console.log(`🗑️ ${fuera} horarios retirados por quedar fuera de los ${DIAS_PUBLICACION} días`);
-    }
+    // Solo se escribe la diferencia. En modo dirigido se limita a esos días;
+    // en la pasada completa se miran todos, para que lo que sobra se retire
+    // (por ejemplo si se acortó el horizonte de publicación).
+    const _mio = d => d.medicoId === MEDICO_CITAS_ID && d.clinica !== 'sancristobal';
+    const _dif = _aplicarDiferencias(lote, _deseados, yaPublicados, _mio,
+                                     soloFechas ? new Set(soloFechas) : null);
+    if(_dif.creados || _dif.borrados)
+      console.log(`Mixco: +${_dif.creados} −${_dif.borrados} · ${_dif.iguales} sin cambio`);
+    else
+      console.log(`Mixco: sin cambios (${_dif.iguales} horarios) · 0 escrituras`);
 
     // Un solo viaje: borrados y altas se aplican juntos.
     await lote.cerrar();
