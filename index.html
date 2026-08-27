@@ -2220,7 +2220,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 47;
+const APP_VERSION = 48;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -2709,8 +2709,12 @@ function franjasEfectivas(doctorId, dateStr){
     for(const j of jes){
       franjas = franjas.filter(f => f.clinica !== j.clinica);
       const rangos = Array.isArray(j.rangos) && j.rangos.length
-        ? j.rangos : [[tMin(j.ini), tMin(j.fin)]];
-      rangos.forEach(([ri,rf]) => {
+        ? j.rangos : [{ ini:tMin(j.ini), fin:tMin(j.fin) }];
+      rangos.forEach(r => {
+        // Tolera la forma vieja [ini,fin] por si quedó algo guardado así en
+        // este dispositivo antes del arreglo.
+        const ri = Array.isArray(r) ? r[0] : r.ini;
+        const rf = Array.isArray(r) ? r[1] : r.fin;
         if(rf - ri >= 15) franjas.push({ clinica:j.clinica, ini:ri, fin:rf, especial:true });
       });
     }
@@ -2931,7 +2935,19 @@ function _citasAutenticada(){
 // para no lanzar consultas que las reglas rechazarían por llegar temprano.
 const _citasListo = new Promise(resolve => {
   if(!_citasAuth){ resolve(false); return; }
-  const off = _citasAuth.onAuthStateChanged(u => { off(); resolve(!!u); });
+  // Si Firebase ya conoce el estado, llama a la función EN EL ACTO, antes de
+  // que `off` tenga valor. Escrito como estaba, eso lanzaba «Cannot access
+  // 'off' before initialization» y la promesa no se resolvía nunca: la agenda
+  // se quedaba colgada en el arranque.
+  let off = null, listo = false;
+  const cb = u => {
+    if(listo) return;
+    listo = true;
+    if(off) { try{ off(); }catch(_){} }
+    resolve(!!u);
+  };
+  off = _citasAuth.onAuthStateChanged(cb);
+  if(listo && off){ try{ off(); }catch(_){} }
   setTimeout(() => resolve(_citasAutenticada()), 5000); // por si nunca responde
 });
 const _col = () => _db.collection(CONFIG.COLLECTIONS.events);
@@ -5776,7 +5792,10 @@ async function psGuardarDia(fecha){
     if(mias.length){
       const j = { id:idJe, doctor:pfActual, clinica:sx.clave, fecha,
         ini: tFmt(mias[0].ini), fin: tFmt(mias[mias.length-1].fin),
-        rangos: mias.map(x=>[x.ini, x.fin]),
+        // Firestore NO acepta arreglos dentro de arreglos: `[[540,840]]` lo
+        // rechaza con «Nested arrays are not supported». Se guardan como
+        // objetos, que además se leen mejor en la consola de Firebase.
+        rangos: mias.map(x=>({ ini:x.ini, fin:x.fin })),
         motivo: 'Planificado', creadoEn: new Date().toISOString() };
       jornadasEspeciales.push(j);
       if(_db){
