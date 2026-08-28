@@ -2268,7 +2268,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 57;
+const APP_VERSION = 58;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -5303,8 +5303,15 @@ async function nvHueco30Toggle(){
     const dato = { desde: tFmt(h.ini), hasta: tFmt(h.fin), fecha: nvFecha,
                    doctor: MEDICO_TO_CITAS[h.profId]||h.profId, creadoEn: new Date().toISOString() };
     prev[clave] = dato;
-    if(_db) try{ await _db.collection('slots30_overrides').doc(clave).set(dato); }
-      catch(e){ console.warn('slots30:', e.message); }
+    if(_db){
+      try{ await _db.collection('slots30_overrides').doc(clave).set(dato); }
+      catch(e){
+        // Guardar solo en el navegador es frágil: se pierde al cambiar de
+        // dispositivo. Se avisa en vez de dejarlo pasar en silencio.
+        console.warn('slots30:', e.message);
+        mostrarAvisoBreve('Guardado solo acá · se reintentará al sincronizar');
+      }
+    }
   }
   try{ localStorage.setItem('slots30_overrides', JSON.stringify(prev)); }catch(_){}
   render();
@@ -5446,8 +5453,15 @@ async function nvToggle30(profId){
     const dato = { desde: tFmt(m.ini), hasta: tFmt(m.fin), fecha: nvFecha,
                    doctor: idCitas, creadoEn: new Date().toISOString() };
     prev[clave] = dato;
-    if(_db) try{ await _db.collection('slots30_overrides').doc(clave).set(dato); }
-      catch(e){ console.warn('slots30:', e.message); }
+    if(_db){
+      try{ await _db.collection('slots30_overrides').doc(clave).set(dato); }
+      catch(e){
+        // Guardar solo en el navegador es frágil: se pierde al cambiar de
+        // dispositivo. Se avisa en vez de dejarlo pasar en silencio.
+        console.warn('slots30:', e.message);
+        mostrarAvisoBreve('Guardado solo acá · se reintentará al sincronizar');
+      }
+    }
   }
   try{ localStorage.setItem('slots30_overrides', JSON.stringify(prev)); }catch(_){}
 
@@ -8521,10 +8535,31 @@ async function publicarSlotsDisponibles(opciones){
           .where('fecha','>=',hoyStr).get();
         const fbOverrides = {};
         s30snap.forEach(d => { fbOverrides[d.id] = d.data(); });
-        // Firebase es la fuente de verdad para los overrides
-        localStorage.setItem('slots30_overrides', JSON.stringify(fbOverrides));
-        if(Object.keys(fbOverrides).length)
-          console.log(`⏱ Overrides de 30 min cargados: ${Object.keys(fbOverrides).length}`);
+
+        // Antes esto REEMPLAZABA lo local por lo de Firebase. Si la escritura
+        // había fallado —cuota agotada, sin señal— el ajuste vivía solo en el
+        // navegador y la siguiente sincronización lo borraba sin avisar: se
+        // partía un hueco en 30 min y al rato volvía solo a 45.
+        //
+        // Ahora se combinan: manda Firebase donde tiene dato, y lo que solo
+        // está acá se conserva y se reintenta subir.
+        let _localOv = {};
+        try{ _localOv = JSON.parse(localStorage.getItem('slots30_overrides')||'{}'); }catch(_){}
+        const _pend = Object.keys(_localOv).filter(k => !(k in fbOverrides));
+        const _comb = { ..._localOv, ...fbOverrides };
+        for(const k of _pend){
+          const v = _localOv[k];
+          // Lo que ya no está en Firebase y tiene más de un día se descarta:
+          // así un ajuste quitado desde otro dispositivo sí desaparece.
+          const edad = (v && v.creadoEn) ? (Date.now() - new Date(v.creadoEn).getTime()) : Infinity;
+          if(!(edad < 24*60*60*1000)){ delete _comb[k]; continue; }
+          try{ await _db.collection('slots30_overrides').doc(k).set(v); }
+          catch(e){ console.warn('reintento slots30:', e.message); }
+        }
+        localStorage.setItem('slots30_overrides', JSON.stringify(_comb));
+        const _n30 = Object.keys(_comb).length;
+        if(_n30) console.log(`⏱ Ajustes de 30 min: ${_n30}` +
+          (_pend.length ? ` · ${_pend.length} reintentados` : ''));
       }catch(e){
         // NO abortamos. Antes, si esta lectura fallaba, se cancelaba la
         // publicación COMPLETA y la clínica se quedaba sin horarios en TODA la
