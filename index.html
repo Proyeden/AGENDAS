@@ -2268,7 +2268,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 56;
+const APP_VERSION = 57;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3731,12 +3731,29 @@ async function loadIcalFeedsWithDupCheck(){
     // Does this MediCloud appointment land on an existing virtual reservation
     // (same doctor + clinic + hour)? If so, UPGRADE that slot to "con expediente"
     // instead of creating a duplicate — the reserved time is now a real record.
+    // Se absorbe también la cita escrita a mano. Es el flujo normal: se anota
+    // al paciente en la agenda para reservarle el rato y más tarde se registra
+    // oficialmente en MediCloud. Antes quedaban las dos líneas con el mismo
+    // nombre a la misma hora, y había que borrar una a mano cada vez.
     const virtual = events.find(e =>
-      e.source==='online' && e.status!=='cancelled' &&
+      (e.source==='online' || (!e.source || e.source==='manual')) &&
+      e.status!=='cancelled' && e.type!=='blocked' && !e.blocked &&
       e.doctor===ev.doctor && e.type===ev.type && e.date===ev.date &&
-      sameHour(e.time, ev.time)
+      sameHour(e.time, ev.time) &&
+      // Para una cita manual se exige además que el nombre se parezca: dos
+      // pacientes distintos a la misma hora es un choque de agenda, no un
+      // duplicado, y fundirlos borraría a uno de los dos.
+      (e.source==='online' || mismoPaciente(e.name, ev.name))
     );
     if(virtual){
+      // La manual vivía en la base de la agenda: se retira de ahí, o volvería
+      // a aparecer en la próxima carga.
+      const eraManual = (!virtual.source || virtual.source==='manual');
+      if(eraManual && _db){
+        const idViejo = virtual.id;
+        DB.remove(idViejo).catch(e=>console.warn('quitar manual duplicada:', e.message));
+        console.log(`Cita manual de ${virtual.name} absorbida por MediCloud (${ev.time})`);
+      }
       // Upgrade in place: keep MediCloud's richer data, mark as confirmed record
       virtual.source     = 'medicloud';
       virtual.expediente = true;
@@ -3922,6 +3939,57 @@ function textSim(a,b){
   return union===0?0:inter/union;
 }
 function toMin(t){ const [h,m]=(t||'0:0').split(':'); return parseInt(h)*60+parseInt(m||0); }
+
+// ¿Son la misma persona? textSim no alcanzaba: compara palabras completas y
+// no ignora las tildes, así que «Macedonio Ajcu» contra «Macedonio ACU
+// HERNANDEZ» —un duplicado real— sacaba 0.25, y «Juan Vasquez» contra «Juan
+// Vásquez» apenas 0.33.
+//
+// Acá se comparan los nombres por partes, sin tildes, tolerando que MediCloud
+// traiga apellidos de más y una letra distinta: Ajcu/Acu, Vasquez/Vazquez.
+function _tokensNombre(x){
+  return String(x||'')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\b(cita|consulta|control|paciente|sr|sra|srta|dr|dra|don|dona)\b\.?/g,' ')
+    .replace(/[^a-z0-9\s]/g,' ')
+    .split(/\s+/)
+    .filter(t => t.length >= 3);
+}
+function _casiIgual(a, b){
+  if(a === b) return true;
+  if(a.length >= 5 && b.length >= 5 && (a.startsWith(b) || b.startsWith(a))) return true;
+  // El mínimo era 4 y dejaba fuera apellidos cortos y reales: «Acu» contra
+  // «Ajcu» —un duplicado de la agenda de verdad— no llegaba a compararse.
+  // Bajarlo a 3 es seguro porque igual hacen falta DOS coincidencias.
+  if(Math.abs(a.length - b.length) > 1 || Math.min(a.length,b.length) < 3) return false;
+  // Una sola letra de diferencia
+  let i=0, j=0, fallos=0;
+  while(i<a.length && j<b.length){
+    if(a[i]===b[j]){ i++; j++; continue; }
+    if(++fallos > 1) return false;
+    if(a.length > b.length) i++; else if(b.length > a.length) j++; else { i++; j++; }
+  }
+  return true;
+}
+function mismoPaciente(a, b){
+  const ta = _tokensNombre(a), tb = _tokensNombre(b);
+  if(!ta.length || !tb.length) return false;
+  const corto = ta.length <= tb.length ? ta : tb;
+  const largo = corto === ta ? tb : ta;
+  let coinciden = 0;
+  const usados = new Set();
+  for(const t of corto){
+    for(let k=0; k<largo.length; k++){
+      if(usados.has(k)) continue;
+      if(_casiIgual(t, largo[k])){ usados.add(k); coinciden++; break; }
+    }
+  }
+  if(coinciden >= 2) return true;
+  // Un solo nombre de pila registrado: alcanza con que ese coincida y sea largo
+  return coinciden === 1 && corto.length === 1 && corto[0].length >= 5;
+}
+window.mismoPaciente = mismoPaciente;
 
 function findDuplicate(newEv){
   const cands=events.filter(e=>e.id!==newEv.id&&e.status!=='cancelled'&&e.doctor===newEv.doctor&&e.date===newEv.date);
