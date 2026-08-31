@@ -229,6 +229,8 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .home-counter.online     .home-counter-num { color:#1B72B8; }
 .home-counter.canceladas { border-left:5px solid #F59120; }
 .home-counter.canceladas .home-counter-num { color:#B36A05; }
+.wb-ver{font-size:10px;color:var(--muted);font-weight:700;opacity:.65;
+  font-variant-numeric:tabular-nums;flex:none;margin-left:2px}
 .home-sync-bar { font-size:11px; color:var(--muted); text-align:center; }
 
 /* ── FLECHAS LATERALES ── */
@@ -393,6 +395,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .nv-fr .h{position:absolute;left:-52px;top:-1px;width:44px;text-align:right;font-size:11px;
   color:var(--n-muted);font-variant-numeric:tabular-nums;font-weight:600}
 .nv-sub{font-size:11px;color:var(--n-muted);display:block}
+.nv-ocup,.nv-bloq{width:100%;text-align:left;font-family:var(--font);cursor:pointer}
 .nv-ocup{background:var(--n-surface);border:1px solid var(--n-line);border-radius:10px;
   padding:8px 12px;display:flex;align-items:center;gap:8px;overflow:hidden}
 .nv-ocup b{font-weight:650;font-size:13px}
@@ -417,7 +420,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .nv-libre.partido .q b{color:var(--n-ok);font-weight:800}
 .nv-libre.corto{border-style:dashed;border-color:var(--n-line2);background:transparent;cursor:default}
 .nv-libre.corto b,.nv-libre.corto .q{color:var(--n-muted);opacity:1}
-.nv-tras{background:repeating-linear-gradient(45deg,#E4EDF4,#E4EDF4 4px,#EEF5FA 4px,#EEF5FA 8px);
+.nv-tras{cursor:pointer;width:100%;text-align:left;font-family:var(--font);background:repeating-linear-gradient(45deg,#E4EDF4,#E4EDF4 4px,#EEF5FA 4px,#EEF5FA 8px);
   border:1px dashed var(--n-line2);border-radius:10px;padding:4px 12px;display:flex;
   align-items:center;gap:6px;font-size:11px;color:var(--n-muted);overflow:hidden}
 .nv-tras b{font-weight:700}
@@ -436,6 +439,13 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .nvh-op span{display:block;font-size:11.5px;color:#54718A;margin-top:2px;line-height:1.35}
 .nvh-op.on{border-color:#6BB745;background:#EAF5E3}
 .nvh-op.on b,.nvh-op.on span{color:#3F8A2E}
+.cw-dur{border:1px solid #D4E3EE;border-radius:11px;padding:10px 12px;margin-bottom:8px;background:#F7FBFE}
+.cw-dur-t{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#54718A;
+  font-weight:700;margin-bottom:7px}
+.cw-dur-b{display:flex;gap:6px}
+.cw-dur-b button{flex:1;min-height:38px;border:1.5px solid #CBD5E1;background:#fff;border-radius:9px;
+  font-family:var(--font);font-size:13px;font-weight:700;color:#123F73;cursor:pointer}
+.cw-dur-b button.on{border-color:#1B72B8;background:#E2F1F7}
 .nvh-nota{background:#FDF0DC;border:1px solid #EBD3AC;border-radius:10px;
   padding:10px 12px;margin-bottom:8px;font-size:11.5px;color:#B36A05;line-height:1.5}
 .nvh-cerrar{width:100%;padding:11px;border:none;border-radius:11px;background:#F1F5F9;
@@ -1868,6 +1878,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       <button class="wb-btn" id="next-week">›</button>
     </div>
     <span id="week-label"></span>
+    <span class="wb-ver" title="Versión de la agenda">v<span id="wb-ver-num"></span></span>
     <button class="wb-sync" id="btn-actualizar" onclick="actualizarTodo(this)" title="Trae las citas nuevas y publica los horarios">↻ <span class="wb-sync-txt">Actualizar</span></button>
     
   </div>
@@ -2268,7 +2279,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 58;
+const APP_VERSION = 60;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -4562,6 +4573,17 @@ function abrirAccionesCitaWeb(ev, mcCercana){
       <span class="jp-ar">›</span>
     </button>`;
   }
+  // Cambiar la duración: una cita web entra con la duración por defecto, pero
+  // un control puede resolverse en media hora. Antes no había forma de
+  // ajustarlo desde acá y el rato sobrante quedaba perdido.
+  const durAhora = ev.durMin || ((ev.duration||1)*60);
+  ops += `<div class="cw-dur">
+    <div class="cw-dur-t">Duración · ahora ${durAhora} min</div>
+    <div class="cw-dur-b">
+      ${[20,30,45,60].map(m => `<button class="${m===durAhora?'on':''}"
+        onclick="cwDuracion(${m})">${m} min</button>`).join('')}
+    </div></div>`;
+
   // Borrar SIEMPRE disponible: es lo que hace falta cuando el paciente cancela.
   ops += `<button class="jp-opt" onclick="cwEliminar()">
     <span class="jp-ic" style="background:#FEE2E2;color:#B91C1C">🗑️</span>
@@ -4574,6 +4596,27 @@ function abrirAccionesCitaWeb(ev, mcCercana){
 window.abrirAccionesCitaWeb = abrirAccionesCitaWeb;
 function cerrarAccionesCitaWeb(){ document.getElementById('cwPanel').style.display = 'none'; }
 window.cerrarAccionesCitaWeb = cerrarAccionesCitaWeb;
+
+// Guarda la duración de esa cita concreta. Sobrevive a las re-sincronizaciones
+// porque se guarda contra el id de la cita, no contra la hora.
+async function cwDuracion(min){
+  const ev = _cwEv; if(!ev) return;
+  cerrarAccionesCitaWeb();
+  try{
+    await DB.saveDurOverride(ev.id, min);
+    ev.durMin = min;
+    ev.duration = Math.max(1, Math.round(min/60));
+    ev.durAjustada = true;
+    render();
+    await publicarSlotsDisponibles({ fechas:[ev.date] });
+    await publicarSlotsSanCristobal({ fechas:[ev.date] });
+    mostrarAvisoBreve(`${ev.name}: ${min} min · publicado`);
+  }catch(e){
+    console.warn('cwDuracion:', e.message);
+    alert('No se pudo cambiar la duración: ' + e.message);
+  }
+}
+window.cwDuracion = cwDuracion;
 
 async function cwEliminar(){
   const ev = _cwEv; if(!ev) return;
@@ -4813,8 +4856,12 @@ function nvModeloDia(profId, fecha){
     .map(e => {
       const ini = tMin(e.time);
       const dur = e.durMin || ((e.duration||1)*(e.source==='medicloud'?30:60));
+      // Sin el id del evento, tocar una cita no tenía a qué apuntar: por eso
+      // no pasaba nada al presionarla. Se lleva también el origen, porque de
+      // eso depende qué se puede hacer con ella.
       return { ini, fin:ini+dur, nombre:e.name||'(sin nombre)',
-               bloqueo:e.type==='blocked', nota:e.notes||'' };
+               bloqueo:e.type==='blocked', nota:e.notes||'',
+               evId:e.id, origen:e.source||'manual', dur };
     })
     .sort((a,b)=>a.ini-b.ini);
 
@@ -4835,7 +4882,8 @@ function nvModeloDia(profId, fecha){
       const oi = Math.max(o.ini, f.ini), of_ = Math.min(o.fin, f.fin);
       if(oi > cur) out.push(nvHueco(cur, oi, sede, profId, fecha));
       out.push({ t: o.bloqueo ? 'bl' : 'oc', ini:oi, fin:of_,
-                 nombre:o.nombre, sede, nota:o.nota });
+                 nombre:o.nombre, sede, nota:o.nota,
+                 evId:o.evId, origen:o.origen, dur:o.dur });
       cur = Math.max(cur, of_);
     }
     if(f.fin > cur) out.push(nvHueco(cur, f.fin, sede, profId, fecha));
@@ -4967,7 +5015,11 @@ function nvHTMLPanorama(){
         else if(b.t==='bl') txt = esc(b.nombre);
         else if(b.t==='tr') txt = holgado ? `traslado · ${b.fin-b.ini} min` : 'traslado';
         const tag = b.t==='li' ? 'button' : 'div';
-        const act = b.t==='li' ? ` onclick="nvTocarHueco('${id}',${b.ini},${b.fin})"` : '';
+        // En el panorama tampoco respondía nada más que los huecos: una cita
+        // ocupada no daba opciones, y es donde la asistente más las necesita.
+        const act = (b.t==='li' || b.t==='co')
+          ? ` data-nv="hueco" data-prof="${id}" data-ini="${b.ini}" data-fin="${b.fin}"`
+          : (b.t==='oc' || b.t==='bl') ? ` data-nv="cita" data-ev="${b.evId||''}"` : '';
         return `<${tag} class="nv-blk ${cls}" style="top:${top}px;height:${h}px"${act}>${txt}</${tag}>`;
       }).join('')}</div>`;
     }).join('');
@@ -5244,6 +5296,163 @@ window.nvFjExtender = nvFjExtender;
 // quiere casi siempre es partir ESE hueco, el que se está mirando.
 let _huecoAbierto = null;
 
+// ── TOCAR UNA CITA O UN BLOQUEO ───────────────────────────────────────────
+// Antes las citas y los bloqueos se dibujaban como <div> sin ningún manejador:
+// se podían mirar y nada más. Para borrar una cita escrita a mano o cambiarle
+// la duración había que buscarla en otra vista. Ahora todo el día responde al
+// toque y las opciones dependen de de dónde vino la cita.
+// ── UN SOLO DETECTOR PARA TODA LA AGENDA ─────────────────────────────────
+// Antes cada bloque llevaba su propio `onclick` escrito dentro de la plantilla.
+// Bastaba que una comilla del nombre del paciente rompiera el atributo, o que
+// una rama del dibujo se olvidara de ponerlo, para que ese bloque quedara
+// muerto — y no había forma de notarlo salvo tocándolo.
+//
+// Ahora los bloques solo declaran QUÉ son (data-nv) y un único detector en el
+// documento decide qué hacer. Si el bloque se dibuja, responde.
+document.addEventListener('click', (e) => {
+  const el = e.target.closest && e.target.closest('[data-nv]');
+  if(!el) return;
+  const tipo = el.dataset.nv;
+  if(tipo === 'cita'){
+    e.preventDefault();
+    const id = el.dataset.ev;
+    if(!id){ mostrarAvisoBreve('Esa cita no tiene identificador'); return; }
+    nvTocarCita(id);
+  } else if(tipo === 'hueco'){
+    e.preventDefault();
+    nvTocarHueco(el.dataset.prof, Number(el.dataset.ini), Number(el.dataset.fin));
+  } else if(tipo === 'traslado'){
+    e.preventDefault();
+    pfDesdeDia(el.dataset.prof);
+  } else {
+    // Un bloque que se dibuja pero no sabe qué es: mejor decirlo que quedarse
+    // mudo, que es lo que vuelve imposible saber si algo está roto.
+    mostrarAvisoBreve('Ese bloque todavía no tiene opciones');
+  }
+}, true);
+
+function nvTocarCita(evId){
+  if(!evId) return;
+  const ev = events.find(e => e.id === evId);
+  if(!ev){ mostrarAvisoBreve('No encuentro esa cita'); return; }
+
+  const esWeb = ev.source === 'online';
+  const esBloqueo = ev.type === 'blocked' || ev.blocked;
+  const esMediCloud = ev.source === 'medicloud';
+  const dur = ev.durMin || ((ev.duration||1) * (esMediCloud ? 30 : 60));
+  _cwEv = ev;
+
+  document.getElementById('nvh-titulo').textContent =
+    esBloqueo ? (ev.name || 'Bloqueado') : (ev.name || 'Cita');
+  document.getElementById('nvh-sub').textContent =
+    `${ev.time} · ${nvDur(dur)} · ` +
+    (esMediCloud ? 'de MediCloud' : esWeb ? 'reservada por la web'
+      : esBloqueo ? 'bloqueo' : 'escrita a mano') +
+    (ev.phone ? ` · ${ev.phone}` : '');
+
+  const ops = [];
+
+  // Duración: sirve para todas. Es lo que más se necesita y no estaba.
+  ops.push(`<div class="cw-dur">
+    <div class="cw-dur-t">Duración · ahora ${dur} min</div>
+    <div class="cw-dur-b">
+      ${[20,30,45,60,90].map(m => `<button class="${m===dur?'on':''}"
+        onclick="nvCitaDuracion('${ev.id}',${m})">${m}</button>`).join('')}
+    </div></div>`);
+
+  if(!esMediCloud && !esWeb){
+    ops.push(`<button class="nvh-op" onclick="nvCitaEditar('${ev.id}')">
+      <b>Editar</b><span>Cambiar nombre, hora o sede</span></button>`);
+  }
+  // Si hay una de MediCloud cerca, es la misma persona registrada oficialmente.
+  if(esWeb){
+    const mc = events.find(e => e.source==='medicloud' && e.doctor===ev.doctor &&
+      e.date===ev.date && Math.abs(toMin(e.time) - toMin(ev.time)) <= 30);
+    if(mc){
+      ops.push(`<button class="nvh-op" onclick="cwUnificarDe('${ev.id}')">
+        <b>Es la misma de MediCloud</b>
+        <span>Unificar: se borra la de la web y queda la de MediCloud (${mc.time})</span></button>`);
+    }
+  }
+  if(ev.phone){
+    const tel = String(ev.phone).replace(/\D/g,'');
+    ops.push(`<a class="nvh-op" href="https://wa.me/502${tel}" target="_blank" rel="noopener">
+      <b>Escribirle por WhatsApp</b><span>${esc(ev.phone)}</span></a>`);
+  }
+  ops.push(`<button class="nvh-op" onclick="nvCitaBorrar('${ev.id}')">
+    <b>${esBloqueo ? 'Quitar el bloqueo' : 'Borrar la cita'}</b>
+    <span>${esMediCloud
+      ? 'Se quita de la agenda; MediCloud la puede traer de nuevo'
+      : esWeb
+        ? 'El paciente canceló · se borra del sistema de citas y libera el horario'
+        : 'Libera el horario para otro paciente'}</span></button>`);
+
+  document.getElementById('nvh-ops').innerHTML = ops.join('');
+  document.getElementById('nvh-panel').style.display = 'flex';
+}
+window.nvTocarCita = nvTocarCita;
+
+// Puente para unificar desde el menú único.
+function cwUnificarDe(evId){
+  const ev = events.find(e => e.id === evId);
+  nvCerrarHueco();
+  if(ev) unificarCitaWebConMedicloud(ev);
+}
+window.cwUnificarDe = cwUnificarDe;
+
+async function nvCitaDuracion(evId, min){
+  nvCerrarHueco();
+  const ev = events.find(e => e.id === evId); if(!ev) return;
+  try{
+    await DB.saveDurOverride(evId, min);
+    ev.durMin = min;
+    ev.duration = Math.max(1, Math.round(min/60));
+    ev.durAjustada = true;
+    // Una cita escrita a mano vive en la base de la agenda: hay que guardarla
+    // ahí también, o la duración se pierde en la próxima carga.
+    if(!ev.source || ev.source === 'manual'){
+      try{ await DB.save(ev); }catch(e){ console.warn('guardar dur:', e.message); }
+    }
+    render();
+    await publicarSlotsDisponibles({ fechas:[ev.date] });
+    await publicarSlotsSanCristobal({ fechas:[ev.date] });
+    mostrarAvisoBreve(`${ev.name}: ${min} min · publicado`);
+  }catch(e){
+    console.warn('nvCitaDuracion:', e.message);
+    alert('No se pudo cambiar la duración: ' + e.message);
+  }
+}
+window.nvCitaDuracion = nvCitaDuracion;
+
+function nvCitaEditar(evId){
+  nvCerrarHueco();
+  const ev = events.find(e => e.id === evId); if(!ev) return;
+  try{ openModal(ev.id, ev.date, ev.time, ev.doctor); }
+  catch(e){ console.warn('editar:', e.message); }
+}
+window.nvCitaEditar = nvCitaEditar;
+
+async function nvCitaBorrar(evId){
+  const ev = events.find(e => e.id === evId); if(!ev) return;
+  const esBloqueo = ev.type === 'blocked' || ev.blocked;
+  if(!confirm(`¿${esBloqueo ? 'Quitar el bloqueo' : 'Borrar la cita de ' + (ev.name||'')}?`)) return;
+  nvCerrarHueco();
+  const fecha = ev.date;
+  try{
+    if(esBloqueo) await removeBloqueoFromCitas(ev);
+    await deleteEventById(evId);
+    render();
+    await publicarSlotsDisponibles({ fechas:[fecha] });
+    await publicarSlotsSanCristobal({ fechas:[fecha] });
+    mostrarAvisoBreve(esBloqueo ? 'Bloqueo quitado · horario liberado'
+                                : 'Cita borrada · horario liberado');
+  }catch(e){
+    console.warn('nvCitaBorrar:', e.message);
+    alert('No se pudo borrar: ' + e.message);
+  }
+}
+window.nvCitaBorrar = nvCitaBorrar;
+
 function nvTocarHueco(profId, ini, fin){
   _huecoAbierto = { profId, ini:Number(ini), fin:Number(fin) };
   const largo = fin - ini;
@@ -5256,13 +5465,20 @@ function nvTocarHueco(profId, ini, fin){
     `${nvDur(largo)} libres · ${nombreProf(profId)}`;
 
   const ops = [];
+  // Un hueco más corto que una consulta no servía para nada y encima ni se
+  // podía tocar: quedaba ahí diciendo «no cabe» sin ofrecer salida. Partirlo
+  // en 30 min es justamente lo que lo vuelve usable.
+  if(largo < NV_MIN_CONSULTA && !ya30){
+    ops.push(`<div class="nvh-nota">Son ${nvDur(largo)}: menos que una consulta de
+      ${NV_MIN_CONSULTA} min. Partido en 30 sí cabe ${en30 === 1 ? 'una' : en30}.</div>`);
+  }
   ops.push(`<button class="nvh-op" onclick="nvHuecoAgendar()">
       <b>Agendar una cita acá</b><span>Se abre el formulario con la hora puesta</span></button>`);
   if(ya30){
     ops.push(`<button class="nvh-op on" onclick="nvHueco30Toggle()">
       <b>Volver a citas de ${NV_MIN_CONSULTA} min</b>
       <span>Ahora está partido en ${en30} espacios de 30</span></button>`);
-  } else if(en30 > en45){
+  } else if(en30 > en45 || (largo >= 30 && largo < NV_MIN_CONSULTA)){
     ops.push(`<button class="nvh-op" onclick="nvHueco30Toggle()">
       <b>Partir en citas de 30 min</b>
       <span>${en30} espacios en vez de ${en45}</span></button>`);
@@ -5570,22 +5786,25 @@ function nvHTMLMiDia(){
     const alto = Math.max(26, (b.fin-b.ini)*0.9);
     const hora = `<span class="h num">${tFmt(b.ini)}</span>`;
     if(b.t==='oc') return `<div class="nv-fr">${hora}
-      <div class="nv-ocup" style="height:${alto}px"><span><b>${esc(b.nombre)}</b>
+      <button class="nv-ocup" style="height:${alto}px"
+        data-nv="cita" data-ev="${b.evId||''}"><span><b>${esc(b.nombre)}</b>
       ${b.nota?`<span class="nv-sub">${esc(b.nota).slice(0,60)}</span>`:''}</span>
-      <span class="nv-sede">${b.sede}</span><span class="d num">${nvDur(b.fin-b.ini)}</span></div></div>`;
+      <span class="nv-sede">${b.sede}</span><span class="d num">${nvDur(b.fin-b.ini)}</span></button></div>`;
     if(b.t==='bl') return `<div class="nv-fr">${hora}
-      <div class="nv-bloq" style="height:${alto}px"><span><b>${esc(b.nombre)}</b></span>
-      <span class="d num">${nvDur(b.fin-b.ini)}</span></div></div>`;
+      <button class="nv-bloq" style="height:${alto}px"
+        data-nv="cita" data-ev="${b.evId||''}"><span><b>${esc(b.nombre)}</b></span>
+      <span class="d num">${nvDur(b.fin-b.ini)}</span></button></div>`;
     if(b.t==='tr') return `<div class="nv-fr">${hora}
-      <div class="nv-tras" style="height:${alto}px"><b>Traslado</b> ${b.de} → ${b.a} · ${b.fin-b.ini} min</div></div>`;
+      <button class="nv-tras" style="height:${alto}px" data-nv="traslado" data-prof="${id}"><b>Traslado</b> ${b.de} → ${b.a} · ${b.fin-b.ini} min</button></div>`;
     if(b.t==='co') return `<div class="nv-fr">${hora}
-      <div class="nv-libre corto" style="height:${alto}px"><b class="num">${nvDur(b.fin-b.ini)}</b>
-      <span class="q">no cabe una consulta</span></div></div>`;
+      <button class="nv-libre corto" style="height:${alto}px"
+        data-nv="hueco" data-prof="${id}" data-ini="${b.ini}" data-fin="${b.fin}"><b class="num">${nvDur(b.fin-b.ini)}</b>
+      <span class="q">no cabe una consulta de ${NV_MIN_CONSULTA} min</span></button></div>`;
     const paso = b.en30 ? 30 : NV_MIN_CONSULTA;
     const n = Math.floor((b.fin-b.ini)/paso);
     return `<div class="nv-fr">${hora}
       <button class="nv-libre ${b.en30?'partido':''}" style="height:${alto}px"
-        onclick="nvTocarHueco('${id}',${b.ini},${b.fin})">
+        data-nv="hueco" data-prof="${id}" data-ini="${b.ini}" data-fin="${b.fin}">
       <b class="num">${nvDur(b.fin-b.ini)}</b>
       <span class="q">${b.en30
         ? `<b>partido en ${n} citas de 30 min</b> · ${b.sede}`
@@ -7483,6 +7702,7 @@ function msgDiaQuitarImagen(){
 window.msgDiaQuitarImagen = msgDiaQuitarImagen;
 
 document.addEventListener('DOMContentLoaded', () => {
+  const _v=document.getElementById('wb-ver-num'); if(_v) _v.textContent=APP_VERSION;
   const inp = document.getElementById('msg-dia-img-file');
   if(!inp) return;
   inp.addEventListener('change', async e => {
