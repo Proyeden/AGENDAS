@@ -2279,7 +2279,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 60;
+const APP_VERSION = 61;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -4895,10 +4895,16 @@ function nvModeloDia(profId, fecha){
 // El hueco recuerda si está partido en citas de 30. Sin esto, partirlo
 // cambiaba lo que el paciente puede reservar pero en la agenda se veía un
 // bloque igual al de siempre: el equipo no tenía cómo enterarse.
-const nvHueco = (ini, fin, sede, profId, fecha) => ({
-  t: (fin-ini) >= NV_MIN_CONSULTA ? 'li' : 'co', ini, fin, sede,
-  en30: !!(profId && fecha && nvHueco30(profId, fecha, ini))
-});
+const nvHueco = (ini, fin, sede, profId, fecha) => {
+  const en30 = !!(profId && fecha && nvHueco30(profId, fecha, ini));
+  // Si el hueco está partido en citas de 30, el mínimo para que «quepa» es 30,
+  // no 45. Antes se clasificaba mirando solo los 45: un hueco de media hora ya
+  // convertido seguía apareciendo como «no cabe una consulta» en la agenda,
+  // aunque el sistema de citas sí lo estuviera ofreciendo. Las dos pantallas
+  // decían cosas distintas del mismo espacio.
+  const min = en30 ? 30 : NV_MIN_CONSULTA;
+  return { t: (fin-ini) >= min ? 'li' : 'co', ini, fin, sede, en30 };
+};
 
 function nvPrimerHueco(profId, fecha){
   const m = nvModeloDia(profId, fecha);
@@ -5799,7 +5805,8 @@ function nvHTMLMiDia(){
     if(b.t==='co') return `<div class="nv-fr">${hora}
       <button class="nv-libre corto" style="height:${alto}px"
         data-nv="hueco" data-prof="${id}" data-ini="${b.ini}" data-fin="${b.fin}"><b class="num">${nvDur(b.fin-b.ini)}</b>
-      <span class="q">no cabe una consulta de ${NV_MIN_CONSULTA} min</span></button></div>`;
+      <span class="q">no cabe una consulta de ${NV_MIN_CONSULTA} min${
+        b.fin-b.ini >= 30 ? ' · tocá para partirlo en 30' : ''}</span></button></div>`;
     const paso = b.en30 ? 30 : NV_MIN_CONSULTA;
     const n = Math.floor((b.fin-b.ini)/paso);
     return `<div class="nv-fr">${hora}
@@ -5807,7 +5814,7 @@ function nvHTMLMiDia(){
         data-nv="hueco" data-prof="${id}" data-ini="${b.ini}" data-fin="${b.fin}">
       <b class="num">${nvDur(b.fin-b.ini)}</b>
       <span class="q">${b.en30
-        ? `<b>partido en ${n} citas de 30 min</b> · ${b.sede}`
+        ? `<b>partido en ${n} cita${n===1?'':'s'} de 30 min</b> · ${b.sede}`
         : `${n>1?`caben ${n} consultas`:'cabe una consulta'} · ${b.sede}`}</span>
       <span class="cta">Agendar →</span></button></div>`;
   }).join('');
