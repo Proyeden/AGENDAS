@@ -2382,7 +2382,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 64;
+const APP_VERSION = 66;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3409,6 +3409,11 @@ function extractPhone(...texts){
   return '';
 }
 
+// Citas ya vistas en esta sincronización. Vive fuera de parseIcal porque hay
+// CUATRO feeds y la repetición ocurre justamente entre ellos: el mismo UID en
+// el feed de Mixco y en el de San Cristóbal entraba dos veces.
+let _vistosIcal = new Set();
+
 function parseIcal(text,clinic,doctor){
   // Desplegar líneas plegadas (folding) en cualquier estilo de salto de línea:
   // CRLF, LF o CR, seguido de espacio o tab. Algunos feeds usan solo LF.
@@ -3467,6 +3472,25 @@ function parseIcal(text,clinic,doctor){
           : (mcEstado.startsWith('2')||mcEstado.startsWith('3')||mcEstado.startsWith('4')||mcEstado.startsWith('5')) ? 'confirmed'
           : 'pending';
         console.log(`📅 ${nombreLimpio} · ${cur.time||'SIN HORA→'+horaCita} · dur=${durManual!=null?durManual+'min (ajuste manual)':(durDetectada?durDetectada+'min':'NO DETECTADA (usando 45)')} · estado=${mcEstado} · id=${citaId}`);
+        // Una misma cita puede llegar más de una vez: el mismo UID en dos de los
+        // cuatro feeds, o el feed repitiéndola. Como el id incluye la hora, cada
+        // copia entraba como cita distinta y el paciente aparecía cuatro veces
+        // seguidas en la agenda. Se queda la primera.
+        // El UID identifica UNA cita: si aparece dos veces el mismo día, es la
+        // misma repetida aunque cambie la hora. El expediente NO: identifica al
+        // paciente, y alguien puede tener dos citas reales el mismo día
+        // (consulta en la mañana, procedimiento en la tarde). Por eso ahí sí se
+        // incluye la hora, para no fundir dos citas verdaderas en una.
+        const huella = cur.uid
+          ? `u|${slug(cur.uid)}|${cur.date}`
+          : expediente ? `e|${expediente}|${cur.date}|${horaSlug}`
+                       : `n|${slug(nombreLimpio)}|${cur.date}|${horaSlug}`;
+        if(_vistosIcal.has(huella)){
+          console.warn(`Cita repetida en los feeds, se ignora: ${nombreLimpio} ${cur.date} ${horaCita}`);
+          continue;
+        }
+        _vistosIcal.add(huella);
+
         evs.push({id:citaId,expediente,doctor,type:clinic,name:nombreLimpio,phone,date:cur.date,time:horaCita,sinHora:!cur.time,duration:Math.max(1,Math.round(durUsada/60)),durMin:durUsada,durAjustada:(durManual!=null),mcEstado,esPendiente,who:[],source:'medicloud',status:statusNorm,notes:cur.notes||'',readonly:true});
       }
       cur=null;
@@ -3855,6 +3879,7 @@ async function loadIcalFeedsWithDupCheck(){
   }
 
   console.log('🔄 Sincronizando MediCloud:', CONFIG.ICAL_FEEDS.length, 'feeds');
+  _vistosIcal = new Set();   // se limpia en cada sincronización
   let results;
   try {
     results = await Promise.all(CONFIG.ICAL_FEEDS.map(fetchFeed));
@@ -3888,10 +3913,13 @@ async function loadIcalFeedsWithDupCheck(){
       e.status!=='cancelled' && e.type!=='blocked' && !e.blocked &&
       e.doctor===ev.doctor && e.type===ev.type && e.date===ev.date &&
       sameHour(e.time, ev.time) &&
-      // Para una cita manual se exige además que el nombre se parezca: dos
-      // pacientes distintos a la misma hora es un choque de agenda, no un
-      // duplicado, y fundirlos borraría a uno de los dos.
-      (e.source==='online' || mismoPaciente(e.name, ev.name))
+      // El nombre tiene que parecerse SIEMPRE. Antes, para una cita web no se
+      // comprobaba: cualquier cita de MediCloud dentro de ±30 min se la
+      // tragaba, aunque fuera de otra persona. Con citas de 30 minutos eso
+      // pasó a ser común, y la reserva web desaparecía de la agenda sin dejar
+      // rastro. Dos pacientes distintos a horas cercanas son dos citas, no un
+      // duplicado.
+      mismoPaciente(e.name, ev.name)
     );
     if(virtual){
       // La manual vivía en la base de la agenda: se retira de ahí, o volvería
