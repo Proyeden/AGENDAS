@@ -2382,7 +2382,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 66;
+const APP_VERSION = 67;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3943,10 +3943,22 @@ async function loadIcalFeedsWithDupCheck(){
       continue;
     }
     const dup=findDuplicate(ev);
+    if(dup && dup.source === 'medicloud' && mismoPaciente(dup.name, ev.name)){
+      // El duplicado es OTRA cita de MediCloud del mismo paciente: es la misma
+      // cita llegando dos veces, casi siempre porque aparece en más de uno de
+      // los cuatro feeds, o porque una reserva web ya fue absorbida en esta
+      // misma pasada y quedó marcada como MediCloud.
+      //
+      // La regla de «una cita de MediCloud nunca debe desaparecer» vale frente
+      // a lo escrito a mano, no frente a otra copia de sí misma: mostrarla dos
+      // veces no protege ningún dato, solo duplica la línea en la agenda.
+      console.warn(`Cita de MediCloud ya presente, no se repite: ${ev.name} ${ev.date} ${ev.time}`);
+      continue;
+    }
     if(dup){
-      // Posible duplicado: lo marcamos para revisión PERO igual lo mostramos.
-      // Una cita de MediCloud es un dato real del sistema oficial — nunca debe
-      // desaparecer de la agenda por estar "en duda".
+      // Posible duplicado contra algo escrito a mano o reservado por la web:
+      // se marca para revisión PERO igual se muestra. Ahí sí hay dos datos
+      // distintos y la decisión es de la persona, no del sistema.
       pending.push({ev,dup});
       ev.expediente = true;
       ev.posibleDuplicado = true;
@@ -7625,7 +7637,39 @@ function addQuick(){
 }
 
 // ═══ RENDER ════════════════════════════════════════════════════════════════
+// Quita eventos repetidos de la lista.
+//
+// Dos citas nunca deberían compartir identificador: si eso pasa, es que una
+// misma cita entró dos veces por caminos distintos —la sincronización de
+// MediCloud, el escucha en tiempo real, la carga desde Firebase—. Filtrar en
+// cada punto de entrada no alcanzó porque los caminos se cruzan; esto se
+// aplica al final, justo antes de dibujar, y ahí no hay forma de escaparse.
+//
+// También junta las que traen distinto identificador pero son idénticas en
+// origen, médico, fecha, hora y nombre: eso es la misma cita repetida.
+function limpiarRepetidos(){
+  const porId = new Set(), porContenido = new Set();
+  const limpio = [];
+  let quitados = 0;
+  for(const e of events){
+    if(!e) continue;
+    if(e.id && porId.has(e.id)){ quitados++; continue; }
+    const firma = `${e.source||'manual'}|${e.doctor}|${e.date}|${e.time}|${(e.name||'').toLowerCase().trim()}`;
+    if(e.name && e.date && e.time && porContenido.has(firma)){ quitados++; continue; }
+    if(e.id) porId.add(e.id);
+    if(e.name && e.date && e.time) porContenido.add(firma);
+    limpio.push(e);
+  }
+  if(quitados){
+    console.warn(`Se quitaron ${quitados} cita(s) repetida(s) de la vista`);
+    events = limpio;
+  }
+  return quitados;
+}
+window.limpiarRepetidos = limpiarRepetidos;
+
 function render(){
+  try { limpiarRepetidos(); } catch(_){}
   // Actualizar contadores del home en cada render (sin importar la pantalla activa)
   try { actualizarContadoresHome(); } catch(_){}
   // Refrescar el aviso de recordatorios si la agenda está abierta (así aparece
