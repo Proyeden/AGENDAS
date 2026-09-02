@@ -2382,7 +2382,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 67;
+const APP_VERSION = 69;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3585,6 +3585,29 @@ async function limpiarCitasViejas(){
   if(ahora - _ultimaLimpieza < 10*60*1000) return;
   _ultimaLimpieza = ahora;
 
+  // ── Descartar las reservas incompletas ────────────────────────────────
+  // Una cita sin hora no es una cita: es lo que quedó de un intento que se
+  // cortó a la mitad. No hay forma de gestionarla —nadie sabe a qué hora era—
+  // y encima bloqueaba al paciente cuando volvía a intentarlo. Se borran, y se
+  // deja constancia en la consola por si hace falta reconstruir alguna.
+  try {
+    const rotas = await _citasDb.collection('citas')
+      .where('fecha','>=', dateKey(new Date(Date.now() - 30*86400000))).get();
+    let borradas = 0;
+    for(const d of rotas.docs){
+      const c = d.data();
+      if(c.hora) continue;
+      const edad = c.creadaEn ? (Date.now() - new Date(c.creadaEn).getTime()) : Infinity;
+      if(edad < 30*60000) continue;   // recién creada: puede estar en curso
+      console.warn(`Reserva incompleta descartada: ${c.fecha} · ${c.especialidad||''} · doc ${d.id}`);
+      try{ await _citasDb.collection('citas').doc(d.id).delete(); }catch(_){}
+      try{ await _citasDb.collection('citas_datos').doc(d.id).delete(); }catch(_){}
+      _datosCitas.delete(d.id);
+      borradas++;
+    }
+    if(borradas) console.log(`🧹 ${borradas} reserva(s) incompleta(s) descartada(s)`);
+  } catch(e){ console.warn('limpiar incompletas:', e.message); }
+
   try {
     const hoy = new Date();
     const hoyStr = dateKey(hoy);
@@ -3720,7 +3743,11 @@ async function loadCitasOnline(){
         type: clinicId,
         name: c.nombre || '(sin nombre)',
         date: c.fecha,
+        // Una cita web sin hora es un dato incompleto, no una cita de las 8.
+        // Ponerle esa hora en silencio la hacía aparecer en un horario que la
+        // clínica ni siquiera ofrece, y nadie entendía de dónde salía.
         time: c.hora || '08:00',
+        sinHora: !c.hora,
         duration: Math.max(1, Math.round(durCita/60)),
         durMin: durCita,
         source: 'online',
@@ -9963,7 +9990,8 @@ function openPendingModal(){
       .replace(/\\n/g,' ').replace(/\n/g,' ')
       .replace(/\s{2,}/g,' ').trim();
     const item=document.createElement('div'); item.className='pitem';
-    item.innerHTML=`<div class="pitem-info"><div class="pitem-name">${ev.name}</div><div class="pitem-det">${doc2.name} · ${clin.name} · ${ev.date} ${ev.time}${notasLimpias?' · '+notasLimpias:''}</div></div><div class="pitem-btns"><button class="p-ok" onclick="qConfirm('${ev.id}')">✓</button><button class="p-no" onclick="qReject('${ev.id}')">✗</button></div>`;
+    item.innerHTML=`<div class="pitem-info"><div class="pitem-name">${ev.name}${
+      ev.sinHora ? ' <span style="color:#B02A20;font-size:11px;font-weight:700">· SIN HORA</span>' : ''}</div><div class="pitem-det">${doc2.name} · ${clin.name} · ${ev.date} ${ev.time}${notasLimpias?' · '+notasLimpias:''}</div></div><div class="pitem-btns"><button class="p-ok" onclick="qConfirm('${ev.id}')">✓</button><button class="p-no" onclick="qReject('${ev.id}')">✗</button></div>`;
     list.appendChild(item);
   });
   document.getElementById('poverlay').classList.add('on');
