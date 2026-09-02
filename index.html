@@ -2382,7 +2382,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 69;
+const APP_VERSION = 70;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -2781,6 +2781,22 @@ const tFmt=(m)=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padS
 // Algoritmo de línea de tiempo: ordena las franjas ocupadas (con su duración
 // real) y reporta los espacios entre ellas dentro de la jornada. Solo cuenta
 // huecos de al menos 30 min (no tiene sentido ofrecer menos).
+// Cuánto dura una cita, en minutos. UNA sola definición.
+//
+// Estaba repetida en ocho lugares y no todas coincidían: el cálculo de huecos
+// usaba `duration * 30` para MediCloud y la vista del día `duration * 60`. La
+// misma cita duraba media hora para publicar y una hora para dibujar, así que
+// la agenda se veía llena mientras el sistema de citas seguía ofreciendo ese
+// rato. `duration` viene en HORAS —el lector de MediCloud hace
+// Math.round(minutos/60)—, así que multiplicar por 30 lo partía a la mitad.
+function duracionEvento(e){
+  if(!e) return 0;
+  if(Number.isFinite(e.durMin) && e.durMin > 0) return e.durMin;
+  const horas = Number.isFinite(e.duration) && e.duration > 0 ? e.duration : 1;
+  return horas * 60;
+}
+window.duracionEvento = duracionEvento;
+
 function calcularHuecos(doctorId, dateStr, clinicId){
   const [Y,Mo,D] = dateStr.split('-').map(Number);
   const dow = new Date(Y, Mo-1, D).getDay();
@@ -2795,7 +2811,7 @@ function calcularHuecos(doctorId, dateStr, clinicId){
     // bloquear a los dos existe la opción "Ambos médicos", que crea DOS eventos.
     .filter(e => e.date===dateStr && e.status!=='cancelled' &&
                  e.doctor===doctorId && e.time)
-    .map(e => { const s=tMin(e.time); const dur=e.durMin || ((e.duration||1)*(e.source==='medicloud'?30:60)); return {s, e:s+dur}; })
+    .map(e => { const s=tMin(e.time); const dur=duracionEvento(e); return {s, e:s+dur}; })
     .filter(o => o.e > j.ini && o.s < j.fin)   // solo lo que cae en la jornada
     .sort((a,b)=>a.s-b.s);
 
@@ -2957,7 +2973,7 @@ function calcularHuecosFranja(doctorId, dateStr){
                  e.doctor===doctorId && e.time)
     .map(e => {
       const s = tMin(e.time);
-      const dur = e.durMin || ((e.duration||1)*(e.source==='medicloud'?30:60));
+      const dur = duracionEvento(e);
       // Un bloqueo puede ser específico de una clínica (e.blockClinica). Si lo
       // es, solo ocupa las franjas de ESA clínica: así se puede cerrar Mixco un
       // día sin borrar San Cristóbal a la misma hora. Las citas reales ocupan
@@ -4780,7 +4796,7 @@ function abrirAccionesCitaWeb(ev, mcCercana){
   // Cambiar la duración: una cita web entra con la duración por defecto, pero
   // un control puede resolverse en media hora. Antes no había forma de
   // ajustarlo desde acá y el rato sobrante quedaba perdido.
-  const durAhora = ev.durMin || ((ev.duration||1)*60);
+  const durAhora = duracionEvento(ev);
   ops += `<div class="cw-dur">
     <div class="cw-dur-t">Duración · ahora ${durAhora} min</div>
     <div class="cw-dur-b">
@@ -5059,7 +5075,7 @@ function nvModeloDia(profId, fecha){
     .filter(e => e.date===fecha && e.status!=='cancelled' && e.doctor===profId && e.time)
     .map(e => {
       const ini = tMin(e.time);
-      const dur = e.durMin || ((e.duration||1)*(e.source==='medicloud'?30:60));
+      const dur = duracionEvento(e);
       // Sin el id del evento, tocar una cita no tenía a qué apuntar: por eso
       // no pasaba nada al presionarla. Se lleva también el origen, porque de
       // eso depende qué se puede hacer con ella.
@@ -5338,7 +5354,7 @@ function nvAnalizarCita(ev){
   const sede = nvSedeDeCita(ev);
   if(!sede) return null;
   const ini = tMin(ev.time);
-  const fin = ini + (ev.durMin || ((ev.duration||1)*60));
+  const fin = ini + duracionEvento(ev);
 
   let fr = [];
   try{ fr = franjasEfectivas(ev.doctor, ev.date) || []; }catch(_){ return null; }
@@ -5549,7 +5565,7 @@ function nvTocarCita(evId){
   const esWeb = ev.source === 'online';
   const esBloqueo = ev.type === 'blocked' || ev.blocked;
   const esMediCloud = ev.source === 'medicloud';
-  const dur = ev.durMin || ((ev.duration||1) * (esMediCloud ? 30 : 60));
+  const dur = duracionEvento(ev);
   _cwEv = ev;
 
   document.getElementById('nvh-titulo').textContent =
@@ -6170,7 +6186,7 @@ function stCitas(desde, hasta){
     (stSede === 'todas' || e.type === stSede));
 }
 
-const stFinCita = e => tMin(e.time) + (e.durMin || ((e.duration||1) * 60));
+const stFinCita = e => tMin(e.time) + duracionEvento(e);
 const stHoras = m => (m/60).toFixed(1).replace('.0','') + ' h';
 const stSigno = m => (m > 0 ? '+' : '') + stHoras(m);
 
