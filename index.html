@@ -394,7 +394,30 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .nv-fr{position:relative;margin-bottom:3px}
 .nv-fr .h{position:absolute;left:-52px;top:-1px;width:44px;text-align:right;font-size:11px;
   color:var(--n-muted);font-variant-numeric:tabular-nums;font-weight:600}
-.nv-sub{font-size:11px;color:var(--n-muted);display:block}
+.nv-sub{font-size:11px;color:var(--n-muted);display:block;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── LA VISTA DEL DÍA EN EL TELÉFONO ──────────────────────────────────
+   La altura de cada franja es proporcional a su duración, y eso está bien
+   para leer el día de un vistazo. Pero una cita de 15 minutos daba una fila
+   más baja que su propio texto: el nombre del paciente se salía por abajo y
+   quedaba tapado por la fila siguiente. Ahora el contenido nunca desborda:
+   la fila crece si hace falta y el texto que sobra se corta con puntos. */
+@media (max-width:520px){
+  .nv-ocup, .nv-bloq, .nv-libre, .nv-tras{
+    min-height:46px; height:auto !important; align-items:center;
+  }
+  .nv-ocup > span:first-child, .nv-bloq > span:first-child{ min-width:0; flex:1; }
+  .nv-ocup b, .nv-bloq b{
+    display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-size:13.5px; line-height:1.25;
+  }
+  .nv-ocup .d, .nv-bloq .d{ font-size:10.5px; }
+  .nv-sede{ font-size:9.5px; padding:1px 6px; }
+  .nv-fr .h{ font-size:10.5px; }
+  /* Las etiquetas de sede y duración no se comprimen hasta desaparecer */
+  .nv-sede, .nv-ocup .d, .nv-bloq .d{ flex:none; }
+}
 .nv-ocup,.nv-bloq{width:100%;text-align:left;font-family:var(--font);cursor:pointer}
 .nv-ocup{background:var(--n-surface);border:1px solid var(--n-line);border-radius:10px;
   padding:8px 12px;display:flex;align-items:center;gap:8px;overflow:hidden}
@@ -2352,6 +2375,39 @@ const CONFIG = {
   RECORDATORIO_DIAS_MAX: 16,   // hasta 16 días adelante
 };
 
+// ═══ AVISO DE CITA NUEVA (WhatsApp vía Make) ══════════════════════════════
+// Cuando alguien anota algo FUERA del horario de clínica, avisa a los demás.
+// Dentro del horario no manda nada: ahí ya se ve la agenda en pantalla.
+const AVISO = {
+  webhook: 'https://hook.us2.make.com/m9jgo84q449cf2wf24y08vxijkvcmq1s',
+  margenMin: 30,      // minutos antes/después del horario en que se asume "en clínica"
+  timeoutMs: 6000,
+
+  // Por ahora solo se avisa de las citas del Dr. Denis. Cuando se decida qué
+  // hacer con las de la Dra. Nóchez y las de Pamela, se agregan acá y el resto
+  // sigue igual.
+  profesionales: ['denis'],
+
+  // A quiénes les llega, según la sede de la cita.
+  // Formato 502XXXXXXXX: sin +, sin guiones, sin espacios.
+  //
+  // El filtro se hace acá y no en Make: la agenda ya sabe de qué sede es cada
+  // cita, así que manda la lista ya depurada y el Iterator recorre lo que
+  // llegue, sin reglas que mantener en dos lugares.
+  //
+  //   sedes : en qué sede quiere enterarse. Omitir = en todas.
+  destinatarios: [
+    // Denis, de las dos sedes
+    { nombre: 'Denis',   numero: '50242146520' },
+
+    // Liseth, asistente de Mixco
+    { nombre: 'Liseth',  numero: '50255147500', sedes: ['mixco'] },
+
+    // Violeta, asistente de San Cristóbal
+    { nombre: 'Violeta', numero: '50236580859', sedes: ['sancristobal'] },
+  ],
+};
+
 // ═══ STATE ════════════════════════════════════════════════════════════════
 let events = [];
 let currentView = 'denis';
@@ -2382,7 +2438,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 70;
+const APP_VERSION = 78;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -2788,7 +2844,7 @@ const tFmt=(m)=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padS
 // misma cita duraba media hora para publicar y una hora para dibujar, así que
 // la agenda se veía llena mientras el sistema de citas seguía ofreciendo ese
 // rato. `duration` viene en HORAS —el lector de MediCloud hace
-// Math.round(minutos/60)—, así que multiplicar por 30 lo partía a la mitad.
+// Math.round(minutos/60)—, así que multiplicar por 30 la partía a la mitad.
 function duracionEvento(e){
   if(!e) return 0;
   if(Number.isFinite(e.durMin) && e.durMin > 0) return e.durMin;
@@ -6014,7 +6070,7 @@ function nvHTMLMiDia(){
     if(b.t==='oc') return `<div class="nv-fr">${hora}
       <button class="nv-ocup" style="height:${alto}px"
         data-nv="cita" data-ev="${b.evId||''}"><span><b>${esc(b.nombre)}</b>
-      ${b.nota?`<span class="nv-sub">${esc(b.nota).slice(0,60)}</span>`:''}</span>
+      ${(()=>{ const n = notaLegible(b.nota); return n ? `<span class="nv-sub">${esc(n).slice(0,54)}</span>` : ''; })()}</span>
       <span class="nv-sede">${b.sede}</span><span class="d num">${nvDur(b.fin-b.ini)}</span></button></div>`;
     if(b.t==='bl') return `<div class="nv-fr">${hora}
       <button class="nv-bloq" style="height:${alto}px"
@@ -6506,7 +6562,12 @@ function pfRenderTabs(){
 function pfSet(id){
   if(pfModo==='base' && pfBorrador && pfHayCambios() && !confirm('Hay cambios sin guardar. ¿Descartarlos?')) return;
   pfActual = id; pfRenderTabs(); pfCargarBorrador();
-  if(pfModo==='semana') psRender(); else pfRender();
+  if(pfModo==='semana'){
+    // Cada profesional abre en el día de hoy, no en el que quedó desplegado
+    // del anterior.
+    psAbierto = psSemana().map(dateKey).includes(todayKey()) ? todayKey() : null;
+    psRender();
+  } else pfRender();
 }
 window.pfSet = pfSet;
 
@@ -6638,7 +6699,14 @@ window.psMover = psMover;
 // sabían recortar el día entero por igual. No había forma de decir «el viernes
 // cierro Mixco a las 14:00 pero Pinares sigue a las 15:00», que es justamente
 // el tipo de cambio que se hace todas las semanas.
-let psBorrador = {};   // fecha -> [{sede, ini, fin}]
+let psBorrador = {};   // "profesional|fecha" -> [{sede, ini, fin}]
+
+// La clave lleva el profesional. Antes era solo la fecha, así que al pasar de
+// una pestaña a otra el borrador seguía siendo el del anterior: se abría la
+// semana de la Dra. Nóchez y se veían las franjas del Dr. Denis, y guardar
+// escribía las horas de él en la agenda de ella. Por eso «solo funcionaba con
+// Denis»: era el primero que se cargaba y el que quedaba pegado.
+const psK = fecha => `${pfActual}|${fecha}`;
 let psAbierto = null;  // qué día está desplegado
 
 function psAbrir(fecha){
@@ -6648,14 +6716,14 @@ function psAbrir(fecha){
 window.psAbrir = psAbrir;
 
 function psCargarDia(fecha){
-  if(psBorrador[fecha]) return psBorrador[fecha];
+  if(psBorrador[psK(fecha)]) return psBorrador[psK(fecha)];
   let fr = [];
   try{ fr = franjasEfectivas(pfActual, fecha) || []; }catch(_){}
-  psBorrador[fecha] = fr.sort((a,b)=>a.ini-b.ini).map(f => ({
+  psBorrador[psK(fecha)] = fr.sort((a,b)=>a.ini-b.ini).map(f => ({
     sede: (SEDE_POR_CLAVE[f.clinica]||{}).id || Object.keys(SEDES)[0],
     ini: f.ini, fin: f.fin
   }));
-  return psBorrador[fecha];
+  return psBorrador[psK(fecha)];
 }
 
 // Qué problemas tiene el día tal como está en el borrador: franjas encimadas
@@ -6781,7 +6849,7 @@ function psRender(){
 
 // ¿El borrador de ese día difiere de lo que hay publicado?
 function psSucio(fecha){
-  const filas = psBorrador[fecha];
+  const filas = psBorrador[psK(fecha)];
   if(!filas) return false;
   let fr = [];
   try{ fr = franjasEfectivas(pfActual, fecha) || []; }catch(_){}
@@ -6798,7 +6866,7 @@ const psMin = t => { const [h,m]=(t||'0:0').split(':').map(Number); return h*60+
 // reloj del sistema, que son tres toques y una rueda diminuta; y escribir la
 // hora obliga a sacar el teclado. Un botón es un toque y ya.
 function psMoverHora(fecha, k, campo, delta){
-  const x = psBorrador[fecha][k]; if(!x) return;
+  const x = (psBorrador[psK(fecha)]||[])[k]; if(!x) return;
   const v = Math.max(0, Math.min(23*60+45, x[campo] + delta));
   if(campo === 'ini'){
     x.ini = v;
@@ -6811,7 +6879,7 @@ function psMoverHora(fecha, k, campo, delta){
 window.psMoverHora = psMoverHora;
 
 function psEditar(fecha, k, campo, valor){
-  const x = psBorrador[fecha][k]; if(!x) return;
+  const x = (psBorrador[psK(fecha)]||[])[k]; if(!x) return;
   x[campo] = campo==='sede' ? valor : psMin(valor);
   psRender();
 }
@@ -6829,16 +6897,16 @@ function psAgregarFila(fecha){
 }
 window.psAgregarFila = psAgregarFila;
 
-function psQuitarFila(fecha, k){ psBorrador[fecha].splice(k,1); psRender(); }
+function psQuitarFila(fecha, k){ (psBorrador[psK(fecha)]||[]).splice(k,1); psRender(); }
 window.psQuitarFila = psQuitarFila;
 
-function psVaciar(fecha){ psBorrador[fecha] = []; psRender(); }
+function psVaciar(fecha){ psBorrador[psK(fecha)] = []; psRender(); }
 window.psVaciar = psVaciar;
 
 // Guardar: se agrupan las franjas por sede y cada sede queda con TODOS sus
 // rangos de ese día.
 async function psGuardarDia(fecha){
-  const filas = (psBorrador[fecha]||[]).filter(x => x.fin - x.ini >= 15);
+  const filas = (psBorrador[psK(fecha)]||[]).filter(x => x.fin - x.ini >= 15);
   const fallos = [];
   const respaldo = jornadasEspeciales.slice();   // por si hay que deshacer
   for(const [sid, sx] of Object.entries(SEDES)){
@@ -6898,7 +6966,7 @@ async function psGuardarDia(fecha){
     }catch(e){ console.warn('verificar:', e.message); }
   }
 
-  delete psBorrador[fecha];
+  delete psBorrador[psK(fecha)];
   render(); psRender();
   await psPublicar(fecha);
 }
@@ -6946,7 +7014,7 @@ async function psQuitar(fecha){
     jornadasEspeciales = jornadasEspeciales.filter(j => j.id !== id);
     if(_db) try{ await _db.collection('jornadas_especiales').doc(id).delete(); }catch(_){}
   }
-  delete psBorrador[fecha];
+  delete psBorrador[psK(fecha)];
   render(); psRender();
   await psPublicar(fecha);
 }
@@ -8024,6 +8092,185 @@ function mostrarAvisoBreve(txt){
 }
 window.mostrarAvisoBreve = mostrarAvisoBreve;
 
+// ¿Estamos dentro del horario de clínica en este momento?
+// Sale de la programación semanal real, con jornadas especiales incluidas.
+function enHorarioClinica(cuando = new Date()){
+  const fecha = dateKey(cuando);
+  const ahora = cuando.getHours()*60 + cuando.getMinutes();
+  for(const id of Object.keys(PROFESIONALES)){
+    let fr = [];
+    try{ fr = franjasEfectivas(id, fecha) || []; }catch(_){}
+    for(const f of fr){
+      if(ahora >= f.ini - AVISO.margenMin && ahora <= f.fin + AVISO.margenMin) return true;
+    }
+  }
+  return false;   // día sin programación (domingo, feriado) = fuera de horario
+}
+
+// Espacios libres de ESE profesional en ESA sede ese día.
+// Como cada especialidad tiene un solo profesional, filtrar por profesional
+// es filtrar por especialidad.
+// Deja legible la nota que trae MediCloud. Viene con sus campos internos y
+// con los saltos de línea escritos como texto: «Estado: 5\nClasificación:
+// Pendiente\n\nDetalles: T:4229-...». Se mostraba tal cual y en el teléfono
+// tapaba el nombre del paciente de la fila siguiente.
+function notaLegible(txt){
+  return String(txt || '')
+    .replace(/\*?Estado:\s*\d+/gi, '')
+    .replace(/Clasificaci[oó]n:\s*\w+/gi, '')
+    .replace(/Detalles?:/gi, '')
+    .replace(/\\n/g, ' ').replace(/\n/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[\s·|-]+|[\s·|-]+$/g, '')
+    .trim();
+}
+window.notaLegible = notaLegible;
+
+// Cómo va el día: cuántos espacios se ocuparon, cuántos quedan y cuál es el
+// próximo. Antes el aviso mandaba solo la lista de horas libres, que no dice
+// si el día va lleno o vacío.
+function resumenDelDia(ev){
+  const libres = huecosParaAviso(ev);
+  const sede = (ev.type === 'clinic1' || ev.type === 'clinic2') ? ev.type : null;
+  const min = NV_MIN_CONSULTA;
+
+  // Espacios que caben en las franjas de ese día en esa sede
+  let total = 0;
+  try{
+    (franjasEfectivas(ev.doctor, ev.date) || [])
+      .filter(f => !sede || f.clinica === sede)
+      .forEach(f => { total += Math.floor((f.fin - f.ini) / min); });
+  }catch(_){}
+
+  const ocupadas = events
+    .filter(e => e.date === ev.date && e.doctor === ev.doctor &&
+                 e.status !== 'cancelled' && e.time &&
+                 (!sede || e.type === sede))
+    .map(e => e.time).sort();
+
+  const disponibles = libres.length;
+  return {
+    ocupadas,
+    cuantas_ocupadas: ocupadas.length,
+    total: Math.max(total, ocupadas.length + disponibles),
+    disponibles,
+    proximo: libres.length ? libres[0] : '',
+  };
+}
+
+// A quién le corresponde este aviso.
+//
+// Una cita sin sede definida —un bloqueo de ambas, por ejemplo— se manda a
+// todos: es preferible avisar de más que dejar a alguien sin enterarse de algo
+// que sí le tocaba.
+function destinatariosPara(profId, sedeId){
+  // Filtro general: de qué profesionales se avisa. Mientras esté puesto, las
+  // citas de los demás no generan ningún mensaje.
+  if(Array.isArray(AVISO.profesionales) && AVISO.profesionales.length &&
+     profId && !AVISO.profesionales.includes(profId)) return [];
+
+  return (AVISO.destinatarios || []).filter(d => {
+    if(!d.numero || d.numero.includes('X')) return false;   // sin número real
+    if(Array.isArray(d.profesionales) && d.profesionales.length &&
+       profId && !d.profesionales.includes(profId)) return false;
+    if(Array.isArray(d.sedes) && d.sedes.length &&
+       sedeId && !d.sedes.includes(sedeId)) return false;
+    return true;
+  });
+}
+window.destinatariosPara = destinatariosPara;
+
+function huecosParaAviso(ev){
+  let hu = [];
+  try{ hu = calcularHuecosFranja(ev.doctor, ev.date) || []; }catch(_){ return []; }
+  const ahora = new Date();
+  const esHoy = ev.date === dateKey(ahora);
+  const minAhora = ahora.getHours()*60 + ahora.getMinutes();
+  const sede = (ev.type === 'clinic1' || ev.type === 'clinic2') ? ev.type : null;
+  return hu
+    .filter(h => !sede || h.clinica === sede)
+    .filter(h => !esHoy || tMin(h.ini) >= minAhora)
+    .map(h => h.ini);
+}
+
+async function avisarCitaNueva(ev){
+  if(!AVISO.webhook) return;                 // sin webhook configurado, no hace nada
+  if(enHorarioClinica()) return;             // en clínica no molesta
+
+  // La plantilla aprobada empieza con «Nueva cita agregada a la agenda», así
+  // que un bloqueo llegaría con un texto que no le corresponde. Los bloqueos
+  // son movimientos internos —una reunión, un rato ocupado— y no cambian lo
+  // que hay que atender: no se avisan.
+  if(ev.type === 'blocked' || ev.blocked) return;
+
+  const clave = 'aviso_' + ev.id;
+  try{
+    if(sessionStorage.getItem(clave)) return;   // no repetir el mismo aviso
+    sessionStorage.setItem(clave, '1');
+  }catch(_){}
+
+  const P      = PROFESIONALES[ev.doctor] || {};
+  const sedeId = (SEDE_POR_CLAVE[ev.type] || {}).id
+              || (SEDE_POR_CLAVE[ev.blockClinica] || {}).id || null;
+
+  // Si a nadie le corresponde, no se manda: ni mensaje ni operación gastada.
+  const paraQuien = destinatariosPara(ev.doctor, sedeId);
+  if(!paraQuien.length){
+    console.log('Aviso omitido: nadie sigue', nombreProf(ev.doctor), 'en', sedeId || 'esa sede');
+    return;
+  }
+
+  const r      = resumenDelDia(ev);
+  const tipo   = ev.type === 'blocked' ? 'Bloqueo'
+               : (ev.status === 'reserva' ? 'Reserva' : 'Cita');
+  const sede   = (SEDE_POR_CLAVE[ev.type] || {}).nombre
+              || (SEDE_POR_CLAVE[ev.blockClinica] || {}).nombre
+              || 'Ambas sedes';
+
+  const payload = {
+    evento: 'nueva_cita',
+    tipo,
+    paciente: ev.name || 'Sin nombre',
+    telefono_paciente: ev.phone || '',
+    fecha: ev.date,
+    fecha_texto: fmtFecha(ev.date),
+    hora: ev.time || '',
+    duracion: duracionEvento(ev),
+    sede,
+    especialidad: (P.especialidades || []).join(' · ') || 'General',
+    profesional: P.corto || nombreProf(ev.doctor),
+    // Cómo va el día, que es lo que de verdad se quiere saber al recibir el
+    // aviso: si ya está lleno o si todavía hay hueco para ofrecer.
+    ocupadas: r.ocupadas.slice(0, 8).join(', ') || 'ninguna',
+    cuantas_ocupadas: r.cuantas_ocupadas,
+    disponibles: r.disponibles,
+    total_espacios: r.total,
+    proximo: r.proximo || 'ninguno',
+    resumen: r.disponibles
+      ? `${r.disponibles} de ${r.total} libres · próximo ${r.proximo}`
+      : `día lleno · ${r.total} espacios ocupados`,
+    destinatarios: paraQuien,
+    enviado_en: new Date().toISOString(),
+  };
+
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), AVISO.timeoutMs);
+  try{
+    await fetch(AVISO.webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+      keepalive: true,
+    });
+    console.log('Aviso enviado:', payload.paciente, payload.hora);
+  }catch(e){
+    console.warn('Aviso no enviado:', e.message);
+    try{ sessionStorage.removeItem(clave); }catch(_){}
+  }finally{ clearTimeout(t); }
+}
+window.avisarCitaNueva = avisarCitaNueva;
+
 function handleClick(ev){
   // Cita web (del sistema de citas) — si hay una de MediCloud cerca en el mismo
   // horario, ofrecer unificar (borrar la web ya que MediCloud es la real)
@@ -8633,6 +8880,7 @@ async function saveEvent(){
   if(isBlock){ await guardarMensajeDia(date); }
   closeModal();
   await saveWithDupCheck(ev);
+  if(wasNew) avisarCitaNueva(ev);
 
   // Si el bloqueo es para "Ambos médicos", crear un segundo evento para el otro médico
   const bloquearAmbos = isBlock && document.getElementById('cb-ambos-doc')?.dataset.active==='1';
@@ -8704,7 +8952,7 @@ async function bloquearTrasladoSanCristobal(ev){
   if(!j) return;
 
   const inicioSanc = tMin(ev.time);
-  const finSanc = inicioSanc + (ev.durMin || 45);
+  const finSanc = inicioSanc + duracionEvento(ev);
   const esMañana = inicioSanc < HORA_CORTE_MANANA;
   const MARGEN = esMañana ? MARGEN_SC_A_MIXCO : MARGEN_MIXCO_A_SC;
 
@@ -9715,7 +9963,11 @@ async function syncMedicloudDurationsToCitas(){
     // 1. Slots que DEBERÍAN existir según las citas actuales
     const deseados = {}; // hora -> {slotMin, uid}
     for(const c of grupos[k]){
-      const dur = c.durMin || ((c.duration||1)*30);
+      // Mismo caso que arreglamos en la v70, en otro lugar: `duration` viene en
+      // HORAS y multiplicarlo por 30 partía la cita a la mitad. Este bloque es
+      // el que le manda a las páginas de citas cuánto ocupa cada cita, así que
+      // el error llegaba directo al paciente.
+      const dur = duracionEvento(c);
       const uid = c.id; // ical_<uid>
       slotsFor(tm(c.time), dur).forEach(s=>{ deseados[s.hora] = {slotMin:s.slotMin, uid}; });
     }
@@ -9780,7 +10032,7 @@ async function pushBloqueoToCitas(ev){
   const lote = _lote();
   try {
     const startM = tm(ev.time||'08:00');
-    const totalMin = ev.durMin || ((ev.duration||1)*60);
+    const totalMin = duracionEvento(ev);
     const endM = startM + totalMin;
     // Descomponer en slots: 45 min mientras lo que reste después sea >=30
     // (o exactamente 0). Nunca generar un slot menor a 30 min.
