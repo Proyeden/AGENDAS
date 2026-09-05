@@ -2396,15 +2396,21 @@ const AVISO = {
   // llegue, sin reglas que mantener en dos lugares.
   //
   //   sedes : en qué sede quiere enterarse. Omitir = en todas.
+  //   correo : con qué entra a la agenda. Sirve para NO avisarle a quien
+  //            acaba de agendar: ya lo sabe, y recibir el mensaje de algo que
+  //            uno mismo hizo hace que se dejen de leer los avisos.
   destinatarios: [
     // Denis, de las dos sedes
-    { nombre: 'Denis',   numero: '50242146520' },
+    { nombre: 'Denis',   numero: '50242146520',
+      correo: 'drdeniscotzojay@gmail.com' },
 
     // Liseth, asistente de Mixco
-    { nombre: 'Liseth',  numero: '50255147500', sedes: ['mixco'] },
+    { nombre: 'Liseth',  numero: '50255147500', sedes: ['mixco'],
+      correo: 'cmjcduarte@gmail.com' },
 
     // Violeta, asistente de San Cristóbal
-    { nombre: 'Violeta', numero: '50236580859', sedes: ['sancristobal'] },
+    { nombre: 'Violeta', numero: '50236580859', sedes: ['sancristobal'],
+      correo: 'empinares@gmail.com' },
   ],
 };
 
@@ -2438,7 +2444,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 78;
+const APP_VERSION = 80;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -2852,6 +2858,40 @@ function duracionEvento(e){
   return horas * 60;
 }
 window.duracionEvento = duracionEvento;
+
+// ── LAS CITAS DE MEDICLOUD, GUARDADAS PARA EL PRÓXIMO ARRANQUE ───────────
+//
+// Se excluían del guardado local a propósito, para no mostrar datos viejos.
+// El efecto era peor: al abrir la agenda no había NADA hasta que los feeds
+// respondieran, y eso puede tardar —van por proxies y reintentan—. Se veía un
+// día vacío que no era cierto.
+//
+// Ahora se guardan aparte y se muestran al instante. La sincronización las
+// reemplaza en cuanto llega, así que lo viejo dura segundos. Y si la caché
+// tiene más de un día, se descarta: mejor vacío que equivocado.
+const MC_CACHE_HORAS = 24;
+
+function guardarMedicloudLocal(){
+  try{
+    const mc = events.filter(e => e.source === 'medicloud');
+    if(!mc.length) return;
+    localStorage.setItem('ag_medicloud', JSON.stringify({ ts: Date.now(), evs: mc }));
+  }catch(_){}
+}
+
+function leerMedicloudLocal(){
+  try{
+    const raw = localStorage.getItem('ag_medicloud');
+    if(!raw) return [];
+    const { ts, evs } = JSON.parse(raw);
+    if(!Array.isArray(evs) || !evs.length) return [];
+    if(Date.now() - ts > MC_CACHE_HORAS*3600*1000){
+      localStorage.removeItem('ag_medicloud');
+      return [];
+    }
+    return evs;
+  }catch(_){ return []; }
+}
 
 function calcularHuecos(doctorId, dateStr, clinicId){
   const [Y,Mo,D] = dateStr.split('-').map(Number);
@@ -4109,6 +4149,7 @@ async function loadIcalFeedsWithDupCheck(){
   // Las citas ya pasaron por acá: desde ahora la publicación tiene con qué
   // calcular la ocupación real.
   _citasListas = true;
+  guardarMedicloudLocal();
 
   let huecosHash;
   try { huecosHash = calcularHashHuecos(); }
@@ -8163,7 +8204,8 @@ function resumenDelDia(ev){
 // Una cita sin sede definida —un bloqueo de ambas, por ejemplo— se manda a
 // todos: es preferible avisar de más que dejar a alguien sin enterarse de algo
 // que sí le tocaba.
-function destinatariosPara(profId, sedeId){
+function destinatariosPara(profId, sedeId, correoAutor){
+  const autor = String(correoAutor || '').trim().toLowerCase();
   // Filtro general: de qué profesionales se avisa. Mientras esté puesto, las
   // citas de los demás no generan ningún mensaje.
   if(Array.isArray(AVISO.profesionales) && AVISO.profesionales.length &&
@@ -8171,6 +8213,8 @@ function destinatariosPara(profId, sedeId){
 
   return (AVISO.destinatarios || []).filter(d => {
     if(!d.numero || d.numero.includes('X')) return false;   // sin número real
+    // A quien acaba de agendar no se le avisa: ya lo sabe.
+    if(autor && d.correo && d.correo.trim().toLowerCase() === autor) return false;
     if(Array.isArray(d.profesionales) && d.profesionales.length &&
        profId && !d.profesionales.includes(profId)) return false;
     if(Array.isArray(d.sedes) && d.sedes.length &&
@@ -8214,9 +8258,11 @@ async function avisarCitaNueva(ev){
               || (SEDE_POR_CLAVE[ev.blockClinica] || {}).id || null;
 
   // Si a nadie le corresponde, no se manda: ni mensaje ni operación gastada.
-  const paraQuien = destinatariosPara(ev.doctor, sedeId);
+  const autor = (_auth && _auth.currentUser && _auth.currentUser.email) || '';
+  const paraQuien = destinatariosPara(ev.doctor, sedeId, autor);
   if(!paraQuien.length){
-    console.log('Aviso omitido: nadie sigue', nombreProf(ev.doctor), 'en', sedeId || 'esa sede');
+    console.log('Aviso omitido: no queda a quién avisar',
+      autor ? `(lo agendó ${autor})` : '');
     return;
   }
 
@@ -10717,6 +10763,19 @@ function wireUp(){
 
 async function init(){
   setSyncBadge('loading');
+
+  // Mostrar de entrada las citas de la última sincronización. Que la agenda se
+  // vea vacía mientras cargan los feeds hace dudar de si el día está libre o
+  // si todavía no llegó nada.
+  try{
+    const guardadas = leerMedicloudLocal();
+    if(guardadas.length){
+      const yaHay = new Set(events.map(e => e.id));
+      guardadas.forEach(e => { if(!yaHay.has(e.id)) events.push(e); });
+      console.log(`${guardadas.length} citas de MediCloud desde la última sincronización`);
+      try{ render(); }catch(_){}
+    }
+  }catch(e){ console.warn('citas guardadas:', e.message); }
   // Los horarios guardados pisan a los de fábrica. Va primero: todo lo que
   // sigue (franjas, huecos, publicación) depende de esta tabla.
   try { await cargarModelo(); } catch(e){ console.warn('modelo:', e.message); }
