@@ -2444,7 +2444,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 80;
+const APP_VERSION = 84;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3979,7 +3979,28 @@ async function syncNow(){
   }
 }
 
+// Candado: una sola sincronización a la vez.
+//
+// Se dispara desde ocho lugares —el arranque, el temporizador, volver a la
+// app, el botón de actualizar, el escucha de citas—. Dos corriendo a la vez se
+// pisaban: la primera borraba las citas de MediCloud para volver a llenarlas,
+// y la segunda las encontraba vacías. Si además los feeds fallaban, quedaban
+// borradas hasta la siguiente vuelta. Ese era el «se borran las citas».
+let _sincronizando = null;
+
 async function loadIcalFeedsWithDupCheck(){
+  if(_sincronizando){
+    console.log('Sincronización ya en curso, se espera a que termine');
+    return _sincronizando;
+  }
+  _sincronizando = (async () => {
+    try { return await _sincronizarAhora(); }
+    finally { _sincronizando = null; }
+  })();
+  return _sincronizando;
+}
+
+async function _sincronizarAhora(){
   setSyncBadge('loading');
 
   // ── 1. Sync from app de citas (citas-mixco Firebase) ──
@@ -4037,6 +4058,25 @@ async function loadIcalFeedsWithDupCheck(){
     icalHoy: icalEvs.filter(e=>e.date===hoyStr).map(e=>`${e.time} ${e.name} [${e.durMin}min] id=${e.id}`),
     overrides: Object.keys(durOverrides||{}).map(k=>`${k} → ${durOverrides[k]}min`),
   };
+  // Si TODOS los feeds fallaron, no se borra nada: se conservan las citas que
+  // ya estaban. Borrar primero y volver a llenar después funciona mientras
+  // MediCloud responda, pero con la red mala o el servicio caído deja la
+  // agenda vacía —y el día se ve libre cuando no lo está—. La carga de citas
+  // web ya tenía esta protección; esta no.
+  const feedsUtiles = results.filter(r => Array.isArray(r)).length;
+  if(!feedsUtiles && CONFIG.ICAL_FEEDS.length){
+    const teniamos = events.filter(e => e.source === 'medicloud').length;
+    console.warn(`MediCloud no respondió (${failedFeeds.length} feeds). ` +
+      `Se conservan las ${teniamos} citas que ya estaban.`);
+    setSyncBadge('error');
+    const st = document.getElementById('sync-text');
+    if(st) st.textContent = teniamos
+      ? `Sin conexión con MediCloud · mostrando lo último`
+      : 'Sin conexión con MediCloud';
+    render();
+    return;
+  }
+
   events=events.filter(e=>e.source!=='medicloud');
   const pending=[];
   for(const ev of icalEvs){
@@ -10764,18 +10804,6 @@ function wireUp(){
 async function init(){
   setSyncBadge('loading');
 
-  // Mostrar de entrada las citas de la última sincronización. Que la agenda se
-  // vea vacía mientras cargan los feeds hace dudar de si el día está libre o
-  // si todavía no llegó nada.
-  try{
-    const guardadas = leerMedicloudLocal();
-    if(guardadas.length){
-      const yaHay = new Set(events.map(e => e.id));
-      guardadas.forEach(e => { if(!yaHay.has(e.id)) events.push(e); });
-      console.log(`${guardadas.length} citas de MediCloud desde la última sincronización`);
-      try{ render(); }catch(_){}
-    }
-  }catch(e){ console.warn('citas guardadas:', e.message); }
   // Los horarios guardados pisan a los de fábrica. Va primero: todo lo que
   // sigue (franjas, huecos, publicación) depende de esta tabla.
   try { await cargarModelo(); } catch(e){ console.warn('modelo:', e.message); }
@@ -10792,7 +10820,32 @@ async function init(){
     }, 4000);
   }
   try{
-    events = await DB.load();
+    // `DB.load()` trae lo que la agenda guarda en Firebase: lo escrito a mano.
+    // NO trae las citas de MediCloud ni las de la web, que viven en otro lado.
+    // Asignarlo directo borraba lo que una sincronización ya hubiera cargado,
+    // y como la carga tarda, la carrera se daba seguido: las citas aparecían
+    // y desaparecían solas.
+    const propias = await DB.load();
+    const deAfuera = events.filter(e => e.source === 'medicloud' || e.source === 'online');
+    const yaEstan = new Set(propias.map(e => e.id));
+    events = [...propias, ...deAfuera.filter(e => !yaEstan.has(e.id))];
+    if(deAfuera.length) console.log(`${deAfuera.length} citas de MediCloud conservadas al cargar`);
+
+    // Las citas de la última sincronización, encima de lo que vino de Firebase.
+    // Va acá y no antes: `DB.load()` REEMPLAZA la lista completa, así que
+    // cualquier cosa restaurada más arriba se perdía sin dejar rastro. Que la
+    // agenda se vea vacía mientras cargan los feeds hace dudar de si el día
+    // está libre o si todavía no llegó nada.
+    try{
+      const guardadas = leerMedicloudLocal();
+      if(guardadas.length){
+        const yaHay = new Set(events.map(e => e.id));
+        guardadas.forEach(e => { if(!yaHay.has(e.id)) events.push(e); });
+        console.log(`${guardadas.length} citas de MediCloud desde la última sincronización`);
+        try{ render(); }catch(_){}
+      }
+    }catch(e){ console.warn('citas guardadas:', e.message); }
+
     controles = await DB.loadControls();
     durOverrides = await DB.loadDurOverrides();
     // Cargar jornadas especiales al inicio para que calcularHuecos las use
