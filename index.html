@@ -558,6 +558,16 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .st-card{background:#fff;border:1px solid var(--line);border-radius:13px;padding:16px;margin-bottom:14px;
   box-shadow:0 1px 2px rgba(18,63,115,.06)}
 .st-card.saldo{border-left:5px solid #1B72B8}
+.st-card.pago{border-left:5px solid #B36A05}
+.st-card.manual{border-left:5px solid #6BB745}
+.st-grid{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px}
+.st-campo{flex:1 1 150px;min-width:0;margin-top:11px}
+.st-grid .st-campo{margin-top:0}
+.st-campo label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+  color:#54718A;font-weight:700;margin-bottom:5px;line-height:1.3}
+.st-campo input{width:100%;box-sizing:border-box;padding:11px;border:1.5px solid #CBD5E1;
+  border-radius:9px;font-family:var(--font);font-size:15px;font-variant-numeric:tabular-nums}
+.st-campo input:focus{outline:none;border-color:#1B72B8}
 .st-t{font-family:var(--round);font-size:11px;text-transform:uppercase;letter-spacing:.09em;
   color:#1B72B8;font-weight:700;margin-bottom:10px}
 .st-big{font-family:var(--round);font-size:30px;font-weight:800;color:#123F73;line-height:1;
@@ -2487,7 +2497,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 91;
+const APP_VERSION = 92;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -6467,6 +6477,7 @@ async function stAbrir(){
     _stMostrar(true);
     stOffset = 0;
     stPintar();
+    stCargarDatosManuales().then(() => stPintar(true));
   } else {
     err.textContent = h === null
       ? 'No se pudo verificar la clave en este navegador.'
@@ -6490,6 +6501,7 @@ function openStats(){
     _stMostrar(true);
     stOffset = 0;
     stPintar();
+    stCargarDatosManuales().then(() => stPintar(true));
   } else {
     _stMostrar(false);
     setTimeout(()=>{ const i=document.getElementById('st-clave'); if(i) i.focus(); }, 120);
@@ -6651,6 +6663,77 @@ const ST_MESES = ['enero','febrero','marzo','abril','mayo','junio','julio',
                   'agosto','septiembre','octubre','noviembre','diciembre'];
 const ST_DIAS = ['','lunes','martes','miércoles','jueves','viernes','sábado'];
 
+// ═══ DATOS QUE NO SALEN DE LA AGENDA ══════════════════════════════════════
+//
+// Hay tres cosas que el sistema no puede saber solo y que hacen falta para los
+// números de dinero:
+//
+//   · Lo cobrado en el mes, por sede. La agenda registra citas, no pagos.
+//   · Cuántos pacientes de una sede se atendieron en la otra. Pasa seguido y
+//     no queda registrado en ningún lado.
+//   · El salario mínimo vigente, que cambia cada año y lo fija el Ministerio.
+//
+// Se guardan en Firebase para que estén en cualquier dispositivo del equipo.
+
+let _datosMes = {};     // 'YYYY-MM' -> { ingMixco, ingSanc, cruceMixco, cruceSanc }
+let _salarios = {};     // 'AAAA' -> salario mensual en quetzales
+
+const stClaveMes = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+
+async function stCargarDatosManuales(){
+  if(!_db) return;
+  try{
+    const snap = await _db.collection('datos_mensuales').get();
+    _datosMes = {};
+    snap.forEach(d => { _datosMes[d.id] = d.data(); });
+  }catch(e){ console.warn('datos mensuales:', e.message); }
+  try{
+    const d = await _db.collection('config_app').doc('salarios_minimos').get();
+    if(d.exists) _salarios = d.data().porAnio || {};
+  }catch(e){ console.warn('salarios:', e.message); }
+}
+
+async function stGuardarMes(clave, campo, valor){
+  const n = Number(String(valor).replace(/[^0-9.]/g,'')) || 0;
+  _datosMes[clave] = { ..._datosMes[clave], [campo]: n };
+  if(_db){
+    try{ await _db.collection('datos_mensuales').doc(clave).set(_datosMes[clave], {merge:true}); }
+    catch(e){ alert('No se pudo guardar: ' + e.message); return; }
+  }
+  mostrarAvisoBreve('Guardado');
+  stPintar(true);
+}
+window.stGuardarMes = stGuardarMes;
+
+async function stGuardarSalario(anio, valor){
+  const n = Number(String(valor).replace(/[^0-9.]/g,'')) || 0;
+  _salarios[anio] = n;
+  if(_db){
+    try{ await _db.collection('config_app').doc('salarios_minimos')
+      .set({ porAnio: _salarios, actualizado: new Date().toISOString() }, {merge:true}); }
+    catch(e){ alert('No se pudo guardar: ' + e.message); return; }
+  }
+  mostrarAvisoBreve(`Salario mínimo ${anio} guardado`);
+  stPintar(true);
+}
+window.stGuardarSalario = stGuardarSalario;
+
+// Cuánto vale una hora extra.
+//
+// En Guatemala la jornada ordinaria diurna es de 8 horas y el Código de Trabajo
+// manda pagar las extraordinarias con un recargo de al menos el 50%. De ahí
+// sale el 1.5: es el mínimo legal, no un tope. Si vos pagás distinto, cambiá
+// el recargo y la cuenta se ajusta.
+const ST_RECARGO_EXTRA = 1.5;
+
+function stTarifaHora(anio){
+  const mensual = _salarios[anio];
+  if(!mensual) return null;
+  const diario = mensual / 30;          // el salario mínimo se fija por mes
+  const hora = diario / 8;              // jornada ordinaria diurna
+  return { mensual, diario, hora, extra: hora * ST_RECARGO_EXTRA };
+}
+
 function stPintar(soloCuerpo){
   const { ini, desde, hasta } = stMesRango();
   document.getElementById('st-mes-lbl').textContent =
@@ -6793,6 +6876,84 @@ function stPintar(soloCuerpo){
         Se decide en el planificador, ordenando las sedes del día.</div>
     </div>`);
   }
+
+  // ── Pago de las horas extra ─────────────────────────────────────────
+  if(stSede !== 'clinic2'){
+    const anio = String(ini.getFullYear());
+    const t = stTarifaHora(anio);
+    const extra = Math.max(0, bal.saldo);
+    html.push(`<div class="st-card pago">
+      <div class="st-t">Pago de horas extra · ${anio}</div>
+      ${t
+        ? `<div class="st-big ${extra>0?'neg':''}">Q ${(extra/60*t.extra).toFixed(2)}</div>
+           <p class="st-sub">${extra > 0
+             ? `<b>${stHoras(extra)}</b> extra × <b>Q ${t.extra.toFixed(2)}</b> la hora.`
+             : `No quedaron horas por pagar este mes.`}</p>
+           <div class="st-nota">
+             Salario mínimo <b>Q ${t.mensual.toLocaleString('es-GT')}</b> al mes ·
+             Q ${t.diario.toFixed(2)} al día · Q ${t.hora.toFixed(2)} la hora ordinaria.<br>
+             La hora extra se paga con <b>50% de recargo</b>, que es el mínimo del Código de
+             Trabajo. Si pagás distinto, la cuenta hay que ajustarla a mano.
+           </div>`
+        : `<div class="st-big">—</div>
+           <p class="st-sub">Falta el salario mínimo de ${anio} para poder calcularlo.</p>`}
+      <div class="st-campo">
+        <label>Salario mínimo mensual ${anio} (Q)</label>
+        <input type="number" inputmode="decimal" value="${_salarios[anio] || ''}"
+          placeholder="0.00" onchange="stGuardarSalario('${anio}', this.value)">
+      </div>
+    </div>`);
+  }
+
+  // ── Lo que se ingresa a mano ────────────────────────────────────────
+  const cm = stClaveMes(ini);
+  const dm = _datosMes[cm] || {};
+  const totalIng = (dm.ingMixco||0) + (dm.ingSanc||0);
+  const nCitas = citas.length;
+  html.push(`<div class="st-card manual">
+    <div class="st-t">Ingresos del mes · se escriben a mano</div>
+    ${totalIng
+      ? `<div class="st-big">Q ${totalIng.toLocaleString('es-GT')}</div>
+         <p class="st-sub">${nCitas
+           ? `<b>Q ${(totalIng/nCitas).toFixed(2)}</b> por consulta, sobre ${nCitas} atendidas.`
+           : 'Todavía no hay consultas registradas este mes.'}</p>`
+      : `<div class="st-big">—</div>
+         <p class="st-sub">Escribí lo cobrado en cada sede y aparece el ingreso por consulta.</p>`}
+    <div class="st-grid">
+      <div class="st-campo">
+        <label>Cobrado en Mixco (Q)</label>
+        <input type="number" inputmode="decimal" value="${dm.ingMixco || ''}"
+          placeholder="0.00" onchange="stGuardarMes('${cm}','ingMixco',this.value)">
+      </div>
+      <div class="st-campo">
+        <label>Cobrado en San Cristóbal (Q)</label>
+        <input type="number" inputmode="decimal" value="${dm.ingSanc || ''}"
+          placeholder="0.00" onchange="stGuardarMes('${cm}','ingSanc',this.value)">
+      </div>
+    </div>
+    <div class="st-nota">
+      La agenda registra citas, no pagos: esto no lo puede saber sola.
+      Se guarda por mes y queda para el historial.
+    </div>
+  </div>`);
+
+  html.push(`<div class="st-card manual">
+    <div class="st-t">Pacientes atendidos en la otra sede</div>
+    <p class="st-sub">Cuando alguien de una sede se atiende en la otra, la cita queda
+      contada donde se dio. Anotalo acá para que el reparto entre sedes no engañe.</p>
+    <div class="st-grid">
+      <div class="st-campo">
+        <label>De Mixco, vistos en San Cristóbal</label>
+        <input type="number" inputmode="numeric" value="${dm.cruceMixco || ''}"
+          placeholder="0" onchange="stGuardarMes('${cm}','cruceMixco',this.value)">
+      </div>
+      <div class="st-campo">
+        <label>De San Cristóbal, vistos en Mixco</label>
+        <input type="number" inputmode="numeric" value="${dm.cruceSanc || ''}"
+          placeholder="0" onchange="stGuardarMes('${cm}','cruceSanc',this.value)">
+      </div>
+    </div>
+  </div>`);
 
   document.getElementById('st-cuerpo').innerHTML = html.join('');
 }
