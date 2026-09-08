@@ -473,8 +473,14 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .nvh-caja h3{margin:0 0 3px;font-size:18px;color:#123F73}
 .nvh-caja p{margin:0 0 16px;font-size:12.5px;color:#54718A}
-.nvh-op{width:100%;text-align:left;border:1.5px solid #A9C4D8;background:#fff;border-radius:11px;
-  padding:11px 13px;margin-bottom:8px;cursor:pointer;font-family:var(--font)}
+/* Sirve para <button> y para <a>. El enlace de WhatsApp usa esta misma clase,
+   y sin `display:block` un <a> se comporta como texto en línea: ignoraba el
+   ancho, no formaba caja y se montaba encima del botón de abajo. En la
+   computadora ni siquiera se distinguía. */
+.nvh-op{display:block;width:100%;box-sizing:border-box;text-align:left;
+  border:1.5px solid #A9C4D8;background:#fff;border-radius:11px;
+  padding:11px 13px;margin-bottom:8px;cursor:pointer;font-family:var(--font);
+  text-decoration:none;color:inherit}
 .nvh-op:hover{border-color:#1B72B8;background:#F7FBFE}
 .nvh-op b{display:block;font-size:14px;font-weight:700;color:#123F73}
 .nvh-op span{display:block;font-size:11.5px;color:#54718A;margin-top:2px;line-height:1.35}
@@ -2481,7 +2487,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 89;
+const APP_VERSION = 91;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3836,6 +3842,35 @@ async function limpiarCitasViejas(){
       // zona horaria del dispositivo que corre la agenda.
       const citaTimeUTC = Date.UTC(Y, Mo-1, Da, H, Mi) + GT_OFFSET_MS;
       if(ahora - citaTimeUTC > GRACIA_MS){
+        // Se ARCHIVA antes de borrar.
+        //
+        // Antes desaparecía todo, y con eso la historia: cuántas se cancelaron,
+        // cuántas no llegaron, con cuánta anticipación reservan, si los
+        // pacientes vuelven. Doce horas después de cada cita se perdía el dato
+        // para siempre y no había forma de reconstruirlo.
+        //
+        // El archivo NO lleva nombre, teléfono ni correo: solo lo que hace
+        // falta para contar. La privacidad se respeta igual —los datos
+        // personales se siguen borrando— pero la estadística queda.
+        try{
+          await _citasDb.collection('citas_historico').doc(d.id).set({
+            fecha: c.fecha, hora: c.hora,
+            medicoId: c.medicoId || '', clinica: c.clinica || '',
+            especialidad: c.especialidad || '', tipo: c.tipo || '',
+            precio: c.precio || 0,
+            estado: c.estado || 'pendiente',
+            // Con qué anticipación se reservó, en días
+            creadaEn: c.creadaEn || null,
+            anticipacionDias: c.creadaEn
+              ? Math.max(0, Math.round((Date.UTC(Y,Mo-1,Da) - new Date(c.creadaEn).getTime()) / 86400000))
+              : null,
+            // Huella del paciente, sin datos personales: permite saber si es
+            // nuevo o si vuelve, sin guardar quién es.
+            huella: c.busqueda || null,
+            archivadaEn: new Date().toISOString(),
+          });
+        }catch(e){ console.warn('archivar cita:', e.message); }
+
         await _citasDb.collection('citas').doc(d.id).delete();
         // Los datos de contacto viven en un documento aparte con el mismo id:
         // si no se borra también, el nombre y el teléfono quedarían huérfanos
@@ -3844,7 +3879,7 @@ async function limpiarCitasViejas(){
         borradas++;
       }
     }
-    if(borradas > 0) console.log(`🗑️ Limpieza de privacidad: ${borradas} cita(s) vieja(s) borrada(s)`);
+    if(borradas > 0) console.log(`${borradas} cita(s) archivada(s) para estadísticas · datos personales borrados`);
   } catch(e){
     console.warn('limpiarCitasViejas error:', e.message);
   }
@@ -5850,7 +5885,8 @@ function nvTocarCita(evId){
   if(ev.phone){
     const tel = String(ev.phone).replace(/\D/g,'');
     ops.push(`<a class="nvh-op" href="https://wa.me/502${tel}" target="_blank" rel="noopener">
-      <b>Escribirle por WhatsApp</b><span>${esc(ev.phone)}</span></a>`);
+      <b>Escribirle por WhatsApp</b>
+      <span>Se abre el chat con ${esc(ev.phone)} para confirmar o avisar un cambio</span></a>`);
   }
   ops.push(`<button class="nvh-op" onclick="nvCitaBorrar('${ev.id}')">
     <b>${esBloqueo ? 'Quitar el bloqueo' : 'Borrar la cita'}</b>
