@@ -759,6 +759,12 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .esp-card.listo { border-color:#86EFAC; background:#F7FEF9; }
 .esp-top { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
 .esp-nom { font-size:15px; font-weight:800; color:var(--text); }
+.esp-tags{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 6px}
+.esp-tag{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.esp-tag.prof{background:#E2F1F7;color:#123F73}
+.esp-tag.sin{background:#FBE8E6;color:#B02A20}
+.esp-tag.sede{background:#EAF5E3;color:#3F8A2E}
+.esp-tag.esp{background:#F1F5F9;color:#54718A}
 .esp-meta { font-size:12px; color:var(--muted); margin-top:3px; line-height:1.5; }
 .esp-espera { font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; background:#F1F5F9; color:#475569; }
 .esp-espera.viejo { background:#FEF2F2; color:#DC2626; }
@@ -2189,7 +2195,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <div class="seg cols2" style="grid-template-columns:1fr 1fr 1fr 1fr">
       <button class="seg-btn" id="cb-mixco" onclick="setClinic('clinic1')">Zona 1 Mixco</button>
       <button class="seg-btn" id="cb-sanc"  onclick="setClinic('clinic2')">San Cristóbal</button>
-      <button class="seg-btn" id="cb-reserva" onclick="setClinic('reserva')">Reserva</button>
+      <button class="seg-btn" id="cb-reserva" onclick="setClinic('reserva')">Otro lugar</button>
       <button class="seg-btn" id="cb-block" onclick="setClinic('blocked')">Bloqueo</button>
     </div>
     <div class="fld"><label>Paciente / motivo</label><input type="text" id="f-name" placeholder="Ej. Consulta Pérez, Reunión, Día libre…"></div>
@@ -2284,6 +2290,11 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
         <label style="font-size:12px;color:var(--muted)">¿Cuántas veces? (vacío = 12)</label>
         <input type="number" id="f-recur-count" min="2" max="52" placeholder="12" style="width:100%">
       </div>
+    </div>
+    <div class="fld" id="field-lugar" style="display:none">
+      <label>¿Dónde es?</label>
+      <input id="f-lugar" type="text" placeholder="Sanatorio, hospital, domicilio…"
+        autocomplete="off">
     </div>
     <div class="fld" id="field-notes" style="display:none">
       <label>Notas</label><textarea id="f-notes" rows="2" style="resize:none"></textarea>
@@ -2536,7 +2547,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 93;
+const APP_VERSION = 95;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -5411,7 +5422,7 @@ function nvModeloDia(profId, fecha){
       // no pasaba nada al presionarla. Se lleva también el origen, porque de
       // eso depende qué se puede hacer con ella.
       return { ini, fin:ini+dur, nombre:e.name||'(sin nombre)',
-               bloqueo:e.type==='blocked', nota:e.notes||'',
+               bloqueo:e.type==='blocked', nota:e.notes||'', lugar:e.lugar||'',
                evId:e.id, origen:e.source||'manual', dur };
     })
     .sort((a,b)=>a.ini-b.ini);
@@ -5433,7 +5444,7 @@ function nvModeloDia(profId, fecha){
       const oi = Math.max(o.ini, f.ini), of_ = Math.min(o.fin, f.fin);
       if(oi > cur) out.push(nvHueco(cur, oi, sede, profId, fecha));
       out.push({ t: o.bloqueo ? 'bl' : 'oc', ini:oi, fin:of_,
-                 nombre:o.nombre, sede, nota:o.nota,
+                 nombre:o.nombre, sede, nota:o.nota, lugar:o.lugar,
                  evId:o.evId, origen:o.origen, dur:o.dur });
       cur = Math.max(cur, of_);
     }
@@ -5985,8 +5996,11 @@ window.nvCitaDuracion = nvCitaDuracion;
 function nvCitaEditar(evId){
   nvCerrarHueco();
   const ev = events.find(e => e.id === evId); if(!ev) return;
-  try{ openModal(ev.id, ev.date, ev.time, ev.doctor); }
-  catch(e){ console.warn('editar:', e.message); }
+  // openModal espera el EVENTO, no su identificador: con un texto lo tomaba
+  // como falso y abría en modo «cita nueva», con los campos vacíos. Por eso el
+  // botón parecía no hacer nada — en realidad abría el formulario equivocado.
+  try{ openModal(ev); }
+  catch(e){ console.warn('editar:', e.message); alert('No se pudo abrir: ' + e.message); }
 }
 window.nvCitaEditar = nvCitaEditar;
 
@@ -6384,7 +6398,10 @@ function nvHTMLMiDia(){
     if(b.t==='oc') return `<div class="nv-fr">${hora}
       <button class="nv-ocup" style="height:${alto}px"
         data-nv="cita" data-ev="${b.evId||''}"><span><b>${esc(b.nombre)}</b>
-      ${(()=>{ const n = notaLegible(b.nota); return n ? `<span class="nv-sub">${esc(n).slice(0,54)}</span>` : ''; })()}</span>
+      ${(()=>{ const partes = [];
+        if(b.lugar) partes.push('📍 ' + esc(b.lugar));
+        const n = notaLegible(b.nota); if(n) partes.push(esc(n).slice(0,44));
+        return partes.length ? `<span class="nv-sub">${partes.join(' · ')}</span>` : ''; })()}</span>
       <span class="nv-sede">${b.sede}</span><span class="d num">${nvDur(b.fin-b.ini)}</span></button></div>`;
     if(b.t==='bl') return `<div class="nv-fr">${hora}
       <button class="nv-bloq" style="height:${alto}px"
@@ -8072,8 +8089,15 @@ function espRender(){
         <span class="esp-nom">${(nombre+'').replace(/</g,'&lt;')}</span>
         ${espTxt ? `<span class="esp-espera ${dias>=7?'viejo':''}">${espTxt}</span>` : ''}
       </div>
+      <!-- De quién y de dónde, arriba y en etiquetas. Estaba en la línea de
+           texto chica de abajo, así que había que leer cada tarjeta entera para
+           saber a quién le tocaba cada persona. -->
+      <div class="esp-tags">
+        <span class="esp-tag ${profId ? 'prof' : 'sin'}">${profId ? medico : 'Sin asignar'}</span>
+        <span class="esp-tag sede">${sede}</span>
+        ${it.especialidad ? `<span class="esp-tag esp">${(it.especialidad+'').replace(/</g,'&lt;')}</span>` : ''}
+      </div>
       <div class="esp-meta">
-        ${it.especialidad ? (it.especialidad+'').replace(/</g,'&lt;')+' · ' : ''}${medico} · ${sede}
         ${tel ? '<br>📞 '+tel : '<br>Sin teléfono registrado'}
         ${pref.length ? '<br>'+pref.join(', ') : ''}
       </div>
@@ -9171,6 +9195,10 @@ function setClinic(c){
   document.getElementById('cb-sanc').className='seg-btn'+(c==='clinic2'?' on-sanc':'');
   document.getElementById('cb-block').className='seg-btn'+(c==='blocked'?' on-block':'');
   const cbr=document.getElementById('cb-reserva'); if(cbr) cbr.className='seg-btn'+(c==='reserva'?' on-reserva':'');
+  // El campo de lugar solo tiene sentido fuera de las dos clínicas: una cita
+  // en un sanatorio no pertenece a Mixco ni a San Cristóbal, y sin anotar
+  // dónde es queda como «reserva» a secas y hay que acordarse de memoria.
+  const fl=document.getElementById('field-lugar'); if(fl) fl.style.display = (c==='reserva') ? 'block' : 'none';
   const isBlock = c==='blocked';
   const isReserva = c==='reserva';
   const fd=document.getElementById('field-duration'), fe=document.getElementById('field-endtime');
@@ -9507,8 +9535,10 @@ function openModal(ev=null,date=null,time=null,defaultDoc=null){
   document.getElementById('btn-delete').style.display=ev?'block':'none';
   document.getElementById('modal-tag').style.display=ev?.source==='medicloud'?'inline-flex':'none';
   buildTimes(ev?ev.time:(time||'08:00'));
-  if(ev){ setDoc(ev.doctor||'denis'); setClinic(ev.type||'clinic1'); document.getElementById('f-name').value=ev.name; document.getElementById('f-phone').value=ev.phone||''; document.getElementById('f-date').value=ev.date; document.getElementById('f-duration').value=String(ev.durMin||(ev.duration?ev.duration*60:60)); if(ev.type==='blocked'){ buildEndTimes(ev.endTime||''); } if(ev.notes){ document.getElementById('field-notes').style.display='block'; document.getElementById('f-notes').value=ev.notes; } else document.getElementById('field-notes').style.display='none'; }
-  else { setDoc(defaultDoc||(currentView==='majo'?'majo':'denis')); setClinic('clinic1'); document.getElementById('f-name').value=''; document.getElementById('f-phone').value=''; document.getElementById('f-date').value=date||todayKey(); document.getElementById('f-duration').value='60'; document.getElementById('field-notes').style.display='none'; const fr=document.getElementById('f-recur'); if(fr){ fr.value='none'; } const fc=document.getElementById('f-recur-count-wrap'); if(fc) fc.style.display='none'; }
+  if(ev){ setDoc(ev.doctor||'denis'); setClinic(ev.type||'clinic1'); document.getElementById('f-name').value=ev.name;
+    { const fl=document.getElementById('f-lugar'); if(fl) fl.value = ev.lugar || ''; } document.getElementById('f-phone').value=ev.phone||''; document.getElementById('f-date').value=ev.date; document.getElementById('f-duration').value=String(ev.durMin||(ev.duration?ev.duration*60:60)); if(ev.type==='blocked'){ buildEndTimes(ev.endTime||''); } if(ev.notes){ document.getElementById('field-notes').style.display='block'; document.getElementById('f-notes').value=ev.notes; } else document.getElementById('field-notes').style.display='none'; }
+  else { setDoc(defaultDoc||(currentView==='majo'?'majo':'denis')); setClinic('clinic1'); document.getElementById('f-name').value='';
+    { const fl=document.getElementById('f-lugar'); if(fl) fl.value=''; } document.getElementById('f-phone').value=''; document.getElementById('f-date').value=date||todayKey(); document.getElementById('f-duration').value='60'; document.getElementById('field-notes').style.display='none'; const fr=document.getElementById('f-recur'); if(fr){ fr.value='none'; } const fc=document.getElementById('f-recur-count-wrap'); if(fc) fc.style.display='none'; }
   document.getElementById('overlay').classList.add('on');
   // El dictado solo aparece al CREAR algo nuevo, no al editar un evento existente
   const qbar=document.getElementById('modal-qbar');
@@ -9586,6 +9616,12 @@ async function saveEvent(){
     status: isReserva ? 'reserva' : 'confirmed',
     esReserva: isReserva,
   };
+  // Dónde es, cuando no es ninguna de las dos clínicas. Se guarda solo si hay
+  // algo escrito, para no llenar la base de campos vacíos.
+  {
+    const lugar = (document.getElementById('f-lugar')?.value || '').trim();
+    if(tipoFinal === 'reserva' && lugar) ev.lugar = lugar;
+  }
   // Bloqueo específico de una sede: solo ocupa esa clínica, deja libre la otra.
   // Sirve para pasar la jornada a la otra sede sin borrarla (currentClinic:
   // clinic1=Mixco, clinic2=San Cristóbal).
@@ -11462,6 +11498,52 @@ if(typeof document !== 'undefined' && document.addEventListener){
 
 // Diagnóstico: qué citas hay, de dónde vienen y qué se guardó.
 // Se escribe `diagnosticoCitas()` en la consola del navegador.
+// Por qué este dispositivo no está publicando horarios.
+//
+// La publicación tiene varias condiciones y si falla una, no pasa nada y no se
+// ve ningún error. Esto las revisa una por una y dice cuál falla, en vez de
+// tener que adivinar desde otro teléfono.
+async function porQueNoPublica(){
+  const linea = (ok, txt, detalle) =>
+    console.log(`  ${ok ? '✅' : '❌'} ${txt}${detalle ? '  —  ' + detalle : ''}`);
+
+  console.log('\n═══ ¿PUEDE ESTE DISPOSITIVO PUBLICAR HORARIOS? ═══\n');
+
+  const correoAgenda = (_auth && _auth.currentUser && _auth.currentUser.email) || null;
+  linea(!!correoAgenda, 'Sesión en la agenda', correoAgenda || 'sin sesión');
+  if(correoAgenda) console.log(`      identificador en la agenda: ${_auth.currentUser.uid}`);
+
+  const uCitas = _citasAuth && _citasAuth.currentUser;
+  linea(!!uCitas, 'Sesión en el sistema de citas',
+    uCitas ? uCitas.email : 'NO ENTRÓ — sin esto no se puede publicar nada');
+  if(uCitas) console.log(`      identificador en citas: ${uCitas.uid}  (distinto al de la agenda, es normal)`);
+
+  linea(_citasListas, 'Citas cargadas',
+    _citasListas ? `${events.length} en memoria` : 'todavía no — la publicación espera a esto');
+  linea(_jornadasListas, 'Horarios especiales cargados');
+  linea(!_sincronizando, 'Ninguna sincronización en curso');
+
+  // Prueba real de escritura: es lo único que confirma que las reglas dejan.
+  if(uCitas && _citasDb){
+    const id = '_prueba_' + Date.now();
+    try{
+      await _citasDb.collection('slots_disponibles').doc(id)
+        .set({ fecha:'1999-01-01', hora:'00:00', prueba:true });
+      await _citasDb.collection('slots_disponibles').doc(id).delete();
+      linea(true, 'Permiso para escribir horarios', 'la prueba pasó');
+    }catch(e){
+      linea(false, 'Permiso para escribir horarios',
+        `${e.code || e.message} — hay que revisar las reglas del proyecto citas`);
+    }
+  }
+
+  const ult = window._ultimaPublicacionOk;
+  console.log(`\n  Última publicación buena: ${ult
+    ? Math.round((Date.now()-ult)/60000) + ' min atrás' : 'ninguna en esta sesión'}`);
+  console.log('  Para forzar una: tocá Actualizar, o escribí  publicarSlotsDisponibles()\n');
+}
+window.porQueNoPublica = porQueNoPublica;
+
 function diagnosticoCitas(){
   const porOrigen = {};
   events.forEach(e => { const k = e.source || 'manual'; porOrigen[k] = (porOrigen[k]||0)+1; });
