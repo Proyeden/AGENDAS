@@ -2547,7 +2547,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 95;
+const APP_VERSION = 96;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -4723,8 +4723,11 @@ function actualizarContadoresHome(){
 
 // Abre la pantalla de gestión en el sistema de citas para ver la lista de espera
 function abrirListaEsperaHome(){
-  // Abre el panel admin en una pestaña nueva, directo a lista de espera
-  window.open('https://proyeden.github.io/Citas-Mixco/', '_blank');
+  // Antes abría la página de citas en otra pestaña. Era de cuando la lista de
+  // espera vivía en el panel de esa página; desde que la agenda tiene su propia
+  // pantalla —con los huecos libres ya calculados y el WhatsApp escrito— salir
+  // de la app no tiene ningún sentido.
+  openEspera();
 }
 
 function updateBadges(){
