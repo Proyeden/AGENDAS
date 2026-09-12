@@ -2507,7 +2507,7 @@ const CONFIG = {
 // Cuando alguien anota algo FUERA del horario de clínica, avisa a los demás.
 // Dentro del horario no manda nada: ahí ya se ve la agenda en pantalla.
 const AVISO = {
-  webhook: 'https://hook.us2.make.com/m9jgo84q449cf2wf24y08vxijkvcmq1s',
+  webhook: 'https://hook.us2.make.com/d43bkroke825oqnc88yvmqi89dlmxtjn',
   margenMin: 30,      // minutos antes/después del horario en que se asume "en clínica"
   timeoutMs: 6000,
 
@@ -2572,7 +2572,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 101;
+const APP_VERSION = 103;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -8917,6 +8917,14 @@ async function avisarCitaNueva(ev){
   // son movimientos internos —una reunión, un rato ocupado— y no cambian lo
   // que hay que atender: no se avisan.
   if(ev.type === 'blocked' || ev.blocked) return;
+
+  // Solo lo que se escribe a mano en la agenda.
+  //
+  // Hoy las de MediCloud no pasan por acá —entran por la sincronización, no
+  // por el guardado— y las de la web avisan desde su propia página. Queda
+  // escrito igual: si mañana alguien cambia ese camino, el aviso no se
+  // convierte solo en un mensaje por cada cita que MediCloud traiga.
+  if(ev.source && ev.source !== 'manual') return;
 
   const clave = 'aviso_' + ev.id;
   try{
