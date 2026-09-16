@@ -2572,7 +2572,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 105;
+const APP_VERSION = 108;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3061,6 +3061,70 @@ async function leerMedicloudFirebase(){
 let _conteoPorDia = {};
 try{ _conteoPorDia = JSON.parse(localStorage.getItem('ag_conteo_dia') || '{}'); }catch(_){}
 
+// ── OCUPACIÓN RECORDADA ───────────────────────────────────────────────────
+//
+// Guarda, por día, los ratos que se sabe ocupados: médico, inicio y fin. Vive
+// en el navegador y se acumula; nunca se borra un rato por el hecho de que una
+// carga venga vacía, solo cuando el día ya pasó.
+//
+// Es la única defensa que no depende de que ninguna sincronización funcione.
+// Todo lo demás —MediCloud, las citas web, Firebase— puede fallar a la vez, y
+// esto sigue sabiendo que el martes a las 15:00 hay alguien. Sin esto, una
+// lectura fallida convertía un rato ocupado en un hueco publicado, y el sistema
+// se lo daba a otro paciente.
+let _ocupRecordada = {};
+try{ _ocupRecordada = JSON.parse(localStorage.getItem('ag_ocupacion') || '{}'); }catch(_){}
+
+function recordarOcupacion(){
+  try{
+    const hoy = todayKey();
+    let cambios = 0;
+    for(const e of events){
+      if(!e.date || e.date < hoy || !e.time) continue;
+      if(e.status === 'cancelled') continue;
+      if(e.type === 'blocked' || e.blocked) continue;
+      const ini = tMin(e.time), fin = ini + duracionEvento(e);
+      const lista = _ocupRecordada[e.date] || (_ocupRecordada[e.date] = []);
+      // Una misma cita puede cambiar de hora: se reemplaza por su id.
+      const i = lista.findIndex(x => x.id === e.id);
+      const dato = { id:e.id, d:e.doctor, i:ini, f:fin };
+      if(i >= 0){
+        if(lista[i].i !== ini || lista[i].f !== fin){ lista[i] = dato; cambios++; }
+      } else { lista.push(dato); cambios++; }
+    }
+    for(const f of Object.keys(_ocupRecordada)) if(f < hoy) delete _ocupRecordada[f];
+    if(cambios) localStorage.setItem('ag_ocupacion', JSON.stringify(_ocupRecordada));
+  }catch(_){}
+}
+
+// Quita de la memoria un rato que se liberó de verdad: al borrar una cita o al
+// confirmarse que el paciente canceló. Es la ÚNICA forma de que un rato vuelva
+// a ofrecerse, y tiene que ser un acto explícito, no el resultado de un fallo.
+function olvidarOcupacion(evId){
+  try{
+    let toco = false;
+    for(const f of Object.keys(_ocupRecordada)){
+      const antes = _ocupRecordada[f].length;
+      _ocupRecordada[f] = _ocupRecordada[f].filter(x => x.id !== evId);
+      if(_ocupRecordada[f].length !== antes) toco = true;
+      if(!_ocupRecordada[f].length) delete _ocupRecordada[f];
+    }
+    if(toco) localStorage.setItem('ag_ocupacion', JSON.stringify(_ocupRecordada));
+  }catch(_){}
+}
+window.olvidarOcupacion = olvidarOcupacion;
+
+// Ratos ocupados de ese día que NO están en la lista actual: los que se
+// perdieron por el camino y hay que seguir respetando.
+function ocupacionFantasma(doctorId, fecha){
+  const lista = _ocupRecordada[fecha] || [];
+  if(!lista.length) return [];
+  const vivos = new Set(events
+    .filter(e => e.date === fecha && e.status !== 'cancelled' && e.time)
+    .map(e => e.id));
+  return lista.filter(x => x.d === doctorId && !vivos.has(x.id));
+}
+
 function recordarConteos(){
   try{
     const hoy = todayKey();
@@ -3128,6 +3192,9 @@ function calcularHuecos(doctorId, dateStr, clinicId){
     .filter(e => e.date===dateStr && e.status!=='cancelled' &&
                  e.doctor===doctorId && e.time)
     .map(e => { const s=tMin(e.time); const dur=duracionEvento(e); return {s, e:s+dur}; })
+    // Los ratos que se sabe ocupados pero que hoy no están en la lista. Se
+    // suman siempre: si una carga falló, este día NO se ofrece libre.
+    .concat(ocupacionFantasma(doctorId, dateStr).map(x => ({ s:x.i, e:x.f })))
     .filter(o => o.e > j.ini && o.s < j.fin)   // solo lo que cae en la jornada
     .sort((a,b)=>a.s-b.s);
 
@@ -3482,13 +3549,24 @@ const _col = () => _db.collection(CONFIG.COLLECTIONS.events);
 
 const DB = {
   async load(){
-    if(!_db){ try{ const r=localStorage.getItem('ag_v5'); return r?JSON.parse(r):getSample(); } catch{ return getSample(); } }
+    // NUNCA datos de ejemplo.
+    //
+    // Estas tres ramas caían en getSample() —pacientes inventados— cuando no
+    // había base, cuando Firebase devolvía cero documentos o cuando la lectura
+    // fallaba. Esos eventos entraban al cálculo de huecos como si fueran
+    // reales, y un día genuinamente sin citas escritas a mano se llenaba de
+    // gente que no existe. Vacío es vacío.
+    const local = () => {
+      try{ const r = localStorage.getItem('ag_v5'); return r ? JSON.parse(r) : []; }
+      catch{ return []; }
+    };
+    if(!_db) return local();
     try{
-      const snap=await _col().get();
-      const docs=snap.docs.map(d=>({...d.data(),id:d.id}));
-      return docs.length?docs:getSample();
+      const snap = await _col().get();
+      return snap.docs.map(d => ({ ...d.data(), id:d.id }));
     } catch(e){
-      try{ const r=localStorage.getItem('ag_v5'); return r?JSON.parse(r):getSample(); } catch{ return getSample(); }
+      console.warn('No se pudo leer la agenda · se usa la copia local:', e.message);
+      return local();
     }
   },
   async save(ev){
@@ -4018,8 +4096,11 @@ async function limpiarCitasViejas(){
 // id de la cita -> sus datos de contacto. Se llena una vez y se reutiliza.
 const _datosCitas = new Map();
 
+// Devuelve null si NO se pudo leer, y [] si de verdad no hay citas. Antes las
+// dos cosas daban [], y quien llamaba no podía distinguir «no hay nadie» de
+// «no pude preguntar» — con consecuencias graves: borrar y publicar libre.
 async function loadCitasOnline(){
-  if (!_citasDb) { console.warn('citas-mixco not available'); return []; }
+  if (!_citasDb) { console.warn('citas-mixco no disponible'); return null; }
   try {
     // Get citas from the last 30 days and next 60 days
     const today = new Date();
@@ -4123,8 +4204,8 @@ async function loadCitasOnline(){
     console.log(`✅ citas-mixco: ${evs.length} citas cargadas`);
     return evs;
   } catch(e) {
-    console.warn('Error loading citas-mixco:', e.message);
-    return [];
+    console.warn('Error leyendo citas-mixco:', e.message);
+    return null;   // NO es «no hay citas»: es «no pude leer»
   }
 }
 
@@ -4259,7 +4340,11 @@ async function _sincronizarAhora(){
   let cargaOnlineOk = false;
   // Limpieza de privacidad: borrar citas viejas antes de cargar (no bloqueante)
   limpiarCitasViejas().catch(e=>console.warn('limpieza:', e.message));
-  try { citasOnline = await loadCitasOnline(); cargaOnlineOk = true; }
+  try {
+    const r = await loadCitasOnline();
+    if(Array.isArray(r)){ citasOnline = r; cargaOnlineOk = true; }
+    else console.warn('Citas web ilegibles · se conservan las que ya estaban');
+  }
   catch(e){ console.warn('loadCitasOnline falló:', e.message); }
   try { bloqueosOnline = await loadBloqueosOnline(); }
   catch(e){ console.warn('loadBloqueosOnline falló:', e.message); }
@@ -4495,6 +4580,7 @@ async function _sincronizarAhora(){
   // Las citas ya pasaron por acá: desde ahora la publicación tiene con qué
   // calcular la ocupación real.
   _citasListas = true;
+  recordarOcupacion();
   recordarConteos();
   guardarMedicloudLocal();
   guardarMedicloudFirebase();
@@ -4566,6 +4652,13 @@ function startIcalRefresh(){
       _tCitas = setTimeout(() => {
         loadCitasOnline()
           .then(citas => {
+            // Si la lectura falló, NO se toca nada. Esta rama borraba todas las
+            // citas de la web y publicaba enseguida: una lectura fallida dejaba
+            // esos horarios libres y el sistema se los daba a otro paciente.
+            if(!Array.isArray(citas)){
+              console.warn('No se pudieron leer las citas web · no se toca nada');
+              return;
+            }
             events = events.filter(e => e.source !== 'online');
             citas.forEach(ev => {
               try { if(!findDuplicate(ev)) events.push(ev); }
@@ -6134,6 +6227,7 @@ window.nvCitaEditar = nvCitaEditar;
 
 async function nvCitaBorrar(evId){
   const ev = events.find(e => e.id === evId); if(!ev) return;
+  olvidarOcupacion(evId);   // se libera de verdad: deja de estar reservado
   const esBloqueo = ev.type === 'blocked' || ev.blocked;
   if(!confirm(`¿${esBloqueo ? 'Quitar el bloqueo' : 'Borrar la cita de ' + (ev.name||'')}?`)) return;
   nvCerrarHueco();
@@ -12055,7 +12149,13 @@ async function init(){
   }catch(e){
     console.warn('Init data error:', e);
     setSyncBadge('err','Local');
-    if(!events||!events.length){ try{ events=getSample(); }catch(_){ events=[]; } }
+    // Antes cargaba datos de EJEMPLO cuando la lista quedaba vacía: una agenda
+    // vacía por un error de carga se llenaba de pacientes inventados, y esos
+    // eventos entraban al cálculo de huecos como si fueran reales.
+    if(!events || !events.length){
+      events = [];
+      console.warn('Sin citas cargadas · esperando a la sincronización');
+    }
   }
   try{ render(); }catch(e){ console.warn('render error', e); }
   try{ await loadIcalFeedsWithDupCheck(); }catch(e){ console.warn('MediCloud sync error:', e); }
