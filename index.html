@@ -2572,7 +2572,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 108;
+const APP_VERSION = 109;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -4202,6 +4202,9 @@ async function loadCitasOnline(){
       });
     });
     console.log(`✅ citas-mixco: ${evs.length} citas cargadas`);
+    // Una lectura que llega —aunque venga vacía— es una respuesta de verdad:
+    // desde acá se sabe qué reservaron los pacientes.
+    OCUP.web = true;
     return evs;
   } catch(e) {
     console.warn('Error leyendo citas-mixco:', e.message);
@@ -4407,6 +4410,17 @@ async function _sincronizarAhora(){
     // estrenado —o de una sesión nueva— con los proxies caídos: no tiene
     // historia propia de la que tirar, y sin esto la agenda se ve vacía.
     if(!teniamos){
+      // Primero la copia de este dispositivo —es inmediata y no cuesta una
+      // lectura—; después el respaldo del equipo.
+      try{
+        const guardadas = leerMedicloudLocal();
+        if(guardadas.length){
+          const hay = new Set(events.map(e => e.id));
+          guardadas.forEach(e => { if(!hay.has(e.id)) events.push(e); });
+          console.warn(`Sin conexión con MediCloud · ${guardadas.length} citas ` +
+            `de la última sincronización de este dispositivo`);
+        }
+      }catch(e){ console.warn('copia local:', e.message); }
       try{
         const compartidas = await leerMedicloudFirebase();
         if(compartidas.length){
@@ -4420,6 +4434,20 @@ async function _sincronizarAhora(){
     }
     const recuperadas = events.filter(e => e.source === 'medicloud').length;
 
+    // Con citas recuperadas de la copia local o del respaldo del equipo, la
+    // ocupación se sabe igual que si MediCloud hubiera contestado: no es una
+    // suposición, son las mismas citas de la última vez que sí se supo. Se
+    // declara lista para que un cambio de horario se pueda publicar aunque los
+    // proxies estén caídos. Si no se recuperó nada Y este dispositivo tampoco
+    // tiene memoria de ocupación, se deja sin declarar: ahí sí se publicaría a
+    // ciegas.
+    if(recuperadas || Object.keys(_ocupRecordada).length){
+      OCUP.medicloud = true;
+      recordarOcupacion();
+    } else {
+      console.warn('Sin MediCloud y sin copia: no se publican horarios hasta saber qué está ocupado.');
+    }
+
     setSyncBadge('error');
     const st = document.getElementById('sync-text');
     if(st) st.textContent = recuperadas
@@ -4431,6 +4459,14 @@ async function _sincronizarAhora(){
       'no MediCloud. Probá desde otra red o esperá unos minutos: se reintenta ' +
       'cada ' + CONFIG.ICAL_REFRESH_MINUTES + ' minutos.');
     render();
+    // Que MediCloud no conteste no puede dejar los horarios sin publicar. Son
+    // dos procesos distintos que hasta ahora compartían el mismo camino: traer
+    // citas, y publicar la jornada. Si la ocupación se sabe —y acá arriba se
+    // acaba de comprobar—, se publica igual.
+    if(ocupacionConocida().ok){
+      publicarHorarios(null, 'sin MediCloud')
+        .catch(e => console.warn('publicar sin MediCloud:', e.message));
+    }
     return;
   }
 
@@ -4579,7 +4615,7 @@ async function _sincronizarAhora(){
   // los sistemas de citas se refrescan solos igual.
   // Las citas ya pasaron por acá: desde ahora la publicación tiene con qué
   // calcular la ocupación real.
-  _citasListas = true;
+  OCUP.medicloud = true;
   recordarOcupacion();
   recordarConteos();
   guardarMedicloudLocal();
@@ -5003,14 +5039,41 @@ let jdDoc = 'denis', jdCli = 'clinic1';
 let jornadasEspeciales = [];
 let _jornadasListas = false; // true cuando las jornadas especiales están cargadas y listas
 
-// true cuando las CITAS ya se cargaron al menos una vez.
+// ── ¿SE SABE QUÉ ESTÁ OCUPADO? ────────────────────────────────────────────
 //
-// La publicación esperaba solo a las jornadas especiales, nunca a las citas.
-// Si corría antes de que llegaran, calcularHuecos miraba un arreglo vacío,
-// concluía que no hay nada agendado y publicaba TODOS los días completamente
-// libres. Eso es peor que no publicar: el paciente reserva una hora que ya
-// está ocupada y nadie se entera hasta que llegan dos personas a la vez.
-let _citasListas = false;
+// Publicar horarios exige una sola cosa: saber qué ratos están ocupados. Si no
+// se sabe, se publicaría el mes entero libre y dos pacientes llegarían a la
+// misma hora.
+//
+// Durante mucho tiempo eso se resolvió con un solo interruptor —«ya corrió la
+// sincronización con MediCloud»— y ahí estaba el error de fondo: se confundió
+// «MediCloud contestó» con «sé qué está ocupado». Son cosas distintas. La
+// ocupación viene de TRES lados independientes, y MediCloud es solo uno:
+//
+//   agenda    → lo escrito a mano y los bloqueos (Firebase de la agenda)
+//   web       → lo que reservaron los pacientes (Firebase de citas)
+//   medicloud → las citas de MediCloud, vengan del feed vivo, de la copia de
+//               este dispositivo o del respaldo que dejó el equipo
+//
+// Cada uno se declara listo por su cuenta, y MediCloud queda listo con
+// cualquiera de sus tres fuentes. Así, cuando los proxies se caen —que es lo
+// normal— la ocupación se sigue sabiendo y CAMBIAR UN HORARIO SE PUBLICA IGUAL.
+// Cambiar el horario de un día o partir las citas en 30 minutos no tiene nada
+// que ver con MediCloud; que dependiera de él era el motivo de que «guardar y
+// publicar» no hiciera nada.
+const OCUP = { agenda:false, web:false, medicloud:false };
+
+function ocupacionConocida(){
+  // Sin feeds configurados no hay nada que esperar de MediCloud.
+  if(!CONFIG.ICAL_FEEDS.length) OCUP.medicloud = true;
+  const falta = Object.entries(OCUP).filter(([,v]) => !v).map(([k]) => k);
+  return { ok: !falta.length, falta };
+}
+window.ocupacionConocida = ocupacionConocida;
+
+// Compatibilidad hacia atrás: hay diagnósticos y mensajes que preguntan por
+// esto. Ahora es una lectura del estado real, no un interruptor aparte.
+Object.defineProperty(window, '_citasListas', { get: () => ocupacionConocida().ok });
 
 // Cuántas citas había la última vez que se publicó. Si de un momento a otro
 // el arreglo se vacía —una carga fallida, una sesión que expiró—, publicar
@@ -5570,8 +5633,11 @@ async function hqhAplicar(tope){
     }
     render();
     est.textContent = 'Publicando…';
-    await publicarSlotsDisponibles({ fechas:[_hqhFecha] });
-    await publicarSlotsSanCristobal({ fechas:[_hqhFecha] });
+    const r = await publicarHorarios([_hqhFecha], `hasta ${tFmt(tope)}`);
+    if(!r.ok){
+      est.textContent = 'Guardado, pero no se publicó: ' + (r.motivo || 'sin horarios escritos');
+      return;
+    }
     est.textContent = `✓ Listo · hasta las ${tFmt(tope)}`;
     setTimeout(cerrarHastaQueHora, 1000);
   } catch(e){
@@ -6363,8 +6429,9 @@ async function nvHueco30Toggle(){
   }
   try{ localStorage.setItem('slots30_overrides', JSON.stringify(prev)); }catch(_){}
   render();
-  await nvPublicarDia();
-  mostrarAvisoBreve(activo ? 'Vuelve a la duración normal' : 'Partido en 30 min · ya se ve en la agenda');
+  if((await nvPublicarDia()).ok)
+    mostrarAvisoBreve(activo ? 'Vuelve a la duración normal · publicado'
+                             : 'Partido en 30 min · publicado');
 }
 window.nvHueco30Toggle = nvHueco30Toggle;
 
@@ -6514,9 +6581,9 @@ async function nvToggle30(profId){
   try{ localStorage.setItem('slots30_overrides', JSON.stringify(prev)); }catch(_){}
 
   render();
-  await nvPublicarDia();
-  mostrarAvisoBreve(activo ? `Vuelve a citas de ${NV_MIN_CONSULTA} min`
-                           : 'Citas de 30 min · publicado');
+  if((await nvPublicarDia()).ok)
+    mostrarAvisoBreve(activo ? `Vuelve a citas de ${NV_MIN_CONSULTA} min · publicado`
+                             : 'Citas de 30 min · publicado');
 }
 window.nvToggle30 = nvToggle30;
 
@@ -6589,11 +6656,15 @@ async function nvAplicarFin(profId, tope){
                                      : `Termina ${tFmt(tope)} · publicado`);
 }
 
+// Cambios hechos tocando el día: partir en 30 min, alargar, recortar. Van por
+// el camino de horarios, no por el de MediCloud.
 async function nvPublicarDia(){
-  try{
-    await publicarSlotsDisponibles({ fechas:[nvFecha] });
-    await publicarSlotsSanCristobal({ fechas:[nvFecha] });
-  }catch(e){ console.warn('publicar:', e.message); }
+  const r = await publicarHorarios([nvFecha], `día ${nvFecha}`);
+  if(!r.ok){
+    mostrarAvisoBreve('⚠ Guardado acá, pero no se publicó');
+    console.warn('nvPublicarDia:', r.motivo);
+  }
+  return r;
 }
 
 function nvHTMLMiDia(){
@@ -7536,11 +7607,9 @@ async function pfHorizonte(delta){
   await guardarHorizonte(DIAS_PUBLICACION + delta);
   pfHorizonteRender();
   mostrarAvisoBreve(`Reservas hasta ${DIAS_PUBLICACION} días · publicando…`);
-  try{
-    await publicarSlotsDisponibles();
-    await publicarSlotsSanCristobal();
-    mostrarAvisoBreve(`Listo · reservas hasta ${DIAS_PUBLICACION} días`);
-  }catch(e){ console.warn('republicar:', e.message); }
+  const r = await publicarHorarios(null, 'horizonte de publicación');
+  mostrarAvisoBreve(r.ok ? `Listo · reservas hasta ${DIAS_PUBLICACION} días`
+                         : '⚠ No se pudo publicar el nuevo horizonte');
 }
 window.pfHorizonte = pfHorizonte;
 
@@ -7919,11 +7988,18 @@ async function psGuardar(fecha, franjas, motivo){
 }
 
 async function psPublicar(fecha){
-  try{
-    await publicarSlotsDisponibles({ fechas:[fecha] });
-    await publicarSlotsSanCristobal({ fechas:[fecha] });
-    mostrarAvisoBreve('Guardado · lo ven los pacientes y el equipo en la agenda');
-  }catch(e){ console.warn('publicar día:', e.message); }
+  const r = await publicarHorarios([fecha], `planificador ${fecha}`);
+  if(r.ok){
+    mostrarAvisoBreve('Guardado y publicado · ya lo ven los pacientes');
+    return;
+  }
+  // El horario quedó guardado en Firebase (eso ya se verificó antes de llegar
+  // acá), pero no llegó al sistema de citas. Decirlo: el aviso de «guardado» a
+  // secas hacía creer que los pacientes ya veían el cambio.
+  alert('El horario quedó guardado, pero NO se pudo publicar en el sistema de citas.\n\n' +
+        (r.motivo || 'No se escribió ningún horario.') +
+        '\n\nLos pacientes siguen viendo el horario anterior. Tocá «Actualizar» ' +
+        'en la agenda para reintentar.');
 }
 
 function pfRender(){
@@ -8147,9 +8223,14 @@ async function pfGuardar(){
     render();
     if(btn) btn.textContent = 'Publicando horarios…';
     await publicarModeloPublico();
-    await publicarSlotsDisponibles();
-    await publicarSlotsSanCristobal();
-    if(btn){ btn.textContent = '✓ Guardado y publicado'; setTimeout(()=>{ btn.textContent='Guardar horarios'; btn.disabled=false; }, 2200); }
+    const r = await publicarHorarios(null, 'modelo de horarios');
+    if(btn){
+      btn.textContent = r.ok ? '✓ Guardado y publicado' : '⚠ Guardado · sin publicar';
+      setTimeout(()=>{ btn.textContent='Guardar horarios'; btn.disabled=false; }, 2200);
+    }
+    if(!r.ok) alert('Los horarios quedaron guardados, pero NO llegaron al sistema de citas.\n\n' +
+      (r.motivo || 'No se escribió ningún horario.') +
+      '\n\nLos pacientes siguen viendo los horarios anteriores.');
   } catch(e){
     console.warn('pfGuardar:', e.message);
     alert('No se pudieron guardar los horarios: ' + e.message);
@@ -10147,13 +10228,10 @@ function generarFechasRecurrentes(fechaBase, tipo, veces){
 async function publicarAhora(btn){
   const original = btn ? btn.innerHTML : '';
   if(btn){ btn.disabled = true; btn.innerHTML = '⬆ <span class="wb-sync-txt">Publicando…</span>'; }
-  window._pubMixco = null; window._pubSC = null;
-  try {
-    await Promise.all([ publicarSlotsDisponibles(), publicarSlotsSanCristobal() ]);
-  } catch(e){ console.warn('publicarAhora:', e); }
-
-  const m  = window._pubMixco || {horarios:0};
-  const sc = window._pubSC    || {horarios:0};
+  // Publicar es el proceso de horarios, no el de MediCloud: va por su camino.
+  const r = await publicarHorarios(null, 'botón publicar');
+  const m  = { horarios: r.mixco };
+  const sc = { horarios: r.sc };
   const problema = (m.horarios === 0) || (sc.horarios === 0);
 
   if(btn){
@@ -10184,13 +10262,15 @@ async function actualizarTodo(btn){
   const original = btn ? btn.innerHTML : '';
   if(btn){ btn.disabled = true; btn.classList.add('syncing'); btn.innerHTML = '↻ <span class="wb-sync-txt">Actualizando…</span>'; }
   try {
-    await syncNow();                       // trae MediCloud + citas
-    window._pubMixco = null; window._pubSC = null;
-    await Promise.all([ publicarSlotsDisponibles(), publicarSlotsSanCristobal() ]);
+    // Dos procesos, en orden, pero independientes: si el primero falla el
+    // segundo se hace igual.
+    try { await syncNow(); }               // trae MediCloud + citas
+    catch(e){ console.warn('actualizarTodo · sincronizar:', e.message); }
+    window._rAct = await publicarHorarios(null, 'botón actualizar');
   } catch(e){ console.warn('actualizarTodo:', e); }
 
-  const m  = window._pubMixco || {horarios:0};
-  const sc = window._pubSC    || {horarios:0};
+  const m  = { horarios: (window._rAct||{}).mixco || 0 };
+  const sc = { horarios: (window._rAct||{}).sc    || 0 };
   const problema = (m.horarios === 0) || (sc.horarios === 0);
 
   if(btn){
@@ -10434,8 +10514,10 @@ async function publicarSlotsSanCristobal(opciones){
   if(!_citasDb || _publicandoSC) return false;
   _publicandoSC = true;
   try {
-    if(!_citasListas){
-      console.warn('publicar SC: las citas todavía no cargaron — no se publica nada');
+    const _ocSC = ocupacionConocida();
+    if(!_ocSC.ok){
+      console.warn(`publicar SC: todavía no se sabe qué está ocupado (falta: ${_ocSC.falta.join(', ')})`);
+      window._pubSC = { horarios:0, motivo:`falta ocupación: ${_ocSC.falta.join(', ')}` };
       return false;
     }
     if(!_jornadasListas){
@@ -10738,9 +10820,85 @@ async function revisarPublicado(fecha){
       console.log(`   ${k}: ${v.sort().join(' ')}`));
     if(!snap.size) console.log('   ⚠️ NADA publicado para esa fecha.');
   }catch(e){ console.warn('leer publicado:', e.message); }
-  console.log(`\nCitas cargadas en memoria: ${events.length} · listas: ${_citasListas}`);
+  const _ocR = ocupacionConocida();
+  console.log(`\nCitas en memoria: ${events.length} · ocupación conocida: ${_ocR.ok}` +
+              (_ocR.ok ? '' : ` (falta ${_ocR.falta.join(', ')})`));
 }
 window.revisarPublicado = revisarPublicado;
+
+// ── PUBLICAR HORARIOS · el segundo proceso, por su propio camino ──────────
+//
+// La agenda hace dos cosas que no tienen nada que ver entre sí:
+//
+//   1. Traer las citas de MediCloud  (depende de la red y de los proxies)
+//   2. Publicar la jornada y la duración de las citas  (depende de lo que el
+//      médico decidió: jornadas especiales y franjas de 30 minutos)
+//
+// Las dos compartían un mismo camino: había que sincronizar para publicar. Como
+// MediCloud no sincroniza a pedido —contesta parcial, o no contesta—, cambiar
+// el horario de un día quedaba esperando a algo que no le incumbe, y «guardar y
+// publicar» no publicaba nada.
+//
+// Esta función es el camino del segundo proceso. Refresca lo que SÍ le importa
+// —jornadas especiales y franjas de 30 min— y publica. La ocupación ya está
+// cubierta por otro lado: las tres fuentes de OCUP y, encima de eso, la memoria
+// de ocupación de este dispositivo, que calcularHuecos suma siempre.
+//
+//   fechas  null → toda la ventana de publicación · [..] → solo esos días
+//   motivo  para el registro, así se lee en la consola qué disparó la publicación
+async function publicarHorarios(fechas, motivo){
+  const oc = ocupacionConocida();
+  if(!oc.ok){
+    console.warn(`publicarHorarios (${motivo}): falta saber la ocupación de ${oc.falta.join(', ')}`);
+    return { ok:false, motivo:`todavía no se sabe qué está ocupado (${oc.falta.join(', ')})`,
+             mixco:0, sc:0 };
+  }
+
+  // Releer lo que define el horario. Se acaba de tocar, así que la copia en
+  // memoria puede ser vieja —y publicar con la vieja es exactamente el «lo
+  // publiqué y volvió solo al horario de antes».
+  window._jeUltimaCarga = 0;
+  if(_db){
+    try{
+      const [je, s30] = await Promise.all([
+        _db.collection('jornadas_especiales').where('fecha','>=',todayKey()).get(),
+        _db.collection('slots30_overrides').where('fecha','>=',todayKey()).get(),
+      ]);
+      jornadasEspeciales = _fusionarJornadas(je.docs.map(d=>({...d.data(), id:d.id})));
+      try{ localStorage.setItem('jornadas_especiales', JSON.stringify(jornadasEspeciales)); }catch(_){}
+      const ov = {};
+      s30.forEach(d => { ov[d.id] = d.data(); });
+      // Lo de este dispositivo que aún no subió no se pierde: se suma.
+      let local = {};
+      try{ local = JSON.parse(localStorage.getItem('slots30_overrides')||'{}'); }catch(_){}
+      localStorage.setItem('slots30_overrides', JSON.stringify({ ...local, ...ov }));
+      window._jeUltimaCarga = Date.now();
+    }catch(e){ console.warn(`publicarHorarios (${motivo}): releer horarios ·`, e.message); }
+  }
+
+  const opc = fechas && fechas.length ? { fechas } : undefined;
+  window._pubMixco = null; window._pubSC = null;
+  try{
+    await publicarSlotsDisponibles(opc);
+    await publicarSlotsSanCristobal(opc);
+  }catch(e){
+    console.warn(`publicarHorarios (${motivo}):`, e.message);
+    return { ok:false, motivo:e.message, mixco:0, sc:0 };
+  }
+
+  const m  = (window._pubMixco || {});
+  const sc = (window._pubSC || {});
+  const r = { ok:true, mixco:m.horarios||0, sc:sc.horarios||0,
+              motivo: m.motivo || sc.motivo || '' };
+  // Ninguna de las dos sedes publicó nada: eso no es «guardado», es un fallo
+  // que hay que decir. Callarlo era lo que hacía creer que el cambio ya estaba
+  // en línea cuando no lo estaba.
+  if(!r.mixco && !r.sc) r.ok = false;
+  console.log(`publicarHorarios (${motivo}): Mixco ${r.mixco} · SC ${r.sc}` +
+              (r.motivo ? ` · ${r.motivo}` : ''));
+  return r;
+}
+window.publicarHorarios = publicarHorarios;
 
 async function publicarSlotsDisponibles(opciones){
   if(!_citasDb || _publicando) return false;
@@ -10753,14 +10911,17 @@ async function publicarSlotsDisponibles(opciones){
     // Publicar sin las citas cargadas equivale a decirle a los pacientes que
     // todo el mes está libre. Ante la duda se prefiere no tocar nada: los
     // horarios que ya están publicados siguen siendo los últimos buenos.
-    if(!_citasListas){
-      console.warn('publicar: las citas todavía no cargaron — no se publica nada');
+    const _oc = ocupacionConocida();
+    if(!_oc.ok){
+      console.warn(`publicar: todavía no se sabe qué está ocupado (falta: ${_oc.falta.join(', ')})`);
+      window._pubMixco = { dias:0, horarios:0, motivo:`falta ocupación: ${_oc.falta.join(', ')}` };
       return false;
     }
     const _hoyCitas = events.filter(e => e.date >= todayKey() && e.status !== 'cancelled').length;
     if(_citasAlPublicar > 5 && _hoyCitas === 0){
       console.warn(`publicar: había ${_citasAlPublicar} citas y ahora hay 0 — se aborta por seguridad`);
       mostrarAvisoBreve('No se publicó: las citas no cargaron bien');
+      window._pubMixco = { dias:0, horarios:0, motivo:'las citas no cargaron bien' };
       return false;
     }
     _citasAlPublicar = Math.max(_citasAlPublicar, _hoyCitas);
@@ -11887,8 +12048,15 @@ async function porQueNoPublica(){
     uCitas ? uCitas.email : 'NO ENTRÓ — sin esto no se puede publicar nada');
   if(uCitas) console.log(`      identificador en citas: ${uCitas.uid}  (distinto al de la agenda, es normal)`);
 
-  linea(_citasListas, 'Citas cargadas',
-    _citasListas ? `${events.length} en memoria` : 'todavía no — la publicación espera a esto');
+  const _ocD = ocupacionConocida();
+  linea(_ocD.ok, 'Se sabe qué está ocupado',
+    _ocD.ok ? `${events.length} citas en memoria (agenda + web + MediCloud)`
+            : `falta: ${_ocD.falta.join(', ')} — sin esto no se publica nada`);
+  linea(OCUP.agenda,    '· agenda (citas a mano y bloqueos)');
+  linea(OCUP.web,       '· sistema de citas (lo que reservan los pacientes)');
+  linea(OCUP.medicloud, '· MediCloud',
+    OCUP.medicloud ? 'feed, copia local o respaldo del equipo'
+                   : 'ni el feed ni la copia ni el respaldo del equipo');
   linea(_jornadasListas, 'Horarios especiales cargados');
   linea(!_sincronizando, 'Ninguna sincronización en curso');
 
@@ -11992,6 +12160,9 @@ async function init(){
     const deAfuera = events.filter(e => e.source === 'medicloud' || e.source === 'online');
     const yaEstan = new Set(propias.map(e => e.id));
     events = [...propias, ...deAfuera.filter(e => !yaEstan.has(e.id))];
+    // Lo escrito a mano y los bloqueos ya están. `DB.load()` cae a la copia
+    // local si Firebase no contesta, y esa copia también es ocupación sabida.
+    OCUP.agenda = true;
     if(deAfuera.length) console.log(`${deAfuera.length} citas de MediCloud conservadas al cargar`);
 
     // Las citas de la última sincronización, encima de lo que vino de Firebase.
@@ -12020,6 +12191,11 @@ async function init(){
         try{ render(); }catch(_){}
       }
     }catch(e){ console.warn('citas guardadas:', e.message); }
+
+    // Con citas de MediCloud recuperadas —del respaldo del equipo o de la copia
+    // de este dispositivo— la ocupación ya se sabe, sin haber hablado con
+    // MediCloud. Publicar un cambio de horario no tiene que esperar al feed.
+    if(events.some(e => e.source === 'medicloud')) OCUP.medicloud = true;
 
     controles = await DB.loadControls();
     durOverrides = await DB.loadDurOverrides();
