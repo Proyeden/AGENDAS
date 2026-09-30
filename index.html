@@ -655,6 +655,25 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
   color:#54718A;line-height:1.4}
 .st-rev-c input{width:17px;height:17px;flex:0 0 17px;margin:0;accent-color:#1B72B8;cursor:pointer}
 /* ¿Dónde se atendió esta cita? */
+/* El detalle de horas extra, en su propia hoja */
+.st-dt-caja{width:100%;max-width:560px;max-height:88vh;overflow-y:auto;background:#fff;
+  border-radius:18px 18px 0 0;padding:0 16px 22px;box-shadow:0 -10px 40px rgba(0,0,0,.22)}
+.st-dt-top{position:sticky;top:0;background:#fff;display:flex;align-items:center;gap:10px;
+  padding:15px 0 11px;border-bottom:1px solid #EEF5FA;z-index:2}
+.st-dt-top b{flex:1;font-size:14.5px;color:#123F73}
+.st-dt-top button{border:1px solid #C8DCEC;background:#fff;color:#1B72B8;border-radius:8px;
+  padding:6px 12px;font-family:var(--font);font-size:12.5px;font-weight:700;cursor:pointer}
+.st-dt-tot{font-size:22px;font-weight:800;color:#123F73;margin:14px 0 4px;font-variant-numeric:tabular-nums}
+.st-dt-dia{border-top:1px solid #EEF5FA;padding:11px 0}
+.st-dt-cab{display:flex;align-items:baseline;gap:10px}
+.st-dt-cab .d{flex:1;font-size:13.5px;font-weight:700;color:var(--text)}
+.st-dt-cab .h{font-size:14px;font-weight:800;color:#B3261E;font-variant-numeric:tabular-nums}
+.st-dt-sub{font-size:11.5px;color:#54718A;line-height:1.45;margin-top:2px}
+.st-dt-btn{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.st-dt-sec{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+  color:#1B72B8;margin:20px 0 4px}
+.st-dt-p{font-size:11.5px;color:#54718A;line-height:1.5;margin:0 0 4px}
+.st-dt-vacio{font-size:12.5px;color:#7C96AC;padding:14px 0}
 .st-dud{font-size:11.5px;color:#54718A;line-height:1.5;background:#FBFDFF;border:1px solid #E3EDF6;
   border-radius:9px;padding:9px 10px;margin-top:2px}
 .st-dud-f{display:flex;align-items:center;gap:8px;margin-top:7px}
@@ -2024,6 +2043,16 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <div id="nvf-ops"></div></div>
 </div>
 
+<div id="st-dt-panel" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1002;align-items:flex-end;justify-content:center" onclick="if(event.target===this)stCerrarDetalle()">
+  <div class="st-dt-caja">
+    <div class="st-dt-top">
+      <b id="st-dt-t"></b>
+      <button onclick="stCerrarDetalle()">Cerrar</button>
+    </div>
+    <div id="st-dt-cuerpo"></div>
+  </div>
+</div>
+
 <div id="nvt-panel" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)nvCerrarTerm()">
   <div class="nvh-caja"><h3 id="nvt-titulo"></h3><p id="nvt-sub"></p>
     <div id="nvt-ops"></div>
@@ -2607,7 +2636,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 134;
+const APP_VERSION = 135;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -7975,7 +8004,7 @@ async function stEditarSalida(asisId, fecha){
   if(txt && !/^\d{1,2}:\d{2}$/.test(txt)){ alert('No entendí la hora. Usá el formato 19:00.'); return; }
   if(await guardarSalidaAsis(asisId, fecha, txt ? tFmt(tMin(txt)) : '')){
     mostrarAvisoBreve(txt ? `Corregido: ${tFmt(tMin(txt))}` : 'Marcaje borrado');
-    stPintar(true);
+    stPintar(true); stRefrescarDetalle();
   }
 }
 window.stEditarSalida = stEditarSalida;
@@ -8011,7 +8040,7 @@ async function stDondeFue(evId, valor){
     mostrarAvisoBreve(valor === 'otro'
       ? `Anotado: se atendió en ${lugar}`
       : `Anotado: se atendió en ${(SEDE_POR_CLAVE[valor]||{}).nombre||''}`);
-    stPintar(true);
+    stPintar(true); stRefrescarDetalle();
   }
 }
 window.stDondeFue = stDondeFue;
@@ -8078,6 +8107,89 @@ function porQueEsteDia(fecha, asisId){
 }
 window.porQueEsteDia = porQueEsteDia;
 
+// ── EL DETALLE, EN SU PROPIA PANTALLA ─────────────────────────────────────
+//
+// Dos listas y nada más: los días que de verdad tuvieron horas extra, y las
+// citas que no se supo dónde ubicar. Un día de cero horas no aparece — no hay
+// nada que revisar en él.
+let _detalleAsis = null;
+
+function stAbrirDetalle(asisId){
+  _detalleAsis = asisId;
+  const { desde, hasta } = stMesRango();
+  const asis = ST_ASISTENTES.find(a => a.id === asisId);
+  if(!asis) return;
+  const n = stNominaDe(asis, desde, hasta);
+
+  const conExtra  = n.dias.filter(x => x.extra > 0).sort((a,b) => a.fecha < b.fecha ? -1 : 1);
+  const porUbicar = n.dias.filter(x => (x.aisladas||[]).length).sort((a,b) => a.fecha < b.fecha ? -1 : 1);
+  const hm = m => (m === null || m === undefined) ? '—' : tFmt(m);
+
+  const dias = conExtra.map(x => {
+    const D = Number(x.fecha.split('-')[2]);
+    return `<div class="st-dt-dia">
+      <div class="st-dt-cab">
+        <span class="d">${ST_DIAS[x.dow]} ${D}</span>
+        <span class="h">+${stHoras(x.extra)}</span>
+      </div>
+      <div class="st-dt-sub">salía ${hm(x.salidaPrevista)} · salió ${hm(x.salida)}${
+        !n.anota ? '' : x.registrado ? ' · marcado' : ' · estimado'}${
+        x.porQuien ? ' · paga '+esc(nombreProf(x.porQuien)) : ''}${
+        x.manual ? ` · <b>corregido a mano</b> (la agenda calculó ${stHoras(x.extraCalculado||0)})` : ''}</div>
+      <div class="st-dt-btn">
+        <button class="st-rev-b" onclick="stCorregirExtra('${asisId}','${x.fecha}',${x.extraCalculado||0})">✎ Corregir</button>
+        ${n.anota ? `<button class="st-rev-b" onclick="stEditarSalida('${asisId}','${x.fecha}')">🕒 Salida</button>` : ''}
+        <button class="st-rev-b" onclick="porQueEsteDia('${x.fecha}','${asisId}')">? De dónde sale</button>
+      </div>
+      ${n.anota && x.porAveriguar > 0 ? `<label class="st-rev-c">
+        <input type="checkbox" ${x.decidido === true ? 'checked' : ''}
+          onchange="stDecidirExtra('${asisId}','${x.fecha}', this.checked)">
+        <span>Contar ${stHoras(x.porAveriguar)} sin justificar para el pago${
+          x.decidido === null ? ' · sin decidir' : x.decidido ? '' : ' · marcado como NO'}</span>
+      </label>` : ''}
+    </div>`;
+  }).join('') || `<div class="st-dt-vacio">Ningún día se pasó de la jornada este mes.</div>`;
+
+  const ubicar = porUbicar.map(x => {
+    const D = Number(x.fecha.split('-')[2]);
+    return `<div class="st-dt-dia">
+      <div class="st-dt-cab"><span class="d">${ST_DIAS[x.dow]} ${D}</span></div>
+      ${x.aisladas.map(z => `<div class="st-dud-f">
+        <span class="q"><b>${esc(z.hora)}</b> ${esc(z.nombre)}
+          <small>${esc(nombreProf(z.doctor))}${z.confirmada?' · confirmado':''}</small></span>
+        <select onchange="stDondeFue('${z.id}', this.value)">
+          ${Object.values(SEDES).map(sx => `<option value="${sx.clave}"
+            ${z.real === sx.clave ? 'selected' : ''}>${esc(sx.nombre)}</option>`).join('')}
+          <option value="otro" ${z.real === 'otro' ? 'selected' : ''}>Otro lugar…</option>
+        </select>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+
+  document.getElementById('st-dt-t').textContent =
+    `${asis.nombre} · ${(SEDE_POR_CLAVE[asis.sede]||{}).nombre||''}`;
+  document.getElementById('st-dt-cuerpo').innerHTML =
+    `<div class="st-dt-tot">${stHm(n.extra)} de más este mes</div>` + dias +
+    (ubicar ? `<div class="st-dt-sec">Citas por ubicar</div>
+      <p class="st-dt-p">A esa hora no había horario en ${
+        esc((SEDE_POR_CLAVE[asis.sede]||{}).nombre||'')}, así que no se contaron.
+        Si alguna sí fue acá, elegila y sus horas entran.</p>` + ubicar : '');
+  document.getElementById('st-dt-panel').style.display = 'flex';
+}
+window.stAbrirDetalle = stAbrirDetalle;
+
+function stCerrarDetalle(){
+  document.getElementById('st-dt-panel').style.display = 'none';
+  _detalleAsis = null;
+}
+window.stCerrarDetalle = stCerrarDetalle;
+
+// Después de corregir algo, el detalle se vuelve a armar para que el número
+// nuevo se vea sin tener que cerrarlo y abrirlo.
+function stRefrescarDetalle(){
+  if(_detalleAsis) stAbrirDetalle(_detalleAsis);
+}
+
 // Corregir a mano las horas de un día. Acepta «2.5» o «2:30».
 async function stCorregirExtra(asisId, fecha, calculado){
   const a = ST_ASISTENTES.find(x => x.id === asisId); if(!a) return;
@@ -8100,7 +8212,7 @@ async function stCorregirExtra(asisId, fecha, calculado){
   if(await corregirExtra(asisId, fecha, min)){
     mostrarAvisoBreve(min === null ? 'Vuelve al cálculo automático'
                                    : `Corregido a ${stHm(min)}`);
-    stPintar(true);
+    stPintar(true); stRefrescarDetalle();
   }
 }
 window.stCorregirExtra = stCorregirExtra;
@@ -8109,7 +8221,7 @@ window.stCorregirExtra = stCorregirExtra;
 async function stDecidirExtra(asisId, fecha, valor){
   if(await decidirExtra(asisId, fecha, valor)){
     mostrarAvisoBreve(valor ? 'Se contará para el pago' : 'No se contará');
-    stPintar(true);
+    stPintar(true); stRefrescarDetalle();
   }
 }
 window.stDecidirExtra = stDecidirExtra;
@@ -8509,54 +8621,17 @@ function stPintar(soloCuerpo){
     }
 
     // En orden de fecha, que es como se revisa un mes: del 1 al 31.
-    const conExtra = n.dias.filter(x => x.extra > 0 || x.porAveriguar > 0 || (x.aisladas||[]).length)
-      .sort((a,b) => a.fecha < b.fecha ? -1 : 1);
-    if(conExtra.length){
-      html.push(`<div class="st-card">
-        <div class="st-t">${esc(n.nombre)} · los días que se alargaron</div>
-        ${conExtra.map(x => {
-          const D = Number(x.fecha.split('-')[2]);
-          const causa = x.porAveriguar >= x.extra ? '⚠ sin paciente de nadie'
-            : x.porQuien ? 'paga '+esc(nombreProf(x.porQuien)) +
-                (x.porAveriguar ? ' · '+stHoras(x.porAveriguar)+' sin respaldo' : '')
-            : 'sin respaldo';
-          return `<div class="st-fila">
-            <span class="n">${ST_DIAS[x.dow]} ${D}
-              <small>salía ${tFmt(x.salidaPrevista)} · salió ${tFmt(x.salida)}${
-                !n.anota ? '' : x.registrado ? ' (marcado)' : ' (estimado)'} · ${causa}${
-                x.manual ? ' · <b>corregido a mano</b>' : ''}</small></span>
-            <span class="v ${x.porAveriguar >= x.extra ? 'neg' : 'pos'}">+${stHoras(x.extra)}</span></div>
-          <div class="st-rev">
-            <div style="display:flex;gap:7px;flex-wrap:wrap">
-              <button class="st-rev-b" onclick="stCorregirExtra('${n.id}','${x.fecha}',${x.extraCalculado||0})">
-                ✎ Corregir las horas${x.manual ? ` · la agenda calculó ${stHoras(x.extraCalculado||0)}` : ''}</button>
-              ${n.anota ? `<button class="st-rev-b" onclick="stEditarSalida('${n.id}','${x.fecha}')">
-                🕒 Hora de salida</button>` : ''}
-              <button class="st-rev-b" onclick="porQueEsteDia('${x.fecha}','${n.id}')">
-                ? De dónde sale</button>
-            </div>
-            ${(x.aisladas||[]).length ? `<div class="st-dud">
-              <b>¿Dónde se atendieron?</b> A esa hora no había horario en
-              ${esc((SEDE_POR_CLAVE[n.sede]||{}).nombre||'')}, así que no se contaron.
-              Si alguna sí fue acá, elegila y sus horas entran.
-              ${x.aisladas.map(z => `<div class="st-dud-f">
-                <span class="q"><b>${esc(z.hora)}</b> ${esc(z.nombre)}
-                  <small>${esc(nombreProf(z.doctor))}${z.confirmada?' · confirmado':''}</small></span>
-                <select onchange="stDondeFue('${z.id}', this.value)">
-                  ${Object.values(SEDES).map(sx => `<option value="${sx.clave}"
-                    ${z.real === sx.clave ? 'selected' : ''}>${esc(sx.nombre)}</option>`).join('')}
-                  <option value="otro" ${z.real === 'otro' ? 'selected' : ''}>Otro lugar…</option>
-                </select>
-              </div>`).join('')}
-            </div>` : ''}
-            ${n.anota && x.porAveriguar > 0 ? `<label class="st-rev-c">
-              <input type="checkbox" ${x.decidido === true ? 'checked' : ''}
-                onchange="stDecidirExtra('${n.id}','${x.fecha}', this.checked)">
-              <span>Contar ${stHoras(x.porAveriguar)} sin justificar para el pago${
-                x.decidido === null ? ' · sin decidir' : x.decidido ? '' : ' · marcado como NO'}</span>
-            </label>` : ''}
-          </div>`;
-        }).join('')}
+    // El detalle vive detrás de un botón. Antes se desplegaba entero dentro de
+    // la tarjeta —selectores, botones y días con cero horas mezclados— y para
+    // llegar al siguiente indicador había que pasar por todo eso.
+    const conExtra  = n.dias.filter(x => x.extra > 0);
+    const porUbicar = n.dias.filter(x => (x.aisladas||[]).length);
+    if(conExtra.length || porUbicar.length){
+      html.push(`<div class="st-fila" style="border-top:1px solid #EEF5FA;margin-top:10px;padding-top:10px">
+        <span class="n">Detalle de las horas extra
+          <small>${conExtra.length} día${conExtra.length===1?'':'s'} con horas${
+            porUbicar.length ? ` · ${porUbicar.length} con citas por ubicar` : ''}</small></span>
+        <button class="st-rev-b" onclick="stAbrirDetalle('${n.id}')">Ver y corregir</button>
       </div>`);
     }
   }
