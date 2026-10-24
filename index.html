@@ -2683,7 +2683,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 137;
+const APP_VERSION = 138;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3252,14 +3252,78 @@ window.olvidarOcupacion = olvidarOcupacion;
 
 // Ratos ocupados de ese día que NO están en la lista actual: los que se
 // perdieron por el camino y hay que seguir respetando.
+// Para no repetir el mismo mensaje en cada publicación: calcularHuecos llama
+// acá una vez por día y por sede, varias veces por pasada.
+const _fantAvisado = new Set();
+
 function ocupacionFantasma(doctorId, fecha){
   const lista = _ocupRecordada[fecha] || [];
   if(!lista.length) return [];
-  const vivos = new Set(events
-    .filter(e => e.date === fecha && e.status !== 'cancelled' && e.time)
-    .map(e => e.id));
-  return lista.filter(x => x.d === doctorId && !vivos.has(x.id));
+
+  // PRESENTES: los ids que están hoy en la lista, EN CUALQUIER ESTADO.
+  //
+  // Antes esto excluía las canceladas. Parecía razonable —una cita cancelada
+  // ya no ocupa— pero el efecto era el contrario: al cancelar, el id salía de
+  // «vivos», su recuerdo quedaba huérfano y seguía tapando ese rato PARA
+  // SIEMPRE. Y como un recuerdo no se dibuja, en la agenda el espacio se veía
+  // libre mientras el sistema de citas no lo ofrecía nunca. Así se perdía el
+  // primer horario del día —las 8:00 del sábado, las 9:00 del viernes— sin
+  // que nada en pantalla lo explicara.
+  //
+  // Que una cita esté cancelada es un DATO, no una ausencia: si está en la
+  // lista, sabemos qué pasó con ella y no hace falta recordar nada.
+  const presentes = new Set(events.filter(e => e.date === fecha).map(e => e.id));
+
+  // Si las tres fuentes contestaron, `events` ES la verdad y el recuerdo no
+  // tiene nada que aportar. Esta memoria existe para cubrir una lectura que
+  // FALLÓ, no para competir con una que salió bien. Y de paso se olvida lo que
+  // ya no tiene cita, así deja de crecer para siempre.
+  const oc = ocupacionConocida();
+  if(oc.ok){
+    const quedan = lista.filter(x => presentes.has(x.id));
+    if(quedan.length !== lista.length){
+      const sueltos = lista.filter(x => !presentes.has(x.id));
+      console.log(`🧹 ${fecha}: se olvidaron ${sueltos.length} rato(s) sin cita — ` +
+        sueltos.map(x => `${tFmt(x.i)}-${tFmt(x.f)}`).join(', '));
+      if(quedan.length) _ocupRecordada[fecha] = quedan; else delete _ocupRecordada[fecha];
+      try{ localStorage.setItem('ag_ocupacion', JSON.stringify(_ocupRecordada)); }catch(_){}
+    }
+    return [];
+  }
+
+  // Alguna fuente no contestó: acá sí se respeta el recuerdo, que es para lo
+  // que está. Pero se dice en voz alta, porque un rato bloqueado en silencio
+  // es justo lo que costó dos semanas encontrar.
+  const fantasmas = lista.filter(x => x.d === doctorId && !presentes.has(x.id));
+  if(fantasmas.length && !_fantAvisado.has(fecha)){
+    _fantAvisado.add(fecha);
+    console.warn(`👻 ${fecha}: ${fantasmas.length} rato(s) se respetan de memoria ` +
+      `porque falta ${oc.falta.join(', ')} — ` +
+      fantasmas.map(x => `${tFmt(x.i)}-${tFmt(x.f)}`).join(', '));
+  }
+  return fantasmas;
 }
+
+// Suelta de una vez los ratos recordados que ya no tienen cita. El olvido
+// automático de arriba ocurre al calcular huecos; esto sirve para destrabar a
+// mano un día sin esperar, y para ver qué había guardado.
+//   limpiarMemoriaOcupacion()              → todos los días
+//   limpiarMemoriaOcupacion('2026-10-24')  → solo ese día
+function limpiarMemoriaOcupacion(fecha){
+  const presentes = new Set(events.map(e => e.id));
+  const dias = fecha ? [fecha] : Object.keys(_ocupRecordada);
+  let sueltos = 0;
+  for(const f of dias){
+    const lista = _ocupRecordada[f] || [];
+    const quedan = lista.filter(x => presentes.has(x.id));
+    sueltos += lista.length - quedan.length;
+    if(quedan.length) _ocupRecordada[f] = quedan; else delete _ocupRecordada[f];
+  }
+  try{ localStorage.setItem('ag_ocupacion', JSON.stringify(_ocupRecordada)); }catch(_){}
+  console.log(`🧹 Se soltaron ${sueltos} rato(s) recordados sin cita`);
+  return sueltos;
+}
+window.limpiarMemoriaOcupacion = limpiarMemoriaOcupacion;
 
 function recordarConteos(){
   try{
