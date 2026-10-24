@@ -795,6 +795,27 @@ body { font-family:var(--font); background:var(--bg); color:var(--text); min-hei
 .ps-horas button:active{background:#E2F1F7;border-color:#1B72B8}
 .ps-horas b{font-size:15px;font-weight:800;color:#123F73;min-width:52px;text-align:center;
   font-variant-numeric:tabular-nums}
+/* La hora como lista desplegable. Mover Mixco de la tarde a la mañana con los
+   botones de ±15 min son dieciséis toques; acá son dos. */
+.ps-hsel{font-size:15px;font-weight:800;color:#123F73;text-align:center;
+  font-variant-numeric:tabular-nums;border:1.5px solid #CBD5E1;border-radius:9px;
+  background:#fff;height:38px;padding:0 2px;font-family:var(--font);cursor:pointer;
+  /* `flex:none` y ancho fijo: sin esto hereda el 100% de los demás select del
+     formulario, se come la fila entera y «Entra» y «Sale» quedan en renglones
+     distintos, que es justo lo que hace difícil leer el día de un vistazo. */
+  flex:none;width:86px;-webkit-appearance:none;appearance:none;text-align-last:center}
+.ps-hsel:active{border-color:#1B72B8;background:#E2F1F7}
+/* Formas del día, de un toque */
+.ps-pre{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
+.ps-pre button{border:1.5px solid #1B72B8;background:#F2F9FD;color:#123F73;border-radius:9px;
+  padding:8px 11px;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;min-height:38px}
+.ps-pre button:active{background:#D8EBF7}
+.ps-pre button.ase{border-color:#B02A20;background:#FEF4F3;color:#8E2117}
+.ps-quien{display:flex;flex-direction:column;gap:7px;margin:0 0 10px;padding:11px;
+  border:1.5px solid #B02A20;border-radius:11px;background:#FEF7F6}
+.ps-quien .q{font-size:12px;font-weight:800;color:#8E2117;margin-bottom:2px}
+.ps-quien button{border:1.5px solid #E3B5AF;background:#fff;color:#8E2117;border-radius:9px;
+  padding:10px;font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;text-align:left}
 .ps-x{border:none;background:#FEF2F2;color:#B02A20;border-radius:8px;padding:0 12px;
   cursor:pointer;font-weight:700;font-size:13px;flex:none;min-height:38px}
 .ps-vacio{font-size:12px;color:var(--muted);font-style:italic;padding:4px 0 8px}
@@ -2674,7 +2695,19 @@ let dupCandidate = null, dupExisting = null, dupSelectedId = null, dupOnResolve 
 
 // ═══ HELPERS ══════════════════════════════════════════════════════════════
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-const dateKey = dt => dt.toISOString().split('T')[0];
+// ── LA FECHA DEL DÍA, EN GUATEMALA ───────────────────────────────────────
+//
+// Esto decía `dt.toISOString()`, que da la fecha en UTC. Guatemala es UTC−6,
+// así que todas las noches, de 18:00 a medianoche, `todayKey()` devolvía YA
+// MAÑANA. Y como el publicador descarta lo anterior a «hoy» (`fecha < hoy`),
+// a partir de las 6 de la tarde el día en curso quedaba fuera de la lista y
+// sus horarios restantes se retiraban del sistema de citas. También recortaba
+// la memoria de ocupación un día antes y mandaba la vista del día a mañana.
+//
+// Ahora se arma con los componentes locales del dispositivo, que en la clínica
+// es la hora de Guatemala. Una fecha construida con componentes locales ahora
+// va y vuelve idéntica, que es lo que el resto del código da por sentado.
+const dateKey = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
 
 // ── VERSIÓN DE LA APP Y AUTO-RECARGA ───────────────────────────────────────
 // Cada vez que se sube una versión nueva, se incrementa APP_VERSION. La agenda
@@ -2683,7 +2716,7 @@ const dateKey = dt => dt.toISOString().split('T')[0];
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 138;
+const APP_VERSION = 140;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -2749,7 +2782,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const lbl = document.getElementById('app-ver-lbl');
   if(lbl) lbl.textContent = APP_VERSION;
 });
-const todayKey = () => new Date().toISOString().split('T')[0];
+const todayKey = () => dateKey(new Date());
 
 // Formato de fecha VISIBLE para la persona: "lun 14/07/26".
 // Corto (con números), pero conserva el día de la semana para leerlo de un
@@ -3377,11 +3410,26 @@ function leerMedicloudLocal(){
   }catch(_){ return []; }
 }
 
+// Un día puede tener la sede PARTIDA —Mixco por la mañana y otra vez al final
+// de la tarde— y entre las dos mitades la persona está en la otra sede o
+// viajando. Antes esto tomaba solo el inicio del primer tramo y el fin del
+// último, como si fuera un bloque continuo, y publicaba el hueco del medio:
+// horarios ofrecidos a pacientes para una hora en la que no hay nadie ahí.
+//
+// Ahora se calcula tramo por tramo. La extensión del cierre (los 15 minutos de
+// gracia) se aplica solo al último, que es el único que cierra el día.
 function calcularHuecos(doctorId, dateStr, clinicId){
-  const [Y,Mo,D] = dateStr.split('-').map(Number);
-  const dow = new Date(Y, Mo-1, D).getDay();
   const j = getJornadaEfectiva(doctorId, dateStr);
   if(!j) return [];
+  const tramos = (j.rangos && j.rangos.length) ? j.rangos : [{ ini:j.ini, fin:j.fin }];
+  const out = [];
+  tramos.forEach((t, i) => {
+    out.push(...huecosDeTramo(doctorId, dateStr, clinicId, t, i === tramos.length - 1));
+  });
+  return out.sort((a,b) => tMin(a.ini) - tMin(b.ini));
+}
+
+function huecosDeTramo(doctorId, dateStr, clinicId, j, esUltimo){
 
   const ocup = events
     // OJO: antes decía `(e.doctor===doctorId || e.type==='blocked')`, lo que
@@ -3417,7 +3465,7 @@ function calcularHuecos(doctorId, dateStr, clinicId){
   let durFinal = j.fin - cur;
   if(durFinal >= 30){
     huecos.push({ini:tFmt(cur), durMin:durFinal});
-  } else if(durFinal > 0 && clinicId){
+  } else if(durFinal > 0 && clinicId && esUltimo){
     // EXCEPCIÓN: el tramo final quedó corto (ej. 15 min). Permitimos extenderlo
     // hasta 15 min pasada la hora de cierre, PERO solo si eso no invade el
     // margen de traslado (mínimo 30 min) hacia la próxima cita del médico en
@@ -3626,10 +3674,19 @@ function franjasEfectivas(doctorId, dateStr){
   // las consultas de esa mañana parecían de la otra sede.
   const jes = jornadasEspeciales.filter(j => j.doctor===doctorId && j.fecha===dateStr)
     .concat((_jeHist[dateStr] || []).filter(j => j.doctor===doctorId));
-  if(jes.length && jes.some(j => Array.isArray(j.rangos) && j.rangos.length)){
+  // Basta que ALGUNA jornada del día traiga el campo `rangos`, aunque venga
+  // vacío. Un arreglo vacío es un dato con significado propio: esa sede NO
+  // abre ese día. Antes se exigía `rangos.length`, así que un día cerrado
+  // —todas las sedes con rangos vacíos— se caía a la rama de abajo, que lee
+  // `ini`/`fin`, y terminaba volviendo al horario de siempre. Por eso «cerrar
+  // el día» se guardaba sin error y los pacientes seguían viendo horarios.
+  if(jes.length && jes.some(j => Array.isArray(j.rangos))){
     for(const j of jes){
       franjas = franjas.filter(f => f.clinica !== j.clinica);
-      const rangos = Array.isArray(j.rangos) && j.rangos.length
+      // Si TRAE el campo `rangos`, vale lo que diga, incluso vacío: vacío es
+      // «esa sede no abre». Solo cuando el campo no existe —jornadas viejas,
+      // guardadas antes de que esto fuera un arreglo— se usa ini/fin.
+      const rangos = Array.isArray(j.rangos)
         ? j.rangos : [{ ini:tMin(j.ini), fin:tMin(j.fin) }];
       rangos.forEach(r => {
         // Tolera la forma vieja [ini,fin] por si quedó algo guardado así en
@@ -5335,7 +5392,7 @@ function enterAgenda(view){
   setView(view==='clinic1'||view==='clinic2'?'compare':view);
   // Al abrir la agenda, mostrar SIEMPRE el día de hoy (no el mes). Es lo que
   // la asistente necesita ver primero: la jornada de hoy.
-  currentDayOffset = 0;
+  fijarDia(todayKey());
   setCalMode('day');   // setCalMode ya llama a render()
 }
 
@@ -5719,12 +5776,27 @@ async function renderJornadaEspecial(){
 }
 
 // Lectura de jornada especial para sobreescribir la normal en calcularHuecos
+// La jornada de ese día en la sede base del profesional (Mixco para Denis).
+//
+// Antes buscaba la jornada especial con `.find(j => j.doctor && j.fecha)`, SIN
+// filtrar por sede: con un día planificado en las dos sedes podía devolver la
+// de San Cristóbal como si fuera la de Mixco. Tampoco miraba `rangos`, así que
+// un día partido se leía como un solo bloque continuo, y un día cerrado no se
+// notaba. Ahora sale de franjasEfectivas, que es quien sabe de todo eso.
 function getJornadaEfectiva(doctorId, dateStr){
-  const je = jornadasEspeciales.find(j=>j.doctor===doctorId && j.fecha===dateStr);
-  if(je) return { ini:tMin(je.ini), fin:tMin(je.fin), especial:true };
-  const [Y,Mo,D] = dateStr.split('-').map(Number);
-  const dow = new Date(Y, Mo-1, D).getDay();
-  return JORNADA[doctorId] ? JORNADA[doctorId](dow) : null;
+  const P = PROFESIONALES[doctorId] || {};
+  const sedeBase = Object.keys(P.bloques || {})[0];
+  const clave = sedeBase && SEDES[sedeBase] ? SEDES[sedeBase].clave : 'clinic1';
+  let fr = [];
+  try{ fr = franjasEfectivas(doctorId, dateStr) || []; }catch(_){ fr = []; }
+  const mias = fr.filter(f => f.clinica === clave).sort((a,b)=>a.ini-b.ini);
+  if(!mias.length) return null;          // ese día no se atiende en su sede base
+  return {
+    ini: mias[0].ini,
+    fin: mias[mias.length-1].fin,
+    rangos: mias.map(f => ({ ini:f.ini, fin:f.fin })),
+    especial: mias.some(f => f.especial),
+  };
 }
 
 // ═══ ACCIONES DE UNA CITA WEB ═════════════════════════════════════════════
@@ -6191,7 +6263,7 @@ function nvPrimerHueco(profId, fecha){
 // eliminó — era la misma información dos veces, con dos formas de filtrar.
 function abrirDia(){
   calMode = 'day';
-  currentDayOffset = 0;
+  fijarDia(todayKey());
   goScreen('s-agenda');
   render();
 }
@@ -6199,13 +6271,45 @@ window.abrirDia = abrirDia;
 window.abrirVistas = abrirDia;   // por si algo viejo todavía la llama
 
 
+// ── EL DÍA QUE SE ESTÁ VIENDO: UNA SOLA VERDAD ───────────────────────────
+//
+// Había DOS estados para lo mismo: `nvFecha` (la fecha del día que se dibuja)
+// y `currentDayOffset` (cuántos días desde hoy). Las flechas del día movían
+// uno, el mes y la semana movían el otro, y render() terminaba sobreescribiendo
+// `nvFecha` a partir de `currentDayOffset`. Resultado: cualquier repintado que
+// no viniera de las flechas —marcar o desmarcar un profesional, por ejemplo—
+// devolvía la vista a HOY y se perdía el día en el que uno estaba.
+//
+// Ahora se mueven siempre juntos, por acá.
+// 'YYYY-MM-DD' a Date local, al mediodía: a esa hora ningún corrimiento de
+// zona puede empujar la fecha al día anterior o al siguiente.
+//
+// Esta función se usaba en irAlDia() pero NUNCA estuvo definida: la llamada
+// lanzaba ReferenceError, se comía el resto de la función y por eso tocar un
+// día en la semana o en el mes no abría nada.
+function parseISO(key){
+  const [Y,M,D] = String(key).split('-').map(Number);
+  return new Date(Y, (M||1)-1, D||1, 12, 0, 0, 0);
+}
+window.parseISO = parseISO;
+
+function fijarDia(key){
+  nvFecha = key;
+  try{
+    const hoy = parseISO(todayKey()), d = parseISO(key);
+    currentDayOffset = Math.round((d - hoy) / 86400000);
+  }catch(_){ currentDayOffset = 0; }
+  return key;
+}
+window.fijarDia = fijarDia;
+
 function nvDia(d){
   const [Y,M,D] = nvFecha.split('-').map(Number);
   const x = new Date(Y,M-1,D); x.setDate(x.getDate()+d);
-  nvFecha = dateKey(x); nvPintar();
+  fijarDia(dateKey(x)); nvPintar();
 }
 window.nvDia = nvDia;
-function nvHoy(){ nvFecha = todayKey(); nvPintar(); }
+function nvHoy(){ fijarDia(todayKey()); nvPintar(); }
 window.nvHoy = nvHoy;
 
 function nvAlternar(id){
@@ -9283,17 +9387,39 @@ function psRender(){
           <div class="ps-horas">
             <span class="ps-et">Entra</span>
             <button onclick="psMoverHora('${f}',${k},'ini',-15)" aria-label="15 minutos antes">−</button>
-            <b class="num">${tFmt(x.ini)}</b>
+            <select class="ps-hsel" aria-label="Hora de entrada"
+              onchange="psEditar('${f}',${k},'ini',this.value)">${psOpciones(x.ini)}</select>
             <button onclick="psMoverHora('${f}',${k},'ini',15)" aria-label="15 minutos después">+</button>
             <span class="ps-et">Sale</span>
             <button onclick="psMoverHora('${f}',${k},'fin',-15)" aria-label="15 minutos antes">−</button>
-            <b class="num">${tFmt(x.fin)}</b>
+            <select class="ps-hsel" aria-label="Hora de salida"
+              onchange="psEditar('${f}',${k},'fin',this.value)">${psOpciones(x.fin)}</select>
             <button onclick="psMoverHora('${f}',${k},'fin',15)" aria-label="15 minutos después">+</button>
           </div>
         </div>`).join('')
         : `<div class="ps-vacio">Ese día no se atiende.</div>`}
 
       ${avisos.map(a=>`<div class="ps-aviso ${a.t}">${esc(a.txt)}</div>`).join('')}
+
+      ${psAsuetoAbierto === f ? `<div class="ps-quien">
+        <div class="q">Asueto · ¿a quién le cierra el día?</div>
+        ${Object.keys(PROFESIONALES).filter(id=>PROFESIONALES[id].publica!==false).map(id=>
+          `<button onclick="psAsuetoAplicar('${f}','${id}')">Solo ${esc(PROFESIONALES[id].corto||id)}</button>`).join('')}
+        <button onclick="psAsuetoAplicar('${f}','todos')"><b>A todos</b> — las dos sedes cerradas</button>
+        <button onclick="psAsuetoCancelar()" style="border-style:dashed">No, dejarlo como está</button>
+      </div>` : ''}
+
+      ${filas.length ? `<div class="ps-pre">
+        <button onclick="psPreset('${f}','invertir')">${psEtiquetaInvertir(filas)}</button>
+        <button onclick="psPreset('${f}','mas')">Salir 45 min después</button>
+        <button onclick="psPreset('${f}','menos')">Salir 45 min antes</button>
+        <button onclick="psPreset('${f}','tarde')">Entrar 45 min después</button>
+        <button onclick="psPreset('${f}','temprano')">Entrar 45 min antes</button>
+        <button onclick="psBloquearRato('${f}')">Bloquear un rato</button>
+        <button class="ase" onclick="psAsuetoPreguntar('${f}')">Asueto</button>
+      </div>` : `<div class="ps-pre">
+        <button class="ase" onclick="psAsuetoPreguntar('${f}')">Asueto</button>
+      </div>`}
 
       <div class="ps-ops">
         <button onclick="psAgregarFila('${f}')">+ Franja</button>
@@ -9389,9 +9515,28 @@ async function psGuardarDia(fecha){
         try{ await _db.collection('jornadas_especiales').doc(idJe).set(j); }
         catch(e){ fallos.push(`${sx.nombre}: ${e.message}`); }
       }
-    } else if(_db){
-      try{ await _db.collection('jornadas_especiales').doc(idJe).delete(); }
-      catch(e){ fallos.push(`${sx.nombre}: ${e.message}`); }
+    } else {
+      // ── CERRAR ESA SEDE ESE DÍA ───────────────────────────────────────
+      //
+      // Antes acá se BORRABA la jornada especial. Y borrarla no cierra nada:
+      // sin jornada especial el día vuelve al horario de siempre, que es
+      // exactamente lo contrario de lo que se pidió. Por eso «Cerrar el día»
+      // se guardaba sin error, decía que estaba publicado, y los pacientes
+      // seguían viendo los mismos horarios.
+      //
+      // Un día cerrado se ESCRIBE: una jornada con `rangos: []`. Vacío quiere
+      // decir «esa sede no abre», que es un dato, no la ausencia de un dato.
+      // Para volver al horario de siempre está su propio botón, que sí borra
+      // los documentos.
+      const j = { id:idJe, doctor:pfActual, clinica:sx.clave, fecha,
+        ini:'00:00', fin:'00:00', rangos: [], cerrado: true,
+        motivo:'Cerrado', creadoEn: new Date().toISOString() };
+      jornadasEspeciales.push(j);
+      if(_db){
+        window._jeUltimaCarga = 0;
+        try{ await _db.collection('jornadas_especiales').doc(idJe).set(j); }
+        catch(e){ fallos.push(`${sx.nombre}: ${e.message}`); }
+      }
     }
   }
 
@@ -9418,7 +9563,10 @@ async function psGuardarDia(fecha){
       const chk = await _db.collection('jornadas_especiales')
         .where('fecha','==',fecha).get();
       const propios = chk.docs.filter(d => (d.data().doctor||'') === pfActual).length;
-      const esperados = new Set(filas.map(x => x.sede)).size;
+      // Un documento por sede: las que abren con sus rangos, las que no con
+      // `rangos: []`. Antes se esperaban solo las que abrían, así que un día
+      // cerrado daba falsa alarma de «puede no haber quedado guardado».
+      const esperados = Object.keys(SEDES).length;
       if(propios !== esperados){
         console.warn(`Verificación ${fecha}: esperaba ${esperados} documentos, hay ${propios}`);
         mostrarAvisoBreve(`Ojo: ${fecha} puede no haber quedado guardado`);
@@ -9469,6 +9617,179 @@ async function psCerrar(fecha){
   await psGuardar(fecha, [], 'Cerrado');
 }
 window.psCerrar = psCerrar;
+
+// ── FORMAS DEL DÍA, DE UN TOQUE ──────────────────────────────────────────
+//
+// Las operaciones que de verdad se hacen —pasar Mixco a la mañana, estirar,
+// acortar, cerrar por asueto— se hacían a mano con los botones de ±15 minutos.
+// Mover Mixco de las 13:00 a las 9:00 son DIECISÉIS toques, y después hay que
+// recolocar San Cristóbal y acordarse de que el traslado cambia de 60 a 45.
+// Todo eso es una cuenta, no una decisión: la hace la máquina.
+//
+// Cada preset solo toca el BORRADOR del día. Lo que escribe en Firebase sigue
+// siendo psGuardarDia(), que ya estaba probado: no hay un segundo camino de
+// escritura que pueda desincronizarse del primero.
+
+function psOpciones(sel){
+  return QHOURS.map(h => `<option value="${h}"${tMin(h)===sel?' selected':''}>${tFmt(tMin(h))}</option>`).join('');
+}
+
+// La sede con bloques propios (Mixco para Denis) es la que se mueve; la otra
+// se deriva. Es el mismo criterio que usa el modelo de horarios.
+function psSedeFija(prof){
+  const P = PROFESIONALES[prof] || {};
+  return Object.keys(P.bloques || {})[0] || Object.keys(SEDES)[0];
+}
+
+// ¿Está esa sede al principio del día?
+function psEstaEnLaManana(filas, prof){
+  const ord = filas.slice().sort((a,b)=>a.ini-b.ini);
+  const fija = psSedeFija(prof);
+  const mias = ord.filter(x => x.sede === fija);
+  return !!(mias.length && ord.length && mias[0].ini <= ord[0].ini + 15);
+}
+
+// La etiqueta dice a dónde va a ir, no qué es.
+function psEtiquetaInvertir(filas){
+  const fija = psSedeFija(pfActual);
+  const nombre = (SEDES[fija] || {}).nombre || '';
+  return psEstaEnLaManana(filas, pfActual)
+    ? `Pasar ${nombre.split(' ')[0]} a la tarde`
+    : `Pasar ${nombre.split(' ')[0]} a la mañana`;
+}
+
+function psPreset(fecha, cual){
+  const filas = psCargarDia(fecha);
+  if(!filas.length){ mostrarAvisoBreve('Ese día está cerrado · agregá una franja primero'); return; }
+  const ord = filas.slice().sort((a,b)=>a.ini-b.ini);
+
+  if(cual === 'invertir'){
+    // No se invierte la lista a mano: se le pide al MODELO que arme el día con
+    // la sede fija en su nuevo horario. Él ya sabe darle el resto del día a la
+    // otra sede descontando el traslado que corresponde en cada dirección
+    // (San Cristóbal → Mixco son 60 minutos; Mixco → San Cristóbal, 45).
+    //
+    // Invertir la lista a mano dejaba restos: un lunes que es San Cristóbal,
+    // Mixco y otra vez San Cristóbal quedaba con un bloque suelto de 45
+    // minutos al abrir, que no es una jornada que nadie trabaje.
+    const fija = psSedeFija(pfActual);
+    const mias = ord.filter(x => x.sede === fija);
+    const dur = mias.reduce((a,x) => a + (x.fin - x.ini), 0);
+    if(!dur){ mostrarAvisoBreve(`Ese día no hay horario en ${(SEDES[fija]||{}).nombre||'esa sede'}`); return; }
+    const jIni = ord[0].ini, jFin = ord[ord.length-1].fin;
+    const aLaManana = !psEstaEnLaManana(ord, pfActual);
+    const nIni = aLaManana ? jIni : Math.max(jIni, jFin - dur);
+    const dow = parseISO(fecha).getDay();
+    let fr = [];
+    try{ fr = franjasDe(pfActual, dow, { sede:fija, ini:nIni, fin:nIni + dur }) || []; }catch(_){}
+    if(!fr.length){ mostrarAvisoBreve('No se pudo armar ese día'); return; }
+    psBorrador[psK(fecha)] = fr.slice().sort((a,b)=>a.ini-b.ini).map(f => ({
+      sede: (SEDE_POR_CLAVE[f.clinica] || {}).id || fija,
+      ini: f.ini, fin: f.fin,
+    }));
+
+  } else if(cual === 'mas' || cual === 'menos'){
+    const u = ord[ord.length - 1];
+    const d = cual === 'mas' ? 45 : -45;
+    u.fin = Math.max(u.ini + 15, Math.min(23*60 + 45, u.fin + d));
+    psBorrador[psK(fecha)] = ord;
+
+  } else if(cual === 'tarde' || cual === 'temprano'){
+    const pr = ord[0];
+    const d = cual === 'tarde' ? 45 : -45;
+    pr.ini = Math.max(0, Math.min(pr.fin - 15, pr.ini + d));
+    psBorrador[psK(fecha)] = ord;
+  }
+  psRender();
+}
+window.psPreset = psPreset;
+window.psOpciones = psOpciones;
+window.psEtiquetaInvertir = psEtiquetaInvertir;
+window.psSedeFija = psSedeFija;
+window.psEstaEnLaManana = psEstaEnLaManana;
+
+// Bloquear un rato corto —una hora, media mañana— sin cerrar el día. Abre el
+// formulario de siempre con la fecha puesta y el tipo ya en «bloqueo», que es
+// lo único que había que hacer a mano cada vez.
+function psBloquearRato(fecha){
+  let hora = '08:00';
+  try{
+    const fr = franjasEfectivas(pfActual, fecha) || [];
+    if(fr.length) hora = tFmt(Math.min(...fr.map(f=>f.ini)));
+  }catch(_){}
+  openModal(null, fecha, hora, pfActual);
+  try{ setClinic('blocked'); }catch(_){}
+}
+window.psBloquearRato = psBloquearRato;
+
+// ── ASUETO ───────────────────────────────────────────────────────────────
+// Se pregunta a quién le aplica, porque no siempre cierran los dos: hay
+// asuetos que la clínica trabaja y días en que solo uno descansa.
+let psAsuetoAbierto = null;
+
+function psAsuetoPreguntar(fecha){ psAsuetoAbierto = fecha; psAbierto = fecha; psRender(); }
+function psAsuetoCancelar(){ psAsuetoAbierto = null; psRender(); }
+window.psAsuetoPreguntar = psAsuetoPreguntar;
+window.psAsuetoCancelar = psAsuetoCancelar;
+
+// Cierra las dos sedes de un profesional ese día. Escribe el cierre —jornada
+// con `rangos: []`— en vez de borrar la jornada especial: borrarla devolvería
+// el día a su horario de siempre, que es lo contrario de cerrarlo.
+async function psCerrarDiaDe(prof, fecha, motivo){
+  const fallos = [];
+  for(const sx of Object.values(SEDES)){
+    const id = `je_${prof}_${sx.clave}_${fecha}`;
+    const j = { id, doctor:prof, clinica:sx.clave, fecha,
+      ini:'00:00', fin:'00:00', rangos: [], cerrado: true,
+      motivo: motivo || 'Asueto', creadoEn: new Date().toISOString() };
+    jornadasEspeciales = jornadasEspeciales.filter(x => x.id !== id);
+    jornadasEspeciales.push(j);
+    if(_db){
+      window._jeUltimaCarga = 0;
+      try{ await _db.collection('jornadas_especiales').doc(id).set(j); }
+      catch(e){ fallos.push(`${sx.nombre}: ${e.message}`); }
+    }
+  }
+  try{ localStorage.setItem('jornadas_especiales', JSON.stringify(jornadasEspeciales)); }catch(_){}
+  return fallos;
+}
+window.psCerrarDiaDe = psCerrarDiaDe;
+
+async function psAsuetoAplicar(fecha, quien){
+  psAsuetoAbierto = null;
+  const profs = quien === 'todos'
+    ? Object.keys(PROFESIONALES).filter(id => PROFESIONALES[id].publica !== false)
+    : [quien];
+
+  const fallos = [];
+  for(const prof of profs) fallos.push(...await psCerrarDiaDe(prof, fecha, 'Asueto'));
+
+  if(fallos.length){
+    alert('No se pudo guardar el asueto.\n\n' + fallos.join('\n') +
+      '\n\nRevisá la conexión y volvé a intentar.');
+    psRender();
+    return;
+  }
+
+  // El paciente que toque ese día tiene que leer POR QUÉ. Sin esto ve una
+  // línea gris de «no hay horarios», que parece una falla de la página.
+  const texto = `El ${fmtFecha(fecha)} permanecemos cerrados por asueto. ` +
+    `Abajo podés ver el día disponible más cercano.`;
+  for(const prof of profs){
+    try{
+      await guardarAvisoDia(fecha, prof, { activo:true, texto, tipo:'asueto',
+        sedes:['mixco','sancristobal'] });
+    }catch(e){ console.warn('aviso de asueto:', e.message); }
+  }
+
+  delete psBorrador[psK(fecha)];
+  render(); psRender();
+  const r = await publicarHorarios([fecha], 'asueto');
+  mostrarAvisoBreve(r.ok
+    ? `Asueto del ${fmtFecha(fecha)} · ${profs.length>1?'ambos cerrados':'cerrado'} y publicado`
+    : '⚠ Se guardó el asueto, pero no se publicó');
+}
+window.psAsuetoAplicar = psAsuetoAplicar;
 
 async function psQuitar(fecha){
   for(const sede of Object.values(SEDES)){
@@ -10324,7 +10645,10 @@ function render(){
     // Quién se ve lo deciden las casillas: con uno marcado, su día en detalle;
     // con dos o más, las columnas comparadas.
     try {
-      nvFecha = dateKey(new Date(Date.now() + currentDayOffset*86400000));
+      // Antes esto RECALCULABA nvFecha desde currentDayOffset en cada
+      // repintado, y así borraba el día elegido. Ahora manda nvFecha —que es
+      // el estado propio de la vista de día— y el desfase se deriva de ella.
+      fijarDia(nvFecha || todayKey());
       const cuantos = Object.keys(PROFESIONALES).filter(id => nvVisibles.has(id)).length;
       root.innerHTML = `<div class="nv nv-pantalla">${cuantos===1 ? nvHTMLMiDia() : nvHTMLPanorama()}</div>`;
     } catch(err){
@@ -10444,7 +10768,7 @@ function renderMonth(root){
       div.appendChild(more);
     }
     // Tap empty area of an in-month day → jump to that day view
-    div.onclick=()=>{ if(inMonth){ const diff=Math.round((cell-new Date().setHours(0,0,0,0))/86400000); currentDayOffset=diff; setCalMode('day'); } };
+    div.onclick=()=>{ if(inMonth){ fijarDia(dateKey(new Date(cell))); setCalMode('day'); } };
     grid.appendChild(div);
   }
 }
@@ -10453,10 +10777,8 @@ function formatHM(t){ const [h,m]=t.split(':'); const hh=+h; const ap=hh>=12?'p'
 
 // Abrir un día concreto desde cualquier vista.
 function irAlDia(key){
-  nvFecha = key;
+  fijarDia(key);
   calMode = 'day';
-  const hoy = parseISO(todayKey()), d = parseISO(key);
-  currentDayOffset = Math.round((d - hoy) / 86400000);
   render();
   window.scrollTo({ top:0, behavior:'instant' });
 }
@@ -13390,13 +13712,13 @@ function setMicStatus(msg){ document.getElementById('mic-status').textContent=ms
 
 // ═══ NAV & INIT ════════════════════════════════════════════════════════════
 function navStep(dir){
-  if(calMode==='day') currentDayOffset+=dir;
+  if(calMode==='day') fijarDia(dateKey(new Date(parseISO(nvFecha || todayKey()).getTime() + dir*86400000)));
   else if(calMode==='month') currentMonthOffset+=dir;
   else currentWeekOffset+=dir;
   render();
 }
 function goToday(){
-  if(calMode==='day') currentDayOffset=0;
+  if(calMode==='day') fijarDia(todayKey());
   else if(calMode==='month') currentMonthOffset=0;
   else currentWeekOffset=0;
   render();
