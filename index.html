@@ -2375,9 +2375,14 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
         style="width:100%">Bloquear para ambos médicos</button>
     </div>
     <label style="margin-bottom:6px">Tipo</label>
-    <div class="seg cols2" style="grid-template-columns:1fr 1fr 1fr 1fr">
+    <!-- Cinco tipos, en dos filas de tres y dos. San Lucas tiene botón propio
+         a propósito: escrito a mano el lugar sale distinto cada vez —«S.
+         Lucas», «Sn Lucas», «san lucas»— y la vista del hospital reconoce sus
+         citas por ese texto. Con un botón no hay forma de que varíe. -->
+    <div class="seg cols2" style="grid-template-columns:1fr 1fr 1fr">
       <button class="seg-btn" id="cb-mixco" onclick="setClinic('clinic1')">Zona 1 Mixco</button>
       <button class="seg-btn" id="cb-sanc"  onclick="setClinic('clinic2')">San Cristóbal</button>
+      <button class="seg-btn" id="cb-sanlucas" onclick="setClinic('sanlucas')">San Lucas</button>
       <button class="seg-btn" id="cb-reserva" onclick="setClinic('reserva')">Otro lugar</button>
       <button class="seg-btn" id="cb-block" onclick="setClinic('blocked')">Bloqueo</button>
     </div>
@@ -2794,7 +2799,7 @@ const dateKey = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 149;
+const APP_VERSION = 151;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -7913,6 +7918,111 @@ function stTodas(desde, hasta){
   return out;
 }
 
+// ── SAN LUCAS ────────────────────────────────────────────────────────────
+//
+// San Lucas es un hospital ajeno a Mixco y a Pinares. No es una sede: es una
+// RESERVA con lugar «San Lucas», que ocupa el tiempo del médico y por lo tanto
+// tapa las dos clínicas sin que haya que tocar el modelo de horarios.
+//
+// La regla del día, tal como funciona en la práctica:
+//
+//   · Lunes a jueves. Cuatro horas posibles: 9:30, 10:00, 10:30 y 11:00.
+//   · Se ofrece LA MÁS TARDE que se pueda. Las 11:00 es la preferida; si ya
+//     hay alguien a esa hora, se ofrece la de antes, y así hacia atrás.
+//   · El traslado es de una hora y cuenta UNA VEZ POR VISITA, no entre
+//     paciente y paciente del mismo hospital: si ya se va a las 11:00, sumar
+//     uno a las 10:30 solo significa llegar más temprano.
+//   · Antes de llegar tiene que haber una hora libre; después del último
+//     paciente, otra hora para llegar a Mixco a las 13:00. Por eso 11:00 es
+//     el tope tarde: 11:30 + 60 = 12:30, y a las 13:00 empieza Mixco.
+//   · Si hay algo agendado en Pinares o en Mixco que caiga en esa ventana, no
+//     se ofrece. Estar «de turno» en Pinares no estorba; tener un PACIENTE sí.
+const SL_LUGAR     = 'San Lucas';
+const SL_DIAS      = [1,2,3,4];                                   // lunes a jueves
+const SL_HORAS     = ['09:30','10:00','10:30','11:00'];
+const SL_DUR       = 30;
+const SL_TRASLADO  = 60;
+const SL_LIMITE    = 13*60;    // a esa hora tiene que estar en Mixco
+const SL_MEDICO    = 'denis';
+
+const esSanLucas = (ev) => !!ev && ev.status !== 'cancelled' &&
+  /san\s*lucas/i.test(String(ev.lugar || ''));
+
+// Las citas de San Lucas de ese día, ordenadas.
+function slCitasDe(fecha){
+  return events
+    .filter(e => e.date === fecha && e.doctor === SL_MEDICO && e.time && esSanLucas(e))
+    .map(e => ({ hora: e.time, nombre: (e.name || '').trim(),
+                 durMin: e.durMin || SL_DUR, ini: tMin(e.time) }))
+    .sort((a,b) => a.ini - b.ini);
+}
+
+// Todo lo demás que lo ocupa ese día: Mixco, Pinares, bloqueos, otras reservas.
+function slOtrosCompromisos(fecha){
+  return events
+    .filter(e => e.date === fecha && e.doctor === SL_MEDICO && e.time &&
+                 e.status !== 'cancelled' && !esSanLucas(e))
+    .map(e => { const i = tMin(e.time); return { s:i, e:i + duracionEvento(e) }; });
+}
+
+// ¿A qué hora se le puede mandar un paciente ese día? null si no se puede.
+function slDisponible(fecha){
+  const dow = parseISO(fecha).getDay();
+  if(!SL_DIAS.includes(dow)) return null;
+  if(fecha < todayKey()) return null;
+
+  const ya = slCitasDe(fecha);
+  const otros = slOtrosCompromisos(fecha);
+  const chocaCon = (s, e) => otros.some(o => o.e > s && o.s < e);
+
+  // De la más tarde a la más temprana: la de las 11:00 es la que se quiere.
+  for(let i = SL_HORAS.length - 1; i >= 0; i--){
+    const hora = SL_HORAS[i];
+    const s = tMin(hora), e = s + SL_DUR;
+    if(ya.some(c => c.ini === s)) continue;        // esa hora ya está tomada
+    if(chocaCon(s, e)) continue;                   // hay algo encima
+
+    // La visita completa, contando lo que ya está agendado ese día.
+    const primero = Math.min(s, ...ya.map(c => c.ini));
+    const ultimo  = Math.max(e, ...ya.map(c => c.ini + c.durMin));
+
+    if(chocaCon(primero - SL_TRASLADO, primero)) continue;   // no alcanza para llegar
+    if(ultimo + SL_TRASLADO > SL_LIMITE) continue;           // no alcanza para volver
+    return hora;
+  }
+  return null;
+}
+window.slDisponible = slDisponible;
+window.slCitasDe = slCitasDe;
+
+// ── LO QUE VE EL HOSPITAL ────────────────────────────────────────────────
+//
+// Un espejo mínimo, en su propia colección. Lleva SOLO lo de San Lucas: los
+// pacientes de ellos, que son suyos, y la hora que queda libre. De Mixco y de
+// Pinares no sale nada —ni un nombre, ni un horario, ni cuántos hay—: para el
+// hospital, un día ocupado es simplemente un día sin hora disponible.
+async function publicarSanLucas(fechas){
+  if(!_db) return 0;
+  let n = 0;
+  for(const f of (fechas || [])){
+    const dow = parseISO(f).getDay();
+    if(!SL_DIAS.includes(dow)) continue;
+    const doc = {
+      fecha: f,
+      citas: slCitasDe(f).map(c => ({ hora:c.hora, nombre:c.nombre, durMin:c.durMin })),
+      disponible: slDisponible(f),
+      actualizado: new Date().toISOString(),
+    };
+    try{
+      await _db.collection('sanlucas_agenda').doc(f).set(doc);
+      n++;
+    }catch(e){ console.warn('publicar San Lucas:', e.message); break; }
+  }
+  if(n) console.log(`🏥 San Lucas: ${n} día(s) publicados`);
+  return n;
+}
+window.publicarSanLucas = publicarSanLucas;
+
 // ── EL CONTADOR QUE NO SE BORRA ──────────────────────────────────────────
 //
 // De una consulta pasada, a la clínica no le sirve quién fue: le sirve el
@@ -12289,17 +12399,47 @@ function onStartTimeChange(){
 function setDoc(d){ currentDoc=d; document.getElementById('db-denis').className='seg-btn'+(d==='denis'?' on-denis':''); document.getElementById('db-majo').className='seg-btn'+(d==='majo'?' on-majo':''); }
 let _sedeBloqueo = 'clinic1';   // última sede real; la referencia al bloquear
 
+// ¿El tipo elegido en el formulario es San Lucas? Se recuerda aparte porque
+// por dentro es una reserva como cualquier otra.
+let _tipoSanLucas = false;
+
+// El tipo con el que hay que abrir una cita ya guardada.
+function tipoDeEvento(ev){
+  if(!ev) return 'clinic1';
+  if((ev.type === 'reserva' || ev.status === 'reserva' || ev.esReserva) &&
+     /san\s*lucas/i.test(String(ev.lugar || ''))) return 'sanlucas';
+  return ev.type || 'clinic1';
+}
+window.tipoDeEvento = tipoDeEvento;
+
 function setClinic(c){
+  // San Lucas es, por dentro, una reserva: ocupa el tiempo del médico y no
+  // pertenece a ninguna de las dos clínicas. Lo único propio es el lugar, que
+  // se pone solo. Así nada del guardado tuvo que cambiar.
+  const esSL = (c === 'sanlucas');
+  if(esSL) c = 'reserva';
+  _tipoSanLucas = esSL;
+
   if(c==='clinic1' || c==='clinic2') _sedeBloqueo = c;
   currentClinic=c;
   document.getElementById('cb-mixco').className='seg-btn'+(c==='clinic1'?' on-mixco':'');
   document.getElementById('cb-sanc').className='seg-btn'+(c==='clinic2'?' on-sanc':'');
   document.getElementById('cb-block').className='seg-btn'+(c==='blocked'?' on-block':'');
-  const cbr=document.getElementById('cb-reserva'); if(cbr) cbr.className='seg-btn'+(c==='reserva'?' on-reserva':'');
+  const cbr=document.getElementById('cb-reserva');
+  if(cbr) cbr.className='seg-btn'+((c==='reserva' && !esSL)?' on-reserva':'');
+  const cbsl=document.getElementById('cb-sanlucas');
+  if(cbsl) cbsl.className='seg-btn'+(esSL?' on-reserva':'');
+  // Con San Lucas el lugar ya está decidido: se escribe solo y el campo se
+  // esconde, que es una cosa menos que llenar y una menos en que equivocarse.
+  if(esSL){
+    const fl2=document.getElementById('f-lugar');
+    if(fl2) fl2.value = (typeof SL_LUGAR!=='undefined') ? SL_LUGAR : 'San Lucas';
+  }
   // El campo de lugar solo tiene sentido fuera de las dos clínicas: una cita
   // en un sanatorio no pertenece a Mixco ni a San Cristóbal, y sin anotar
   // dónde es queda como «reserva» a secas y hay que acordarse de memoria.
-  const fl=document.getElementById('field-lugar'); if(fl) fl.style.display = (c==='reserva') ? 'block' : 'none';
+  const fl=document.getElementById('field-lugar');
+  if(fl) fl.style.display = (c==='reserva' && !esSL) ? 'block' : 'none';
   const isBlock = c==='blocked';
   const isReserva = c==='reserva';
   const fd=document.getElementById('field-duration'), fe=document.getElementById('field-endtime');
@@ -12636,7 +12776,7 @@ function openModal(ev=null,date=null,time=null,defaultDoc=null){
   document.getElementById('btn-delete').style.display=ev?'block':'none';
   document.getElementById('modal-tag').style.display=ev?.source==='medicloud'?'inline-flex':'none';
   buildTimes(ev?ev.time:(time||'08:00'));
-  if(ev){ setDoc(ev.doctor||'denis'); setClinic(ev.type||'clinic1'); document.getElementById('f-name').value=ev.name;
+  if(ev){ setDoc(ev.doctor||'denis'); setClinic(tipoDeEvento(ev)); document.getElementById('f-name').value=ev.name;
     { const fl=document.getElementById('f-lugar'); if(fl) fl.value = ev.lugar || ''; } document.getElementById('f-phone').value=ev.phone||''; document.getElementById('f-date').value=ev.date; document.getElementById('f-duration').value=String(ev.durMin||(ev.duration?ev.duration*60:60)); if(ev.type==='blocked'){ buildEndTimes(ev.endTime||''); } if(ev.notes){ document.getElementById('field-notes').style.display='block'; document.getElementById('f-notes').value=ev.notes; } else document.getElementById('field-notes').style.display='none'; }
   else { setDoc(defaultDoc||(currentView==='majo'?'majo':'denis')); setClinic('clinic1'); document.getElementById('f-name').value='';
     { const fl=document.getElementById('f-lugar'); if(fl) fl.value=''; } document.getElementById('f-phone').value=''; document.getElementById('f-date').value=date||todayKey(); document.getElementById('f-duration').value='60'; document.getElementById('field-notes').style.display='none'; const fr=document.getElementById('f-recur'); if(fr){ fr.value='none'; } const fc=document.getElementById('f-recur-count-wrap'); if(fc) fc.style.display='none'; }
@@ -13680,7 +13820,10 @@ async function publicarHorarios(fechas, motivo){
   window._pubMixco = null; window._pubSC = null;
   let okM = false, okSC = false;
   try{
-    okM  = await publicarSlotsDisponibles(opc);
+    // El hospital ve su propio espejo, que se arma con los mismos datos.
+  publicarSanLucas(fechas).catch(e => console.warn('San Lucas:', e.message));
+
+  okM  = await publicarSlotsDisponibles(opc);
     okSC = await publicarSlotsSanCristobal(opc);
   }catch(e){
     console.warn(`publicarHorarios (${motivo}):`, e.message);
@@ -14485,7 +14628,7 @@ function quickClear(){
 // Rellena los campos del formulario a partir de un evento (sin abrir/cerrar modal)
 function fillFormFromEvent(ev){
   setDoc(ev.doctor||'denis');
-  setClinic(ev.type||'clinic1');
+  setClinic(tipoDeEvento(ev));
   document.getElementById('f-name').value=ev.name||'';
   document.getElementById('f-phone').value=ev.phone||'';
   document.getElementById('f-date').value=ev.date||todayKey();
