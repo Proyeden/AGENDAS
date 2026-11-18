@@ -2821,7 +2821,7 @@ const dateKey = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 152;
+const APP_VERSION = 154;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -8000,7 +8000,15 @@ function slOtrosCompromisos(fecha){
 function slDisponible(fecha){
   const dow = parseISO(fecha).getDay();
   if(!SL_DIAS.includes(dow)) return null;
-  if(fecha < todayKey()) return null;
+  // ── CON UN DÍA DE ANTICIPACIÓN, COMO MÍNIMO ──────────────────────────
+  //
+  // Llegado el día ya no se ofrece, aunque quede hueco. Un paciente avisado
+  // esa misma mañana no llega, y el hueco que se ve a las nueve de la mañana
+  // no es un hueco real: es tiempo que ya no alcanza a llenarse bien.
+  //
+  // Las citas que YA están agendadas para hoy se siguen mostrando: lo que se
+  // cierra es agendar nuevas, no ver las que hay.
+  if(fecha <= todayKey()) return null;
 
   // `ya` trae las horas de CONSULTA, que son las que se ofrecen y las que el
   // hospital conoce. El bloqueo de cada una lo cubre `slOtrosCompromisos` por
@@ -8009,19 +8017,57 @@ function slDisponible(fecha){
   const otros = slOtrosCompromisos(fecha);
   const chocaCon = (s, e) => otros.some(o => o.e > s && o.s < e);
 
+  // ── ESTAR CITADO EN MIXCO SÍ ESTORBA ─────────────────────────────────
+  //
+  // Hasta acá solo bloqueaban las CITAS: estar de turno en Pinares no impide
+  // ir a San Lucas, porque la visita reemplaza ese rato y para eso se bloquea
+  // Pinares. Con Mixco es al revés: San Lucas nunca le quita tiempo a Mixco.
+  //
+  // Así que si ese día la consulta de Mixco está en la mañana —porque se dio
+  // vuelta la jornada— no hay mañana que ofrecer, y el día se cierra solo,
+  // igual que un viernes o un sábado. Sin esto, un lunes con Mixco de 9 a 13
+  // seguía ofreciendo las 11:00 y el doctor tenía que estar en otro lado.
+  //
+  // Y antes que nada: si ese día no trabaja en NINGUNA sede —un asueto, un día
+  // cerrado a mano— tampoco hay San Lucas. Eso no se nota en el choque de
+  // franjas, justamente porque no hay ninguna.
+  let franjas = null;
+  try{ franjas = franjasEfectivas(SL_MEDICO, fecha) || []; }catch(_){ franjas = null; }
+  if(franjas && !franjas.length) return null;       // día cerrado
+
+  const mixco = (franjas || []).filter(f => f.clinica === 'clinic1');
+  const chocaMixco = (s, e) => mixco.some(f => f.fin > s && f.ini < e);
+
+  // Y la hora de volver sale de cuándo abre Mixco ese día, no de un número
+  // fijo: si ese día Mixco empieza más tarde, hay más margen de verdad.
+  const limite = mixco.length ? Math.min(...mixco.map(f => f.ini)) : SL_LIMITE;
+
   // De la más tarde a la más temprana: la de las 11:00 es la que se quiere.
   for(let i = SL_HORAS.length - 1; i >= 0; i--){
     const hora = SL_HORAS[i];
     const s = tMin(hora), e = s + SL_DUR;
     if(ya.some(c => c.ini === s)) continue;        // esa hora ya está tomada
-    if(chocaCon(s, e)) continue;                   // hay algo encima
+    if(chocaCon(s, e) || chocaMixco(s, e)) continue;   // hay algo encima
 
     // La visita completa, contando lo que ya está agendado ese día.
     const primero = Math.min(s, ...ya.map(c => c.ini));
     const ultimo  = Math.max(e, ...ya.map(c => c.ini + c.durMin));
 
-    if(chocaCon(primero - SL_TRASLADO, primero)) continue;   // no alcanza para llegar
-    if(ultimo + SL_TRASLADO > SL_LIMITE) continue;           // no alcanza para volver
+    // ── LA SALIDA COMPLETA: IDA + CONSULTA + VUELTA ────────────────────
+    //
+    // El traslado es de una hora POR LADO, así que ver un paciente en San
+    // Lucas son dos horas y media fuera de la clínica —2:45 si la consulta
+    // es de 45 minutos— y todo ese rato tiene que estar libre, no solo el
+    // pedazo de la consulta.
+    //
+    // Antes la ida sí se revisaba contra los compromisos pero la vuelta solo
+    // contra la hora de Mixco, así que un paciente en Pinares a mediodía no
+    // estorbaba el regreso y el hueco se ofrecía igual. Ahora se revisa la
+    // ventana entera de una sola vez.
+    const salida  = primero - SL_TRASLADO;   // a qué hora sale de la clínica
+    const regreso = ultimo  + SL_TRASLADO;   // a qué hora está de vuelta
+    if(chocaCon(salida, regreso) || chocaMixco(salida, regreso)) continue;
+    if(regreso > limite) continue;           // no alcanza para volver a Mixco
     return hora;
   }
   return null;
@@ -8064,6 +8110,10 @@ async function publicarSanLucas(fechas){
       fecha: f,
       citas: slCitasDe(f).map(c => ({ hora:c.hora, fin:c.fin, durMin:c.durMin, nombre:c.nombre })),
       disponible: slDisponible(f),
+      // Por qué no hay hora, cuando no la hay. «Hoy ya no se agenda» y «ese
+      // día se llenó» son cosas distintas y el hospital tiene que poder
+      // distinguirlas: con una se busca otro día, con la otra se insiste.
+      cierre: (f <= todayKey()) ? 'hoy' : null,
       actualizado: new Date().toISOString(),
     };
     try{
