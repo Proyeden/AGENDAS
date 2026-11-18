@@ -2390,7 +2390,7 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
     <div class="fld" id="field-phone"><label>Teléfono <span style="font-weight:400;text-transform:none;color:var(--muted)">(para recordatorios)</span></label><input type="tel" id="f-phone" placeholder="0000-0000"></div>
     <div class="row2">
       <div class="fld"><label>Fecha</label><input type="date" id="f-date" onchange="onBlockDateChange()"></div>
-      <div class="fld"><label>Hora inicio</label><select id="f-time" onchange="onStartTimeChange()"></select></div>
+      <div class="fld"><label>Hora inicio</label><select id="f-time" onchange="onStartTimeChange(); construirHorasCita();"></select></div>
     </div>
     <button type="button" id="btn-fullday" onclick="setFullDayBlock()" style="display:none;width:100%;margin-bottom:11px;padding:9px;border:1.5px dashed var(--block);border-radius:8px;background:var(--block-bg);color:var(--block);font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">
       🗓️ Todo el día (usar jornada completa de este médico)
@@ -2455,13 +2455,35 @@ input:focus, select:focus, textarea:focus { border-color:var(--denis); backgroun
       </div>
     </div>
     <div class="fld" id="field-duration"><label>Duración</label>
-      <select id="f-duration">
+      <select id="f-duration" onchange="construirHorasCita()">
         <option value="30">30 min</option>
         <option value="45">45 min</option>
         <option value="60" selected>1 hora</option>
         <option value="90">1.5 horas</option>
         <option value="120">2 horas</option>
       </select>
+    </div>
+    <!-- ── LA HORA DEL BLOQUEO Y LA HORA DEL PACIENTE ───────────────────
+         Para San Lucas y para cualquier otro lugar, el rato que se ocupa en
+         la agenda no es el mismo que la hora a la que se cita al paciente: el
+         bloqueo tiene que cubrir el traslado de ida y de vuelta. Arriba se
+         pone cuándo empieza a ocuparse el tiempo; acá, a qué hora se ve al
+         paciente de verdad. Es esa la que llega al hospital. -->
+    <div class="fld" id="field-cita-real" style="display:none">
+      <label>Hora real de la consulta
+        <span style="font-weight:400;text-transform:none;color:var(--muted)">(la que se le dice al paciente)</span>
+      </label>
+      <div class="row2">
+        <select id="f-cita-hora" onchange="resumenHoraCita()"></select>
+        <select id="f-cita-dur" onchange="resumenHoraCita()">
+          <option value="15">15 min</option>
+          <option value="20">20 min</option>
+          <option value="30">30 min</option>
+          <option value="45" selected>45 min</option>
+          <option value="60">1 hora</option>
+        </select>
+      </div>
+      <p id="f-cita-nota" style="margin:7px 0 0;font-size:12px;color:var(--muted);line-height:1.5"></p>
     </div>
     <div class="fld" id="field-endtime" style="display:none"><label>Hora fin</label>
       <select id="f-endtime"></select>
@@ -2799,7 +2821,7 @@ const dateKey = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 151;
+const APP_VERSION = 152;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -7952,8 +7974,17 @@ const esSanLucas = (ev) => !!ev && ev.status !== 'cancelled' &&
 function slCitasDe(fecha){
   return events
     .filter(e => e.date === fecha && e.doctor === SL_MEDICO && e.time && esSanLucas(e))
-    .map(e => ({ hora: e.time, nombre: (e.name || '').trim(),
-                 durMin: e.durMin || SL_DUR, ini: tMin(e.time) }))
+    .map(e => {
+      // Lo que ve el hospital es la hora de la CONSULTA, no la del bloqueo: al
+      // paciente no se le cita a la hora en que el doctor sale de la otra
+      // clínica. Si no se anotó una hora aparte, son la misma.
+      const hora = e.citaHora || e.time;
+      const dur  = e.citaHora ? (e.citaDurMin || SL_DUR) : (e.durMin || SL_DUR);
+      const ini  = tMin(hora);
+      return { hora, durMin: dur, fin: tFmt(ini + dur),
+               nombre: (e.name || '').trim(), ini,
+               bloqueoIni: e.time, bloqueoDur: e.durMin || SL_DUR };
+    })
     .sort((a,b) => a.ini - b.ini);
 }
 
@@ -7971,6 +8002,9 @@ function slDisponible(fecha){
   if(!SL_DIAS.includes(dow)) return null;
   if(fecha < todayKey()) return null;
 
+  // `ya` trae las horas de CONSULTA, que son las que se ofrecen y las que el
+  // hospital conoce. El bloqueo de cada una lo cubre `slOtrosCompromisos` por
+  // el lado del traslado.
   const ya = slCitasDe(fecha);
   const otros = slOtrosCompromisos(fecha);
   const chocaCon = (s, e) => otros.some(o => o.e > s && o.s < e);
@@ -8001,15 +8035,34 @@ window.slCitasDe = slCitasDe;
 // pacientes de ellos, que son suyos, y la hora que queda libre. De Mixco y de
 // Pinares no sale nada —ni un nombre, ni un horario, ni cuántos hay—: para el
 // hospital, un día ocupado es simplemente un día sin hora disponible.
+// Publica SU PROPIA ventana, no la que traiga el publicador general.
+//
+// Antes recibía las fechas del horizonte normal, que es más corto que lo que
+// el hospital alcanza a ver. Los días de más allá no tenían documento, y la
+// vista los mostraba como «Todavía sin confirmar» aunque estuvieran libres:
+// se escondían horas disponibles de verdad. Son cuatro días por semana y
+// documentos diminutos, así que se publica la ventana entera.
+const SL_SEMANAS = 6;
+
+function slFechasAPublicar(){
+  const out = [];
+  const d = new Date(); d.setHours(12,0,0,0);
+  for(let i = 0; i < SL_SEMANAS*7; i++){
+    const x = new Date(d); x.setDate(d.getDate() + i);
+    if(SL_DIAS.includes(x.getDay())) out.push(dateKey(x));
+  }
+  return out;
+}
+
 async function publicarSanLucas(fechas){
   if(!_db) return 0;
   let n = 0;
-  for(const f of (fechas || [])){
+  for(const f of (fechas && fechas.length ? fechas : slFechasAPublicar())){
     const dow = parseISO(f).getDay();
     if(!SL_DIAS.includes(dow)) continue;
     const doc = {
       fecha: f,
-      citas: slCitasDe(f).map(c => ({ hora:c.hora, nombre:c.nombre, durMin:c.durMin })),
+      citas: slCitasDe(f).map(c => ({ hora:c.hora, fin:c.fin, durMin:c.durMin, nombre:c.nombre })),
       disponible: slDisponible(f),
       actualizado: new Date().toISOString(),
     };
@@ -12404,6 +12457,38 @@ let _sedeBloqueo = 'clinic1';   // última sede real; la referencia al bloquear
 let _tipoSanLucas = false;
 
 // El tipo con el que hay que abrir una cita ya guardada.
+// Las horas que se pueden elegir para la consulta: de cuarto en cuarto, desde
+// que empieza el bloqueo hasta que termina. No tiene sentido ofrecer una hora
+// fuera del rato que se está apartando.
+function construirHorasCita(){
+  const sel = document.getElementById('f-cita-hora');
+  if(!sel) return;
+  const ini = tMin(document.getElementById('f-time')?.value || '09:00');
+  const dur = Number(document.getElementById('f-duration')?.value || 60);
+  const previo = sel.value;
+  let html = '';
+  for(let m = ini; m <= ini + dur; m += 15) html += `<option value="${tFmt(m)}">${tFmt(m)}</option>`;
+  sel.innerHTML = html;
+  // Si la que estaba sigue cabiendo se respeta; si no, se arranca en el inicio.
+  sel.value = (previo && [...sel.options].some(o => o.value === previo)) ? previo : tFmt(ini);
+  resumenHoraCita();
+}
+window.construirHorasCita = construirHorasCita;
+
+// Decir en palabras las dos horas, que es donde se nota si uno se equivocó.
+function resumenHoraCita(){
+  const n = document.getElementById('f-cita-nota');
+  if(!n) return;
+  const h = document.getElementById('f-cita-hora')?.value;
+  const d = Number(document.getElementById('f-cita-dur')?.value || 45);
+  if(!h){ n.textContent = ''; return; }
+  const bIni = document.getElementById('f-time')?.value || '';
+  const bFin = tFmt(tMin(bIni) + Number(document.getElementById('f-duration')?.value || 60));
+  n.textContent = `Al paciente se le dice ${h} a ${tFmt(tMin(h) + d)}. ` +
+    `En la agenda se aparta de ${bIni} a ${bFin}.`;
+}
+window.resumenHoraCita = resumenHoraCita;
+
 function tipoDeEvento(ev){
   if(!ev) return 'clinic1';
   if((ev.type === 'reserva' || ev.status === 'reserva' || ev.esReserva) &&
@@ -12453,6 +12538,18 @@ function setClinic(c){
   // Mostrar campo teléfono solo para citas reales
   const fp=document.getElementById('field-phone');
   if(fp) fp.style.display=(isBlock||isReserva)?'none':'block';
+
+  // La hora real del paciente: solo fuera de las dos clínicas, que es donde el
+  // bloqueo y la consulta no coinciden.
+  const fcr=document.getElementById('field-cita-real');
+  if(fcr){
+    fcr.style.display = isReserva ? 'block' : 'none';
+    if(isReserva) construirHorasCita();
+  }
+  // Y en ese caso, el campo de arriba deja de ser «la hora»: es cuándo empieza
+  // a ocuparse el tiempo. Decirlo evita ponerle al paciente la hora del viaje.
+  const etHora = document.getElementById('f-time')?.closest('.fld')?.querySelector('label');
+  if(etHora) etHora.textContent = isReserva ? 'Empieza el bloqueo' : 'Hora inicio';
   // Recurrencia solo para bloqueos NUEVOS
   const fr=document.getElementById('field-recur');
   if(fr) fr.style.display = (isBlock && !editingId) ? 'block' : 'none';
@@ -12777,7 +12874,18 @@ function openModal(ev=null,date=null,time=null,defaultDoc=null){
   document.getElementById('modal-tag').style.display=ev?.source==='medicloud'?'inline-flex':'none';
   buildTimes(ev?ev.time:(time||'08:00'));
   if(ev){ setDoc(ev.doctor||'denis'); setClinic(tipoDeEvento(ev)); document.getElementById('f-name').value=ev.name;
-    { const fl=document.getElementById('f-lugar'); if(fl) fl.value = ev.lugar || ''; } document.getElementById('f-phone').value=ev.phone||''; document.getElementById('f-date').value=ev.date; document.getElementById('f-duration').value=String(ev.durMin||(ev.duration?ev.duration*60:60)); if(ev.type==='blocked'){ buildEndTimes(ev.endTime||''); } if(ev.notes){ document.getElementById('field-notes').style.display='block'; document.getElementById('f-notes').value=ev.notes; } else document.getElementById('field-notes').style.display='none'; }
+    { const fl=document.getElementById('f-lugar'); if(fl) fl.value = ev.lugar || ''; }
+    // Las horas de la consulta se reconstruyen DESPUÉS de poner la fecha y la
+    // duración del bloqueo, porque la lista depende de ellas.
+    setTimeout(() => {
+      try{
+        construirHorasCita();
+        const ch=document.getElementById('f-cita-hora'), cd=document.getElementById('f-cita-dur');
+        if(ch && ev.citaHora && [...ch.options].some(o=>o.value===ev.citaHora)) ch.value = ev.citaHora;
+        if(cd && ev.citaDurMin) cd.value = String(ev.citaDurMin);
+        resumenHoraCita();
+      }catch(_){}
+    }, 0); document.getElementById('f-phone').value=ev.phone||''; document.getElementById('f-date').value=ev.date; document.getElementById('f-duration').value=String(ev.durMin||(ev.duration?ev.duration*60:60)); if(ev.type==='blocked'){ buildEndTimes(ev.endTime||''); } if(ev.notes){ document.getElementById('field-notes').style.display='block'; document.getElementById('f-notes').value=ev.notes; } else document.getElementById('field-notes').style.display='none'; }
   else { setDoc(defaultDoc||(currentView==='majo'?'majo':'denis')); setClinic('clinic1'); document.getElementById('f-name').value='';
     { const fl=document.getElementById('f-lugar'); if(fl) fl.value=''; } document.getElementById('f-phone').value=''; document.getElementById('f-date').value=date||todayKey(); document.getElementById('f-duration').value='60'; document.getElementById('field-notes').style.display='none'; const fr=document.getElementById('f-recur'); if(fr){ fr.value='none'; } const fc=document.getElementById('f-recur-count-wrap'); if(fc) fc.style.display='none'; }
   document.getElementById('overlay').classList.add('on');
@@ -12868,6 +12976,17 @@ async function saveEvent(){
   {
     const lugar = (document.getElementById('f-lugar')?.value || '').trim();
     if(tipoFinal === 'reserva' && lugar) ev.lugar = lugar;
+  }
+  // La hora a la que se ve al paciente, que no es la misma a la que empieza a
+  // ocuparse el tiempo. Se guarda solo si difiere del inicio del bloqueo: si
+  // son iguales no hay nada que aclarar y el campo sobra.
+  if(tipoFinal === 'reserva'){
+    const ch = document.getElementById('f-cita-hora')?.value || '';
+    const cd = Number(document.getElementById('f-cita-dur')?.value || 0);
+    if(ch){
+      ev.citaHora = ch;
+      ev.citaDurMin = cd || 45;
+    }
   }
   // Bloqueo específico de una sede: solo ocupa esa clínica, deja libre la otra.
   // Sirve para pasar la jornada a la otra sede sin borrarla (currentClinic:
@@ -13821,7 +13940,7 @@ async function publicarHorarios(fechas, motivo){
   let okM = false, okSC = false;
   try{
     // El hospital ve su propio espejo, que se arma con los mismos datos.
-  publicarSanLucas(fechas).catch(e => console.warn('San Lucas:', e.message));
+  publicarSanLucas().catch(e => console.warn('San Lucas:', e.message));
 
   okM  = await publicarSlotsDisponibles(opc);
     okSC = await publicarSlotsSanCristobal(opc);
