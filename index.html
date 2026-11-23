@@ -2821,7 +2821,7 @@ const dateKey = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 156;
+const APP_VERSION = 157;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -7100,6 +7100,29 @@ function nvTocarCita(evId){
         onclick="nvCitaDuracion('${ev.id}',${m})">${m}</button>`).join('')}
     </div></div>`);
 
+  // ── ¿DÓNDE SE VA A VER ESTE PACIENTE? ───────────────────────────────────
+  //
+  // Un paciente de una sede se puede ver en la otra, y hay que poder decirlo:
+  // de ahí sale el traslado. Lo que se confirma acá manda sobre todo lo demás
+  // —sobre el usuario que la anotó y sobre el calendario de MediCloud del que
+  // vino— y al guardarlo se republica, así que los tiempos se recalculan solos.
+  if(ev.type === 'clinic1' || ev.type === 'clinic2'){
+    const conf  = sedeConfirmada(ev);
+    const ahora = sedeRealDeCita(ev);
+    const donde = SEDE_POR_CLAVE[ahora] ? SEDE_POR_CLAVE[ahora].nombre : 'sin definir';
+    const porque = conf ? 'confirmado por usted'
+      : sedeDeQuienEscribio(ev) ? 'según quién la anotó'
+      : esMediCloud ? 'según el calendario de MediCloud'
+      : 'según cómo se escribió';
+    ops.push(`<div class="cw-dur">
+      <div class="cw-dur-t">¿Dónde se va a ver? · ${esc(donde)} (${porque})</div>
+      <div class="cw-dur-b">
+        ${Object.values(SEDES).map(sx => `<button class="${conf===sx.clave?'on':''}"
+          onclick="nvCitaSede('${ev.id}','${sx.clave}')">${esc(sx.nombre)}</button>`).join('')}
+        ${conf ? `<button onclick="nvCitaSede('${ev.id}','')">Como viene</button>` : ''}
+      </div></div>`);
+  }
+
   if(!esMediCloud && !esWeb){
     ops.push(`<button class="nvh-op" onclick="nvCitaEditar('${ev.id}')">
       <b>Editar</b><span>Cambiar nombre, hora o sede</span></button>`);
@@ -7236,6 +7259,26 @@ function nvTocarHueco(profId, ini, fin){
 }
 window.nvTocarHueco = nvTocarHueco;
 function nvCerrarHueco(){ document.getElementById('nvh-panel').style.display = 'none'; }
+
+// Confirmar en qué sede se va a ver una cita. Es el dato de más peso que hay:
+// manda sobre quién la anotó y sobre el calendario de MediCloud, porque es lo
+// único que sabe lo que todavía no pasó —que este paciente de Pinares se va a
+// ver en Mixco—. Al guardarlo se republica el día: el traslado de ida y de
+// vuelta se recalcula y los horarios de las dos sedes se ajustan solos.
+async function nvCitaSede(evId, clave){
+  const ev = events.find(e => e.id === evId);
+  if(!ev){ mostrarAvisoBreve('No encuentro esa cita'); return; }
+  if(!(await confirmarSedeCita(ev, clave || null))) return;
+  nvCerrarHueco();
+  try{ render(); }catch(_){}
+  const donde = clave && SEDE_POR_CLAVE[clave] ? SEDE_POR_CLAVE[clave].nombre : 'como viene';
+  let r = null;
+  try{ r = await publicarHorarios([ev.date], 'sede de una cita confirmada'); }catch(_){}
+  mostrarAvisoBreve(r && r.ok
+    ? `Se va a ver en ${donde} · horarios recalculados`
+    : `Anotado: ${donde} · pero no se alcanzó a publicar`);
+}
+window.nvCitaSede = nvCitaSede;
 window.nvCerrarHueco = nvCerrarHueco;
 
 // Los huecos partidos se guardan por hueco, no por día: la clave lleva la hora.
