@@ -2821,7 +2821,7 @@ const dateKey = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 157;
+const APP_VERSION = 159;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -6348,7 +6348,10 @@ function nvModeloDia(profId, fecha){
     if(anterior && f.ini > anterior.fin){
       out.push({ t:'tr', ini:anterior.fin, fin:f.ini,
                  de:SEDE_POR_CLAVE[anterior.clinica]?.nombre,
-                 a:SEDE_POR_CLAVE[f.clinica]?.nombre });
+                 a:SEDE_POR_CLAVE[f.clinica]?.nombre,
+                 // Las claves, para saber de qué lado de este viaje cae una
+                 // cita que se monte encima.
+                 deClave:anterior.clinica, aClave:f.clinica });
     }
     const sede = SEDE_POR_CLAVE[f.clinica]?.nombre || '';
     // Recorrer la franja repartiendo entre ocupado y libre
@@ -6400,10 +6403,24 @@ function nvModeloDia(profId, fecha){
       if(o.fin <= b.ini || o.ini >= b.fin) continue;
 
       if(b.t === 'tr'){
-        // Se corre entero: misma duración, empezando cuando termina la cita.
+        // Se corre entero, conservando sus minutos. Pero ¿para qué lado?
+        //
+        // Depende de en qué sede fue la cita. Si fue en la sede de la que SALE,
+        // se quedó más tiempo ahí y el viaje va detrás. Si fue en la sede a la
+        // que LLEGA —un paciente de Pinares que se ve en Mixco antes de que
+        // Mixco abra—, entonces el viaje ya lo hizo: tuvo que salir más
+        // temprano, y el traslado va DELANTE de la cita.
+        //
+        // Antes se corría siempre hacia atrás. Al corregir la sede de una cita
+        // el traslado no desaparecía ni se movía a su lugar: quedaba dibujado
+        // después de una consulta a la que ya había llegado.
         const dur = b.fin - b.ini;
-        b.ini = o.fin;
-        b.fin = o.fin + dur;
+        if(o.tipo && o.tipo === b.aClave){
+          b.fin = o.ini; b.ini = o.ini - dur;
+          b.haciaAtras = true;
+        } else {
+          b.ini = o.fin; b.fin = o.fin + dur;
+        }
         b.corrido = true;
       } else if(b.t === 'li' || b.t === 'co'){
         // Un hueco libre sí se puede comer: es tiempo, no distancia.
@@ -6422,6 +6439,47 @@ function nvModeloDia(profId, fecha){
                evId:o.evId, origen:o.origen, dur:o.dur });
   }
 
+  // ── EL VIAJE ALREDEDOR DE UNA CITA EN LA OTRA SEDE ─────────────────────
+  //
+  // Una cita en la otra sede no ocupa solo su rato: ocupa la ida y la vuelta.
+  // La publicación ya lo descuenta, pero esta pantalla no lo hacía y mostraba
+  // LIBRE un rato en el que se está manejando — con una cita en Pinares a las
+  // 16:00, Mixco se veía libre de 16:45 a 17:00 y hasta las 15:15 por la otra
+  // punta. Por ahí se podía agendar a mano justo encima del traslado.
+  //
+  // Se usa la misma función que la publicación (`ocupacionConTraslado`) para
+  // que las dos pantallas no puedan desacordar, y el rato se dibuja como lo
+  // que es: traslado, no hueco.
+  const viajes = [];
+  for(const o of ocup){
+    if(o.bloqueo) continue;
+    // Las reservas —San Lucas, otro lugar— ya traen el viaje dentro del bloqueo.
+    if(o.tipo !== 'clinic1' && o.tipo !== 'clinic2') continue;
+    for(const f of franjas){
+      if(f.clinica === o.tipo) continue;              // misma sede: no hay viaje
+      const v = ocupacionConTraslado({ s:o.ini, e:o.fin, sede:o.tipo, doctor:profId },
+                                     f.clinica);
+      const aqui = SEDE_POR_CLAVE[f.clinica]?.nombre;
+      const alla = SEDE_POR_CLAVE[o.tipo]?.nombre;
+      if(v.s < o.ini) viajes.push({ ini:Math.max(v.s, f.ini), fin:Math.min(o.ini, f.fin),
+                                    de:aqui, a:alla });
+      if(v.e > o.fin) viajes.push({ ini:Math.max(o.fin, f.ini), fin:Math.min(v.e, f.fin),
+                                    de:alla, a:aqui });
+    }
+  }
+  for(const vj of viajes){
+    if(vj.fin - vj.ini < 5) continue;
+    for(let i = out.length - 1; i >= 0; i--){
+      const b = out[i];
+      if(b.t !== 'li' && b.t !== 'co') continue;
+      if(b.ini >= vj.fin || b.fin <= vj.ini) continue;
+      const izq = b.ini < vj.ini ? { ...b, fin:Math.min(b.fin, vj.ini) } : null;
+      const der = b.fin > vj.fin ? { ...b, ini:Math.max(b.ini, vj.fin) } : null;
+      out.splice(i, 1, ...[izq, der].filter(x => x && x.fin - x.ini >= 5));
+    }
+    out.push({ t:'tr', ini:vj.ini, fin:vj.fin, de:vj.de, a:vj.a, porCita:true });
+  }
+
   // ¿Algún traslado corrido pisa lo que viene después? Entonces esa sede no se
   // alcanza a la hora publicada y hay que correrla.
   for(const t of out.filter(b => b.t === 'tr' && b.corrido)){
@@ -6432,19 +6490,48 @@ function nvModeloDia(profId, fecha){
     const conGente = choca.some(b => b.t === 'oc');
     if(choca.length){
       const desde = Math.min(...choca.map(b => b.ini));
-      if(conGente)
+      // El aviso es para el traslado que se fue hacia ADELANTE: ahí la sede
+      // siguiente no se alcanza a la hora publicada. Uno corrido hacia atrás
+      // no atrasa nada; adelanta la salida de la sede anterior.
+      if(conGente && !t.haciaAtras)
         noAlcanza = { sede: t.a, publicado: desde, real: t.fin, traslado: t.fin - t.ini };
-      // Lo que quede debajo del traslado se corre también, para no dibujar
-      // consulta y carretera a la misma hora.
+      // Lo que el traslado pisa deja de ser tiempo libre, para no dibujar
+      // consulta y carretera a la misma hora. Se le quita al hueco SOLO el
+      // pedazo pisado, del lado que sea: un traslado corrido hacia adelante le
+      // come el principio, uno corrido hacia atrás le come el final. Antes se
+      // borraba el hueco entero, así que correr un viaje hacia atrás se llevaba
+      // la mañana completa de la otra sede.
       for(let i = out.length - 1; i >= 0; i--){
         const b = out[i];
         if(b.fueraJornada || b.t === 'tr') continue;
         if(b.ini >= t.fin || b.fin <= t.ini) continue;
         if(b.t === 'li' || b.t === 'co'){
-          if(b.fin <= t.fin) out.splice(i, 1);
-          else b.ini = t.fin;
+          const izq = b.ini < t.ini ? { ...b, fin: Math.min(b.fin, t.ini) } : null;
+          const der = b.fin > t.fin ? { ...b, ini: Math.max(b.ini, t.fin) } : null;
+          out.splice(i, 1, ...[izq, der].filter(x => x && x.fin - x.ini >= 5));
         }
       }
+    }
+  }
+
+  // Un mismo viaje puede salir por dos lados: el hueco entre franjas y el
+  // traslado de una cita concreta. Es el mismo trayecto, así que se junta en
+  // uno —si no, se dibujaría dos veces, una encima de la otra.
+  {
+    const tr = out.filter(b => b.t === 'tr').sort((a,b) => a.ini - b.ini);
+    const juntos = [];
+    for(const t of tr){
+      const u = juntos.find(x => x.de === t.de && x.a === t.a && t.ini <= x.fin && t.fin >= x.ini);
+      if(u){
+        u.ini = Math.min(u.ini, t.ini);
+        u.fin = Math.max(u.fin, t.fin);
+        u.corrido = u.corrido || t.corrido;
+        u.porCita = u.porCita || t.porCita;
+      } else juntos.push(t);
+    }
+    if(juntos.length !== tr.length){
+      for(let i = out.length - 1; i >= 0; i--)
+        if(out[i].t === 'tr' && !juntos.includes(out[i])) out.splice(i, 1);
     }
   }
 
