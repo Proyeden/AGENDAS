@@ -2821,7 +2821,7 @@ const dateKey = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 162;
+const APP_VERSION = 165;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -6465,9 +6465,9 @@ function nvModeloDia(profId, fecha){
       const aqui = SEDE_POR_CLAVE[f.clinica]?.nombre;
       const alla = SEDE_POR_CLAVE[o.tipo]?.nombre;
       if(v.s < o.ini) viajes.push({ ini:Math.max(v.s, f.ini), fin:Math.min(o.ini, f.fin),
-                                    de:aqui, a:alla });
+                                    de:aqui, a:alla, deClave:f.clinica, aClave:o.tipo });
       if(v.e > o.fin) viajes.push({ ini:Math.max(o.fin, f.ini), fin:Math.min(v.e, f.fin),
-                                    de:alla, a:aqui });
+                                    de:alla, a:aqui, deClave:o.tipo, aClave:f.clinica });
     }
   }
   for(const vj of viajes){
@@ -6480,7 +6480,8 @@ function nvModeloDia(profId, fecha){
       const der = b.fin > vj.fin ? { ...b, ini:Math.max(b.ini, vj.fin) } : null;
       out.splice(i, 1, ...[izq, der].filter(x => x && x.fin - x.ini >= 5));
     }
-    out.push({ t:'tr', ini:vj.ini, fin:vj.fin, de:vj.de, a:vj.a, porCita:true });
+    out.push({ t:'tr', ini:vj.ini, fin:vj.fin, de:vj.de, a:vj.a,
+               aClave:vj.aClave, deClave:vj.deClave, porCita:true });
   }
 
   // ¿Algún traslado corrido pisa lo que viene después? Entonces esa sede no se
@@ -6577,6 +6578,53 @@ function nvModeloDia(profId, fecha){
       for(let i = out.length - 1; i >= 0; i--)
         if(out[i].t === 'tr' && !juntos.includes(out[i])) out.splice(i, 1);
     }
+  }
+
+  // ── UN VIAJE NECESITA UN DE DÓNDE Y UN ADÓNDE ──────────────────────────
+  //
+  // Hasta acá los traslados salían de dos reglas sueltas —el hueco entre
+  // franjas, y el tiempo de viaje alrededor de cada cita— y ninguna de las dos
+  // miraba lo obvio: dónde estaba antes y adónde va después. Por eso entre dos
+  // pacientes de San Cristóbal aparecía «Traslado Mixco → San Cristóbal»: un
+  // pedazo de viaje recortado contra una franja de Mixco a la que no va.
+  //
+  // Un viaje a una sede solo existe si NO estaba ya ahí y si lo siguiente que
+  // tiene es ahí. Para saberlo manda la cita sobre la franja: la franja dice
+  // dónde debería estar, la cita dice dónde está.
+  const _conSede = o => !o.bloqueo && (o.tipo === 'clinic1' || o.tipo === 'clinic2');
+  // La pregunta no es «qué pasó antes» sino «dónde está justo antes de salir»,
+  // así que se mira el minuto anterior. Comparar por bordes se enredaba sola
+  // cuando una cita terminaba exactamente al abrir la otra sede: a las 13:00
+  // salía que ya estaba en Mixco, cuando lo que pasa a las 13:00 es que está
+  // terminando en San Cristóbal y tiene que viajar.
+  const _lugarAntes = (t) => {
+    const u = t - 1;
+    const cEn = ocup.find(o => _conSede(o) && o.ini <= u && o.fin > u);
+    if(cEn) return cEn.tipo;                       // está en consulta
+    const fEn = franjas.find(x => x.ini <= u && x.fin > u);
+    if(fEn) return fEn.clinica;                    // está en su horario
+    const c = ocup.filter(o => _conSede(o) && o.fin <= u).sort((x,y) => y.fin - x.fin)[0];
+    const f = franjas.filter(x => x.fin <= u).sort((x,y) => y.fin - x.fin)[0];
+    if(c && f) return c.fin >= f.fin ? c.tipo : f.clinica;
+    return c ? c.tipo : (f ? f.clinica : null);
+  };
+  const _lugarDespues = (t) => {
+    const op = [];
+    const c = ocup.filter(o => _conSede(o) && o.ini >= t).sort((x,y) => x.ini - y.ini)[0];
+    if(c) op.push({ cuando:c.ini, sede:c.tipo, cita:true });
+    const cubre = franjas.find(x => x.ini <= t && x.fin > t);
+    if(cubre) op.push({ cuando:t, sede:cubre.clinica, cita:false });
+    const sig = franjas.filter(x => x.ini >= t).sort((x,y) => x.ini - y.ini)[0];
+    if(sig) op.push({ cuando:sig.ini, sede:sig.clinica, cita:false });
+    // El más cercano; en empate manda la cita, que es el dato duro.
+    op.sort((x,y) => x.cuando - y.cuando || (y.cita - x.cita));
+    return op.length ? op[0].sede : null;
+  };
+  for(let i = out.length - 1; i >= 0; i--){
+    const b = out[i];
+    if(b.t !== 'tr' || !b.aClave) continue;
+    const antes = _lugarAntes(b.ini), despues = _lugarDespues(b.fin);
+    if(antes === b.aClave || (despues && despues !== b.aClave)) out.splice(i, 1);
   }
 
   const finReal = Math.max(franjas[franjas.length-1].fin,
