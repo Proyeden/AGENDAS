@@ -2821,7 +2821,7 @@ const dateKey = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 154;
+const APP_VERSION = 156;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -3566,7 +3566,11 @@ function huecosDeTramo(doctorId, dateStr, clinicId, j, esUltimo){
     // bloquear a los dos existe la opción "Ambos médicos", que crea DOS eventos.
     .filter(e => e.date===dateStr && e.status!=='cancelled' &&
                  e.doctor===doctorId && e.time)
-    .map(e => { const s=tMin(e.time); const dur=duracionEvento(e); return {s, e:s+dur}; })
+    // El viaje hacia la otra sede ocupa igual que la cita: ver
+    // `ocupacionConTraslado`.
+    .map(e => { const s=tMin(e.time); const dur=duracionEvento(e);
+                return ocupacionConTraslado(
+                  { s, e:s+dur, sede:sedeDeOcupacion(e), doctor:e.doctor }, clinicId); })
     // Los ratos que se sabe ocupados pero que hoy no están en la lista. Se
     // suman siempre: si una carga falló, este día NO se ofrece libre.
     .concat(ocupacionFantasma(doctorId, dateStr).map(x => ({ s:x.i, e:x.f })))
@@ -3756,11 +3760,32 @@ async function cargarSedeCitas(){
   }catch(e){ console.warn('sede de citas:', e.message); }
 }
 
+// ── QUIÉN LA ESCRIBIÓ DICE EN QUÉ SEDE FUE ────────────────────────────────
+//
+// Cuando una asistente anota en la agenda, su usuario ya dice dónde está: una
+// cita que escribe Violeta es de San Cristóbal aunque a esa hora el horario
+// publicado diga Mixco. Es el dato que faltaba para no tener que adivinarlo.
+//
+// Las de MediCloud no traen autor —entran por la sincronización— y ahí se sigue
+// deduciendo del horario, que es justo el caso para el que se hizo esa regla.
+// Denis no cuenta: trabaja en las dos sedes, su usuario no dice dónde está.
+function sedeDeQuienEscribio(ev){
+  const correo = String((ev && ev.escritaPor) || '').trim().toLowerCase();
+  if(!correo) return null;
+  const quien = (typeof ST_ASISTENTES !== 'undefined' ? ST_ASISTENTES : [])
+    .find(x => x.correo && x.correo.trim().toLowerCase() === correo);
+  const sede = quien && quien.sede;
+  return (sede === 'clinic1' || sede === 'clinic2') ? sede : null;
+}
+window.sedeDeQuienEscribio = sedeDeQuienEscribio;
+
 function sedeRealDeCita(ev){
   const tag = (ev.type === 'clinic1' || ev.type === 'clinic2') ? ev.type : null;
   if(!tag || !ev.time) return tag;              // reservas y bloqueos no se tocan
   const dicho = sedeConfirmada(ev);
   if(dicho) return dicho;                       // usted ya lo confirmó: eso vale
+  const suyo = sedeDeQuienEscribio(ev);
+  if(suyo) return suyo;                         // sabemos quién la anotó
   const s = tMin(ev.time), e = s + duracionEvento(ev);
   const fr = _frDe(ev.doctor, ev.date);
   if(!fr.length) return tag;
@@ -3852,6 +3877,51 @@ function franjasEfectivas(doctorId, dateStr){
   return franjas;
 }
 
+// ── EL TRASLADO SE MIDE CONTRA LAS CITAS, NO CONTRA EL HORARIO ────────────
+//
+// Una cita en la otra sede no ocupa solo su media hora: ocupa el viaje de ida y
+// el de vuelta, y los traslados no son simétricos. Un paciente en San Cristóbal
+// a las 16:00 le quita a Mixco desde las 15:15 —45 minutos para llegar— y no se
+// vuelve a estar en Mixco hasta las 17:30.
+//
+// Antes esto se resolvía al revés, reescribiendo la jornada: la sede de la cita
+// se alargaba, la otra se corría con su traslado y quedaba escrito en
+// `jornadas_especiales`. Una sola cita a deshora movía el horario publicado de
+// las dos sedes, y tres citas lo movían tres veces. El horario publicado es el
+// PISO de lo que el paciente puede dar por seguro, no un techo que nos limite:
+// que Pinares anote a las 16:00 un lunes no cambia el horario de Mixco. Lo que
+// cambia es la disponibilidad, y el criterio es el de siempre: que el traslado
+// no choque con otra cita.
+//
+// La sede sale de la etiqueta tal como se escribió, no de `sedeRealDeCita`. Esa
+// deduce la sede del horario —«si a esa hora esa sede estaba cerrada, fue en la
+// otra»—, que es justo lo que no se puede suponer acá: sirve para repartir
+// estadísticas y horas de la asistente, pero para el traslado daría la vuelta
+// al caso que importa y pondría la cita de las 16:00 en Mixco. Si usted ya
+// confirmó la sede a mano, eso manda.
+function sedeDeOcupacion(ev){
+  if(ev.type === 'clinic1' || ev.type === 'clinic2'){
+    const dicho = sedeConfirmada(ev);
+    if(dicho === 'clinic1' || dicho === 'clinic2') return dicho;
+    // Quién la escribió, y si no se sabe, la etiqueta tal como se puso. Para la
+    // disponibilidad NO se deduce del horario: eso sería mirar la franja para
+    // decidir cuánto recortarle a la franja.
+    return sedeDeQuienEscribio(ev) || ev.type;
+  }
+  if(ev.blockClinica) return ev.blockClinica;
+  return null;   // San Lucas, otro lugar: el bloqueo ya trae el viaje adentro
+}
+
+// El rato que una ocupación le quita a una franja de `clave`, traslado incluido.
+function ocupacionConTraslado(o, clave){
+  if(!clave || !o.sede || o.sede === clave) return { s:o.s, e:o.e };
+  const aqui = SEDE_POR_CLAVE[clave], alla = SEDE_POR_CLAVE[o.sede];
+  if(!aqui || !alla) return { s:o.s, e:o.e };
+  const TR = { ...TRASLADOS, ...((PROFESIONALES[o.doctor] || {}).traslados || {}) };
+  return { s: o.s - (TR[`${aqui.id}>${alla.id}`] || 0),
+           e: o.e + (TR[`${alla.id}>${aqui.id}`] || 0) };
+}
+
 function calcularHuecosFranja(doctorId, dateStr){
   const [Y,Mo,D] = dateStr.split('-').map(Number);
   const dow = new Date(Y, Mo-1, D).getDay();
@@ -3877,28 +3947,31 @@ function calcularHuecosFranja(doctorId, dateStr){
       // siempre (una cita en una sede te impide estar en la otra). Un bloqueo
       // sin clínica ocupa todo (ausencia general: enfermedad, etc.).
       const soloClinica = (e.type==='blocked' && e.blockClinica) ? e.blockClinica : null;
-      return { s, e: s+dur, soloClinica };
+      return { s, e: s+dur, soloClinica, sede: sedeDeOcupacion(e), doctor: e.doctor };
     })
     .sort((a,b)=>a.s-b.s);
 
-  // Fusionar ocupaciones solapadas, PERO sin mezclar las que son específicas de
-  // una clínica con las generales (para poder filtrarlas por franja después).
-  const merged = [];
-  for(const o of ocup){
-    const last = merged[merged.length-1];
-    if(last && o.s <= last.e && last.soloClinica === o.soloClinica){
-      last.e = Math.max(last.e, o.e);
-    } else {
-      merged.push({...o});
-    }
-  }
-
   // Por cada franja, los espacios que no toca ninguna ocupación aplicable.
+  //
+  // El traslado se agrega acá y no antes porque depende de la franja: la misma
+  // cita en San Cristóbal le quita 45 minutos antes y 60 después a una franja de
+  // Mixco, y nada a una de San Cristóbal. Por eso tampoco se fusionan las
+  // ocupaciones de una vez para todo el día: se fusionan por franja, ya
+  // estiradas, y así dos citas seguidas allá no cobran el viaje dos veces.
   const huecos = [];
   for(const f of franjas){
     // Ocupaciones que aplican a ESTA franja: las generales siempre, y las
     // específicas solo si son de la clínica de la franja.
-    const aplican = merged.filter(m => !m.soloClinica || m.soloClinica === f.clinica);
+    const aplican = ocup
+      .filter(m => !m.soloClinica || m.soloClinica === f.clinica)
+      .map(m => ocupacionConTraslado(m, f.clinica))
+      .sort((a,b) => a.s - b.s)
+      .reduce((acc, o) => {
+        const u = acc[acc.length-1];
+        if(u && o.s <= u.e) u.e = Math.max(u.e, o.e);
+        else acc.push({ ...o });
+        return acc;
+      }, []);
     let cur = f.ini;
     for(const m of aplican){
       if(m.e <= cur) continue;
@@ -4086,6 +4159,16 @@ const DB = {
   async save(ev){
     try{
       ev.updatedAt=new Date().toISOString();
+      // Quién la anotó, una sola vez y para siempre. El usuario dice en qué sede
+      // está quien escribe —Violeta solo atiende San Cristóbal, Lis solo Mixco—
+      // y ese dato es mejor que deducir la sede del horario. No se pone en las
+      // de MediCloud ni en las de la web, que no las escribe nadie de acá, y no
+      // se sobrescribe si después otra persona toca la cita: lo que importa es
+      // quién la creó, no quién la editó al último.
+      if(!ev.escritaPor && ev.source !== 'medicloud' && ev.source !== 'online'){
+        const yo = (_auth && _auth.currentUser && _auth.currentUser.email) || '';
+        if(yo) ev.escritaPor = yo;
+      }
       await _db.collection(CONFIG.COLLECTIONS.events).doc(ev.id).set(ev);
       events=events.filter(e=>e.id!==ev.id); events.push(ev);
     } catch(e){
@@ -5146,16 +5229,10 @@ async function _sincronizarAhora(){
   // Y el conteo de los días ya cerrados, que es lo que de verdad sobrevive.
   guardarConteosRecientes().catch(e => console.warn('conteos:', e.message));
 
-  // Las citas que acaban de llegar pueden caer fuera del horario. Que la
-  // jornada se corra sola es justo lo que se espera de una agenda: nadie va a
-  // estar revisando a mano si el feed trajo una consulta de las cinco.
-  {
-    const hoy = todayKey();
-    const tocar = [...new Set(events
-      .filter(e => e.source === 'medicloud' && e.date >= hoy)
-      .map(e => e.date))].sort().slice(0, 14);
-    autoCorrerJornadas(tocar).catch(e => console.warn('correr jornadas:', e.message));
-  }
+  // Las citas que llegan del feed pueden caer fuera del horario, y antes acá se
+  // corría la jornada sola por cada una. Ya no hace falta: una consulta de las
+  // cinco se descuenta donde ocupa —con su traslado— sin tocar el horario, que
+  // es lo que las apps de citas publican.
 
   let huecosHash;
   try { huecosHash = calcularHashHuecos(); }
@@ -6852,6 +6929,52 @@ async function aplicarAlargue(a, topeManual, cerrarOtra){
   }
   return true;
 }
+
+// Solo avisar. La cita se respeta como se escribió —el horario no limita lo que
+// se puede anotar— y el rato que de verdad se ocupa, traslado incluido, lo
+// descuenta `calcularHuecosFranja`.
+function avisarFueraDeHorario(ev){
+  let a = null;
+  try{ a = nvAnalizarCita(ev); }catch(_){ return; }
+  if(!a) return;
+  mostrarAvisoBreve(`Fuera del horario de ${a.sede.nombre} · la cita queda y ` +
+    `se descuenta el traslado`);
+}
+window.avisarFueraDeHorario = avisarFueraDeHorario;
+
+// ── LIMPIAR LO QUE EL AUTOMÁTICO DEJÓ ESCRITO ─────────────────────────────
+//
+// Mientras el horario se corregía solo, cada cita a deshora dejaba un documento
+// en `jornadas_especiales` con las dos sedes movidas, y esos documentos siguen
+// mandando: el lunes que Pinares anotó a las 16:00, 16:45 y 17:30 quedó con el
+// horario reescrito tres veces, y arreglar el código no lo devuelve solo. Como
+// el mecanismo que los creaba ya no existe, cualquiera que quede es un resto:
+// se borra y el día vuelve a su programación.
+const MOTIVO_AUTO = /^Corrido por la cita de/;
+
+async function limpiarJornadasCorridas(){
+  if(!_db) return 0;
+  const hoy = todayKey();
+  const sobran = jornadasEspeciales.filter(j =>
+    j && MOTIVO_AUTO.test(String(j.motivo || '')) && String(j.fecha || '') >= hoy);
+  if(!sobran.length) return 0;
+
+  const dias = [...new Set(sobran.map(j => j.fecha))].sort();
+  const fuera = new Set(sobran.map(j => j.id));
+  jornadasEspeciales = jornadasEspeciales.filter(j => !fuera.has(j.id));
+  for(const id of fuera){
+    try{ await _db.collection('jornadas_especiales').doc(id).delete(); }
+    catch(e){ console.warn('limpiar jornada:', e.message); }
+  }
+  window._jeUltimaCarga = 0;      // la próxima publicación relee
+  console.log(`🧹 ${fuera.size} horario(s) movidos solos: devueltos a su programación`);
+  try{ render(); }catch(_){}
+  await publicarHorarios(dias, 'horarios devueltos a su programación');
+  mostrarAvisoBreve(`${dias.length} día${dias.length===1?'':'s'} tenía${dias.length===1?'':'n'} ` +
+    `el horario movido solo · devuelto a su programación`);
+  return fuera.size;
+}
+window.limpiarJornadasCorridas = limpiarJornadasCorridas;
 
 // ── QUE SE CORRA SOLO ─────────────────────────────────────────────────────
 //
@@ -13095,10 +13218,11 @@ async function saveEvent(){
   // llegaba nunca al sistema de citas. Ahora se revisa PRIMERO y se publica una
   // sola vez, ya con el horario corregido.
   (async () => {
-    if(isRealAppt){
-      try{ await nvRevisarFueraDeJornada(ev); }
-      catch(e){ console.warn('revisar jornada:', e.message); }
-    }
+    // Acá se corregía el horario solo: si la cita no cabía en la franja, se
+    // alargaba esa sede y se corría la otra. Ya no. Una cita a deshora no es una
+    // orden para reescribir el día; ocupa su rato y su traslado, y de eso se
+    // encarga el cálculo de huecos. Lo único que queda es decirlo.
+    if(isRealAppt) avisarFueraDeHorario(ev);
     // Si la revisión ya alargó y publicó, esto solo confirma; si no hubo nada
     // que alargar, es la publicación normal de la cita.
     await publicarHorarios([date], 'cita guardada');
@@ -15352,6 +15476,8 @@ async function init(){
       }catch(e){ console.warn('jornadasEspeciales load:', e.message); }
     }
     _jornadasListas = true; // ← las jornadas están listas, ahora sí se puede publicar
+    // Los horarios que el automático dejó movidos, de vuelta a su programación.
+    limpiarJornadasCorridas().catch(e => console.warn('limpiar jornadas:', e.message));
     // El mes en curso de horas de salida, para que la pantalla del día muestre
     // lo ya anotado sin esperar a que alguien abra Estadísticas.
     cargarSalidasAsis([todayKey().slice(0,7)])
