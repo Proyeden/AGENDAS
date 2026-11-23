@@ -2821,7 +2821,7 @@ const dateKey = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,
 // segundo plano) se actualiza sin que nadie la cierre a mano. Cuando se sube una
 // versión nueva, se toca el botón "Publicar versión" (o se corre publicarVersion)
 // para avisar a las demás.
-const APP_VERSION = 159;
+const APP_VERSION = 162;
 let _recargando = false;
 
 async function chequearVersion(){
@@ -6350,8 +6350,11 @@ function nvModeloDia(profId, fecha){
                  de:SEDE_POR_CLAVE[anterior.clinica]?.nombre,
                  a:SEDE_POR_CLAVE[f.clinica]?.nombre,
                  // Las claves, para saber de qué lado de este viaje cae una
-                 // cita que se monte encima.
-                 deClave:anterior.clinica, aClave:f.clinica });
+                 // cita que se monte encima. `deIni` y `base` son de dónde
+                 // salió este bloque antes de que nada lo mueva: con eso se
+                 // sabe qué citas le tocan a ESTE viaje y no a otro del día.
+                 deClave:anterior.clinica, aClave:f.clinica,
+                 deIni:anterior.ini, base:anterior.fin });
     }
     const sede = SEDE_POR_CLAVE[f.clinica]?.nombre || '';
     // Recorrer la franja repartiendo entre ocupado y libre
@@ -6512,6 +6515,47 @@ function nvModeloDia(profId, fecha){
         }
       }
     }
+  }
+
+  // ── EL VIAJE SE HACE ANTES DEL PRIMER PACIENTE QUE HAY ALLÁ ────────────
+  //
+  // El hueco entre dos franjas de distinta sede se dibuja como traslado, y eso
+  // vale mientras nada diga dónde se está. Pero si ya hay un paciente en la
+  // sede de DESTINO antes de que ese hueco termine, el viaje tuvo que hacerse
+  // antes: a las 16:15 ya estaba en San Cristóbal, así que un traslado a San
+  // Cristóbal dibujado a las 16:45 es un segundo viaje al mismo lugar, encima
+  // de una consulta que ocurre allá.
+  //
+  // No se borra: se pone donde de verdad va, pegado a esa primera cita, y con
+  // los minutos REALES del trayecto —no los que el horario haya dejado de
+  // hueco, que pueden ser más—. Así coincide con el traslado que ya se dibujó
+  // por esa cita y los dos se funden en uno.
+  const _TRprof = { ...TRASLADOS, ...((PROFESIONALES[profId] || {}).traslados || {}) };
+  const _minsEntre = (x, y) => {
+    const a = SEDE_POR_CLAVE[x], c = SEDE_POR_CLAVE[y];
+    return (a && c && _TRprof[`${a.id}>${c.id}`]) || 0;
+  };
+  for(let i = out.length - 1; i >= 0; i--){
+    const b = out[i];
+    if(b.t !== 'tr' || b.porCita || !b.aClave) continue;
+    // Solo las citas que le tocan a ESTE viaje: las que caen entre que empieza
+    // la sede de la que sale y que termina el traslado. Un paciente que estuvo
+    // en esa sede por la mañana no dice nada del viaje de la tarde.
+    const base = (b.base != null) ? b.base : b.ini;
+    const desde = (b.deIni != null) ? b.deIni : base;
+    const alla = ocup.filter(o => !o.bloqueo && o.tipo === b.aClave &&
+                                  o.ini >= desde && o.ini < b.fin);
+    if(!alla.length) continue;
+    const llega = Math.min(...alla.map(o => o.ini));
+    if(llega <= base){
+      // Ya estaba allá antes de que este hueco empezara: el viaje se hizo
+      // antes y ya quedó dibujado junto a esa cita. Este bloque sobra.
+      out.splice(i, 1);
+      continue;
+    }
+    const dur = _minsEntre(b.deClave, b.aClave) || (b.fin - b.ini);
+    b.fin = llega; b.ini = llega - dur;
+    b.corrido = true; b.haciaAtras = true;
   }
 
   // Un mismo viaje puede salir por dos lados: el hueco entre franjas y el
